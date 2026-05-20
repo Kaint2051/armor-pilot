@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 VARMOR_CLUSTER_PLURAL = "varmorclusterpolicies"
+ARMOR_PROFILE_MODEL_PLURAL = "armorprofilemodels"
 
 HARDENING_RULES = frozenset([
     "disallow-write-core-pattern", "disallow-mount-securityfs", "disallow-mount-procfs",
@@ -123,6 +124,86 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
     return ep
 
 
+def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str) -> tuple:
+    """Parse request body and build a CRD manifest. Returns (manifest_dict, error_str_or_None)."""
+    target_kind = (body.get("target_kind") or "Deployment").strip()
+    target_name = (body.get("target_deployment") or "").strip()
+    target_selector_raw: dict = body.get("target_selector") or {}
+    target_containers: list = [c.strip() for c in body.get("target_containers") or [] if str(c).strip()]
+    mode = (body.get("mode") or "EnhanceProtect").strip()
+    enforcers: list = body.get("enforcers") or ["AppArmor"]
+    rules: list = body.get("rules") or []
+    banned_files: list = body.get("banned_files") or []
+    bpf_file_rules: list = body.get("bpf_file_rules") or []
+    bpf_process_rules: list = body.get("bpf_process_rules") or []
+    seccomp_syscalls: list = [s.strip() for s in body.get("seccomp_syscalls") or [] if str(s).strip()]
+    seccomp_action: str = body.get("seccomp_action") or "SCMP_ACT_ERRNO"
+    modeling_duration: int = int(body.get("modeling_duration") or 3600)
+    update_existing = bool(body.get("update_existing_workloads", False))
+    audit_violations = bool(body.get("audit_violations", False))
+    allow_violations = bool(body.get("allow_violations", False))
+
+    if mode not in VALID_MODES:
+        return None, f"Invalid mode '{mode}'"
+    if target_kind not in VALID_KINDS:
+        return None, f"Invalid target_kind '{target_kind}'"
+
+    target_selector = None
+    if target_selector_raw and target_selector_raw.get("matchLabels"):
+        labels = {k: v for k, v in target_selector_raw["matchLabels"].items() if k and v}
+        if labels:
+            target_selector = {"matchLabels": labels}
+
+    if not target_name and not target_selector:
+        return None, "Provide 'target_deployment' (name) or 'target_selector' (label selector)"
+
+    target: dict = {"kind": target_kind}
+    if target_selector:
+        target["selector"] = target_selector
+    else:
+        target["name"] = target_name
+    if target_containers:
+        target["containers"] = target_containers
+
+    enforcer_str = "|".join(enforcers) if enforcers else "AppArmor"
+    spec_policy: dict = {"enforcer": enforcer_str, "mode": mode}
+
+    if mode == "EnhanceProtect":
+        ep = _build_enhance_protect(
+            rules, banned_files, bpf_file_rules, bpf_process_rules,
+            seccomp_syscalls, seccomp_action, enforcers,
+            audit_violations, allow_violations,
+        )
+        if not ep:
+            return None, "EnhanceProtect policy must have at least one rule, banned file, or raw rule"
+        spec_policy["enhanceProtect"] = ep
+    elif mode == "BehaviorModeling":
+        spec_policy["modelingOptions"] = {"duration": modeling_duration}
+
+    spec: dict = {
+        "updateExistingWorkloads": update_existing,
+        "target": target,
+        "policy": spec_policy,
+    }
+
+    if scope == "cluster":
+        manifest = {
+            "apiVersion": f"{VARMOR_GROUP}/{VARMOR_VERSION}",
+            "kind": "VarmorClusterPolicy",
+            "metadata": {"name": name},
+            "spec": spec,
+        }
+    else:
+        manifest = {
+            "apiVersion": f"{VARMOR_GROUP}/{VARMOR_VERSION}",
+            "kind": "VarmorPolicy",
+            "metadata": {"name": name, "namespace": namespace},
+            "spec": spec,
+        }
+
+    return manifest, None
+
+
 # ---------------------------------------------------------------------------
 # Deployments sidebar
 # ---------------------------------------------------------------------------
@@ -213,7 +294,7 @@ def list_workloads(namespace: str):
 
 
 # ---------------------------------------------------------------------------
-# Namespace Policies – list / get / create / delete
+# Namespace Policies – list / get / create / update / delete
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/namespaces/<namespace>/policies", methods=["GET"])
@@ -252,6 +333,47 @@ def get_policy(namespace: str, name: str):
         return jsonify({"error": str(exc)}), 500
 
 
+@api_bp.route("/namespaces/<namespace>/policies/<name>", methods=["PUT"])
+@require_auth
+def update_policy(namespace: str, name: str):
+    user = get_current_user()
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body must be valid JSON"}), 400
+
+    try:
+        existing = custom_objects().get_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=VARMOR_PLURAL, name=name,
+        )
+    except ApiException as exc:
+        if exc.status == 404:
+            return jsonify({"error": f"Policy '{name}' not found"}), 404
+        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+
+    resource_version = existing.get("metadata", {}).get("resourceVersion", "")
+    manifest, err = _build_manifest_from_body(body, "namespace", name, namespace)
+    if err:
+        return jsonify({"error": err}), 400
+
+    manifest["metadata"]["resourceVersion"] = resource_version
+    try:
+        custom_objects().replace_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=VARMOR_PLURAL, name=name, body=manifest,
+        )
+        audit_logger.log(user, "UPDATE", name, namespace, "SUCCESS")
+        return jsonify({"message": f"Policy '{name}' updated successfully"})
+    except ApiException as exc:
+        audit_logger.log(user, "UPDATE", name, namespace, "FAILURE", exc.reason or str(exc.status))
+        logger.error("K8s error updating policy %s/%s: %s", namespace, name, exc)
+        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+    except Exception as exc:
+        audit_logger.log(user, "UPDATE", name, namespace, "FAILURE", str(exc))
+        logger.exception("Unexpected error updating policy %s/%s", namespace, name)
+        return jsonify({"error": str(exc)}), 500
+
+
 @api_bp.route("/namespaces/<namespace>/policies/<name>", methods=["DELETE"])
 @require_auth
 def delete_policy(namespace: str, name: str):
@@ -274,7 +396,7 @@ def delete_policy(namespace: str, name: str):
 
 
 # ---------------------------------------------------------------------------
-# Cluster Policies – list / get / delete
+# Cluster Policies – list / get / update / delete
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/cluster-policies", methods=["GET"])
@@ -309,6 +431,47 @@ def get_cluster_policy(name: str):
         return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error getting cluster policy %s", name)
+        return jsonify({"error": str(exc)}), 500
+
+
+@api_bp.route("/cluster-policies/<name>", methods=["PUT"])
+@require_auth
+def update_cluster_policy(name: str):
+    user = get_current_user()
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body must be valid JSON"}), 400
+
+    try:
+        existing = custom_objects().get_cluster_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            plural=VARMOR_CLUSTER_PLURAL, name=name,
+        )
+    except ApiException as exc:
+        if exc.status == 404:
+            return jsonify({"error": f"Cluster policy '{name}' not found"}), 404
+        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+
+    resource_version = existing.get("metadata", {}).get("resourceVersion", "")
+    manifest, err = _build_manifest_from_body(body, "cluster", name, "")
+    if err:
+        return jsonify({"error": err}), 400
+
+    manifest["metadata"]["resourceVersion"] = resource_version
+    try:
+        custom_objects().replace_cluster_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            plural=VARMOR_CLUSTER_PLURAL, name=name, body=manifest,
+        )
+        audit_logger.log(user, "UPDATE", name, "cluster", "SUCCESS")
+        return jsonify({"message": f"Cluster policy '{name}' updated successfully"})
+    except ApiException as exc:
+        audit_logger.log(user, "UPDATE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
+        logger.error("K8s error updating cluster policy %s: %s", name, exc)
+        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+    except Exception as exc:
+        audit_logger.log(user, "UPDATE", name, "cluster", "FAILURE", str(exc))
+        logger.exception("Unexpected error updating cluster policy %s", name)
         return jsonify({"error": str(exc)}), 500
 
 
@@ -349,22 +512,6 @@ def create_policy():
     name = _sanitize_name(raw_name)
     namespace = (body.get("namespace") or "default").strip()
     scope = (body.get("scope") or "namespace").strip()
-    target_kind = (body.get("target_kind") or "Deployment").strip()
-    target_name = (body.get("target_deployment") or "").strip()
-    target_selector_raw: dict = body.get("target_selector") or {}
-    target_containers: list = [c.strip() for c in body.get("target_containers") or [] if str(c).strip()]
-    mode = (body.get("mode") or "EnhanceProtect").strip()
-    enforcers: list = body.get("enforcers") or ["AppArmor"]
-    rules: list = body.get("rules") or []
-    banned_files: list = body.get("banned_files") or []
-    bpf_file_rules: list = body.get("bpf_file_rules") or []
-    bpf_process_rules: list = body.get("bpf_process_rules") or []
-    seccomp_syscalls: list = [s.strip() for s in body.get("seccomp_syscalls") or [] if str(s).strip()]
-    seccomp_action: str = body.get("seccomp_action") or "SCMP_ACT_ERRNO"
-    modeling_duration: int = int(body.get("modeling_duration") or 3600)
-    update_existing = bool(body.get("update_existing_workloads", False))
-    audit_violations = bool(body.get("audit_violations", False))
-    allow_violations = bool(body.get("allow_violations", False))
 
     if not name:
         return jsonify({"error": "Policy name is required and must contain at least one alphanumeric character"}), 400
@@ -372,58 +519,12 @@ def create_policy():
         return jsonify({"error": f"Policy name too long ({len(name)} chars); max 63 after sanitization"}), 400
     if scope not in ("namespace", "cluster"):
         return jsonify({"error": "scope must be 'namespace' or 'cluster'"}), 400
-    if mode not in VALID_MODES:
-        return jsonify({"error": f"Invalid mode '{mode}'"}), 400
-    if target_kind not in VALID_KINDS:
-        return jsonify({"error": f"Invalid target_kind '{target_kind}'"}), 400
 
-    # target: name or selector (mutually exclusive)
-    target_selector = None
-    if target_selector_raw and target_selector_raw.get("matchLabels"):
-        labels = {k: v for k, v in target_selector_raw["matchLabels"].items() if k and v}
-        if labels:
-            target_selector = {"matchLabels": labels}
-
-    if not target_name and not target_selector:
-        return jsonify({"error": "Provide 'target_deployment' (name) or 'target_selector' (label selector)"}), 400
-
-    target: dict = {"kind": target_kind}
-    if target_selector:
-        target["selector"] = target_selector
-    else:
-        target["name"] = target_name
-    if target_containers:
-        target["containers"] = target_containers
-
-    # Build policy spec
-    enforcer_str = "|".join(enforcers) if enforcers else "AppArmor"
-    spec_policy: dict = {"enforcer": enforcer_str, "mode": mode}
-
-    if mode == "EnhanceProtect":
-        ep = _build_enhance_protect(
-            rules, banned_files, bpf_file_rules, bpf_process_rules,
-            seccomp_syscalls, seccomp_action, enforcers,
-            audit_violations, allow_violations,
-        )
-        if not ep:
-            return jsonify({"error": "EnhanceProtect policy must have at least one rule, banned file, or raw rule"}), 400
-        spec_policy["enhanceProtect"] = ep
-    elif mode == "BehaviorModeling":
-        spec_policy["modelingOptions"] = {"duration": modeling_duration}
-
-    spec: dict = {
-        "updateExistingWorkloads": update_existing,
-        "target": target,
-        "policy": spec_policy,
-    }
+    manifest, err = _build_manifest_from_body(body, scope, name, namespace)
+    if err:
+        return jsonify({"error": err}), 400
 
     if scope == "cluster":
-        manifest = {
-            "apiVersion": f"{VARMOR_GROUP}/{VARMOR_VERSION}",
-            "kind": "VarmorClusterPolicy",
-            "metadata": {"name": name},
-            "spec": spec,
-        }
         try:
             created = custom_objects().create_cluster_custom_object(
                 group=VARMOR_GROUP, version=VARMOR_VERSION,
@@ -441,12 +542,6 @@ def create_policy():
             logger.exception("Unexpected error creating cluster policy %s", name)
             return jsonify({"error": str(exc)}), 500
     else:
-        manifest = {
-            "apiVersion": f"{VARMOR_GROUP}/{VARMOR_VERSION}",
-            "kind": "VarmorPolicy",
-            "metadata": {"name": name, "namespace": namespace},
-            "spec": spec,
-        }
         try:
             created = custom_objects().create_namespaced_custom_object(
                 group=VARMOR_GROUP, version=VARMOR_VERSION,
@@ -466,6 +561,77 @@ def create_policy():
             audit_logger.log(user, "CREATE", name, namespace, "FAILURE", str(exc))
             logger.exception("Unexpected error creating policy %s/%s", namespace, name)
             return jsonify({"error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Audit log viewer
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/audit-logs", methods=["GET"])
+@require_auth
+def get_audit_logs():
+    limit = min(int(request.args.get("limit", 100)), 500)
+    return jsonify({"events": audit_logger.get_events()[:limit]})
+
+
+# ---------------------------------------------------------------------------
+# ArmorProfileModel – list / get
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/namespaces/<namespace>/profile-models", methods=["GET"])
+@require_auth
+def list_profile_models(namespace: str):
+    try:
+        raw = custom_objects().list_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL,
+        )
+    except ApiException as exc:
+        logger.error("K8s error listing profile models in %s: %s", namespace, exc)
+        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error listing profile models in %s", namespace)
+        return jsonify({"error": str(exc)}), 500
+
+    models = []
+    for item in raw.get("items", []):
+        meta = item.get("metadata", {})
+        status_obj = item.get("status", {})
+        conditions = status_obj.get("conditions", [])
+        phase = "Unknown"
+        for cond in conditions:
+            if cond.get("type") == "Completed" and cond.get("status") == "True":
+                phase = "Completed"
+                break
+            if cond.get("type") == "Ready" and cond.get("status") == "True":
+                phase = "Ready"
+                break
+        if phase == "Unknown" and status_obj.get("phase"):
+            phase = status_obj["phase"]
+        models.append({
+            "name": meta.get("name", ""),
+            "namespace": meta.get("namespace", namespace),
+            "created_at": meta.get("creationTimestamp", ""),
+            "phase": phase,
+        })
+    return jsonify({"models": models})
+
+
+@api_bp.route("/namespaces/<namespace>/profile-models/<name>", methods=["GET"])
+@require_auth
+def get_profile_model(namespace: str, name: str):
+    try:
+        item = custom_objects().get_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL, name=name,
+        )
+        return jsonify(item)
+    except ApiException as exc:
+        logger.error("K8s error getting profile model %s/%s: %s", namespace, name, exc)
+        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error getting profile model %s/%s", namespace, name)
+        return jsonify({"error": str(exc)}), 500
 
 
 # ---------------------------------------------------------------------------
