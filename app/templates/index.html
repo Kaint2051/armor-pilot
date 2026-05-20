@@ -14,6 +14,7 @@
     .form-input{width:100%;background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:.5rem .75rem;color:#f1f5f9;font-size:.875rem;line-height:1.5;outline:none;box-sizing:border-box;transition:border-color 150ms,box-shadow 150ms}
     .form-input::placeholder{color:#475569}
     .form-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+    .form-input[readonly]{opacity:.65;cursor:not-allowed}
     .form-input:-webkit-autofill,.form-input:-webkit-autofill:hover,.form-input:-webkit-autofill:focus{-webkit-text-fill-color:#f1f5f9;-webkit-box-shadow:0 0 0 1000px #1e293b inset;caret-color:#f1f5f9;transition:background-color 5000s ease-in-out 0s}
     .form-input option{background:#1e293b;color:#f1f5f9}
     .cb-row{display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none}
@@ -28,6 +29,7 @@
     .btn:hover:not(:disabled){filter:brightness(1.12)}
     .btn:disabled{opacity:.55;cursor:not-allowed}
     .btn-primary{background:#2563eb;color:#fff}
+    .btn-warning{background:#d97706;color:#fff}
     .btn-danger{background:#dc2626;color:#fff}
     .btn-ghost{background:transparent;color:#94a3b8;border:1px solid #334155}
     .btn-cyan{background:#0284c7;color:#fff}
@@ -40,6 +42,7 @@
     .badge-purple{background:#2e1065;color:#c4b5fd;border:1px solid #6d28d9}
     .badge-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
     .badge-red{background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d}
+    .badge-orange{background:#431407;color:#fb923c;border:1px solid #9a3412}
     .step{display:flex;align-items:center;gap:.5rem;font-size:.8125rem;font-family:monospace;color:#64748b}
     .rule-group{border:1px solid #334155;border-radius:.75rem;overflow:hidden}
     .rule-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:.625rem .875rem;background:#0f172a;cursor:pointer;user-select:none}
@@ -49,6 +52,10 @@
     .bpf-row{display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:center;margin-bottom:.375rem}
     .perm-check{display:inline-flex;align-items:center;gap:.2rem;font-size:.75rem;color:#94a3b8;cursor:pointer}
     .perm-check input{accent-color:#3b82f6;width:.875rem;height:.875rem}
+    .edit-banner{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.625rem 1rem;border-radius:.75rem;margin-bottom:1rem;background:#1c1205;border:1px solid #d97706}
+    .collapsible-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:.375rem 0}
+    .collapsible-hdr:hover .collapsible-title{color:#f1f5f9}
+    .collapsible-title{color:#94a3b8;transition:color 150ms}
   </style>
 </head>
 <body class="min-h-screen">
@@ -110,12 +117,22 @@
       <!-- LEFT 8 cols -->
       <div class="col-span-12 xl:col-span-8 space-y-6">
 
-        <!-- CREATE POLICY -->
+        <!-- CREATE / EDIT POLICY -->
         <section class="card">
-          <h2 class="text-base font-semibold flex items-center gap-2 mb-5" style="color:#f1f5f9">
+          <h2 id="form-title" class="text-base font-semibold flex items-center gap-2 mb-5" style="color:#f1f5f9">
             <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
             Create Policy
           </h2>
+
+          <!-- Edit mode banner -->
+          <div id="edit-banner" class="hidden edit-banner">
+            <div>
+              <span style="font-size:.8rem;color:#d97706;font-weight:600">&#9998; Editing Policy:</span>
+              <span id="edit-banner-name" class="font-mono text-sm ml-2" style="color:#fbbf24"></span>
+            </div>
+            <button type="button" onclick="cancelEdit()" class="btn btn-ghost btn-sm">&#10005; Cancel</button>
+          </div>
+
           <form id="form-create" novalidate>
 
             <!-- Scope -->
@@ -126,7 +143,7 @@
               </label>
               <label class="cb-row">
                 <input type="radio" name="scope" value="cluster" onchange="onScopeChange()">
-                <span style="color:#c4b5fd;font-weight:600">Cluster <span class="dim">(VarmorClusterPolicy — applies across all namespaces)</span></span>
+                <span style="color:#c4b5fd;font-weight:600">Cluster <span class="dim">(VarmorClusterPolicy)</span></span>
               </label>
             </div>
 
@@ -368,14 +385,15 @@
 
             <!-- Progress -->
             <div id="create-progress" class="hidden mb-4 p-4 rounded-xl space-y-2" style="background:#0f172a;border:1px solid #1e293b">
-              <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Creating policy CRD&#8230;</span></div>
+              <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Applying policy CRD&#8230;</span></div>
               <div id="step-restart" class="step"><span id="icon-restart">&#9675;</span><span>Labeling &amp; restarting deployment&#8230;</span></div>
             </div>
             <div id="create-msg" class="hidden mb-4"></div>
-            <div class="flex justify-end">
+            <div class="flex justify-end gap-3">
+              <button type="button" id="btn-cancel-edit" class="hidden btn btn-ghost" onclick="cancelEdit()">Cancel Edit</button>
               <button type="submit" id="btn-create" class="btn btn-primary">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Apply Policy
+                <span id="btn-create-label">Apply Policy</span>
               </button>
             </div>
           </form>
@@ -414,6 +432,77 @@
             </table>
           </div>
         </section>
+
+        <!-- AUDIT LOG -->
+        <section class="card">
+          <div class="collapsible-hdr" onclick="toggleSection('audit-content','audit-arr')">
+            <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+              <svg class="w-5 h-5" style="color:#fb923c" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Audit Log
+            </h2>
+            <div class="flex items-center gap-2">
+              <button onclick="event.stopPropagation();loadAuditLogs()" class="btn btn-ghost btn-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+              </button>
+              <span id="audit-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
+            </div>
+          </div>
+          <div id="audit-content" class="mt-4">
+            <div id="audit-loading" class="hidden py-6 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="audit-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No audit events recorded yet.</div>
+            <div id="audit-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th">Time</th><th class="th">User</th><th class="th">Action</th>
+                    <th class="th">Policy</th><th class="th">Namespace</th><th class="th">Status</th><th class="th">Details</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- BEHAVIOR MODELS -->
+        <section class="card">
+          <div class="collapsible-hdr" onclick="toggleSection('models-content','models-arr')">
+            <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+              <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+              Behavior Models <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(ArmorProfileModel)</span>
+            </h2>
+            <div class="flex items-center gap-2">
+              <button onclick="event.stopPropagation();loadProfileModels()" class="btn btn-ghost btn-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+              </button>
+              <span id="models-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
+            </div>
+          </div>
+          <div id="models-content" class="mt-4">
+            <div id="models-loading" class="hidden py-6 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="models-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfileModels in this namespace.</div>
+            <div id="models-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th">Name</th><th class="th">Phase</th><th class="th">Created</th><th class="th th-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="models-body"></tbody>
+              </table>
+            </div>
+            <p class="mt-3 text-xs" style="color:#475569">ArmorProfileModels are generated automatically when a BehaviorModeling policy completes its observation period.</p>
+          </div>
+        </section>
+
       </div>
 
       <!-- RIGHT 4 cols -->
@@ -468,7 +557,7 @@
   </div>
 </div>
 
-<!-- DETAIL MODAL -->
+<!-- DETAIL MODAL (Policy) -->
 <div id="modal-detail" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4 flex flex-col" style="max-width:52rem;max-height:85vh;border-color:#475569">
     <div class="flex items-center justify-between mb-4 flex-shrink-0">
@@ -486,12 +575,31 @@
   </div>
 </div>
 
+<!-- MODEL DETAIL MODAL (ArmorProfileModel) -->
+<div id="modal-model" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:56rem;max-height:85vh;border-color:#166534">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <div>
+        <h3 class="text-base font-semibold" style="color:#f1f5f9">Behavior Model Detail</h3>
+        <p id="model-detail-name" class="font-mono text-sm mt-0.5" style="color:#4ade80"></p>
+      </div>
+      <button onclick="closeModelModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <div id="model-detail-loading" class="py-8 flex justify-center">
+      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    </div>
+    <div id="model-detail-err" class="hidden p-3 rounded-lg text-sm mb-2" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div id="model-detail-body" class="hidden flex-1 overflow-auto rounded-lg p-4 text-xs font-mono" style="background:#0f172a;border:1px solid #334155;color:#4ade80;min-height:12rem;white-space:pre-wrap;word-break:break-all"></div>
+  </div>
+</div>
+
 <script>
 "use strict";
 var AUTH_HEADER=null,CURRENT_USER=null;
 var pendingDel={name:null,ns:null,scope:null};
 var pendingProtect={name:null,ns:null};
 var allPolicies=[];
+var editMode=null; // {name, ns, scope} when editing
 
 window.addEventListener("DOMContentLoaded",function(){
   updateRuleCounts();
@@ -527,12 +635,10 @@ async function api(path,opts){
 }
 
 function ns(){return $("inp-ns").value.trim()||"default";}
-function loadAll(){loadDeployments();loadPolicies();}
+function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadProfileModels();}
 
 // ── Scope / mode / target toggles ──
-function onScopeChange(){
-  // Cluster scope: namespace field not relevant (grayed info only)
-}
+function onScopeChange(){}
 function onModeChange(){
   var m=$("sel-mode").value;
   toggleVis("sec-enhance",m==="EnhanceProtect");
@@ -572,16 +678,18 @@ async function loadWorkloadsForKind(kind){
 }
 
 // ── BPF raw rules dynamic rows ──
-function addBpfRow(containerId){
+function addBpfRow(containerId,pattern,permissions){
   var div=document.createElement("div");
   div.className="bpf-row";
-  div.innerHTML='<input type="text" class="form-input" placeholder="/etc/** or /bin/sh" style="font-family:monospace;font-size:.8rem"/>'
+  var perms=permissions||[];
+  function chk(v){return(perms.length===0&&v==="read")||perms.includes(v)?'checked':'';}
+  div.innerHTML='<input type="text" class="form-input" value="'+esc(pattern||'')+'" placeholder="/etc/** or /bin/sh" style="font-family:monospace;font-size:.8rem"/>'
     +'<div style="display:flex;gap:.375rem;flex-shrink:0">'
-    +'<label class="perm-check"><input type="checkbox" value="read" checked> r</label>'
-    +'<label class="perm-check"><input type="checkbox" value="write"> w</label>'
-    +'<label class="perm-check"><input type="checkbox" value="append"> a</label>'
-    +'<label class="perm-check"><input type="checkbox" value="exec"> e</label>'
-    +'<label class="perm-check"><input type="checkbox" value="all"> *</label>'
+    +'<label class="perm-check"><input type="checkbox" value="read" '+chk("read")+'>r</label>'
+    +'<label class="perm-check"><input type="checkbox" value="write" '+chk("write")+'>w</label>'
+    +'<label class="perm-check"><input type="checkbox" value="append" '+chk("append")+'>a</label>'
+    +'<label class="perm-check"><input type="checkbox" value="exec" '+chk("exec")+'>e</label>'
+    +'<label class="perm-check"><input type="checkbox" value="all" '+chk("all")+'>*</label>'
     +'</div>'
     +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove()">&#10005;</button>';
   $(containerId).appendChild(div);
@@ -598,6 +706,135 @@ function collectBpfRules(containerId){
     result.push({pattern:pattern,permissions:perms});
   });
   return result;
+}
+
+// ── Edit mode ──
+async function loadPolicyForEdit(el){
+  var name=el.dataset.name,namespace=el.dataset.ns,scope=el.dataset.scope||"namespace";
+  var path=scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(name)
+    :"/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name);
+  try{
+    var res=await api(path);var crd=await res.json();
+    if(!res.ok){alert("Cannot load policy: "+(crd.error||"unknown"));return;}
+    editMode={name:name,ns:namespace,scope:scope};
+    parseSpecIntoForm(crd,scope,name);
+    show("edit-banner");show("btn-cancel-edit");
+    $("edit-banner-name").textContent=(scope==="cluster"?"[cluster] ":namespace+"/")+name;
+    $("btn-create-label").textContent="Update Policy";
+    $("form-title").innerHTML='<svg class="w-5 h-5" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Edit Policy';
+    $("inp-pname").readOnly=true;
+    $("inp-pname").value=name;
+    document.querySelectorAll('input[name="scope"]').forEach(function(r){r.disabled=true;r.checked=(r.value===scope);});
+    $("form-create").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(err){alert("Error loading policy: "+err.message);}
+}
+
+function parseSpecIntoForm(crd,scope,name){
+  var spec=crd.spec||{};
+  var pol=spec.policy||{};
+  var target=spec.target||{};
+  var ep=pol.enhanceProtect||{};
+
+  // Reset to clean slate first
+  $("form-create").reset();
+  $("bpf-files").innerHTML="";$("bpf-procs").innerHTML="";
+  document.querySelectorAll('input[name="rule"]').forEach(function(c){c.checked=false;});
+  document.querySelectorAll('input[name="enforcer"]').forEach(function(c){c.checked=false;});
+
+  // Mode
+  $("sel-mode").value=pol.mode||"EnhanceProtect";
+  onModeChange();
+
+  // Enforcers
+  var enfStr=pol.enforcer||"AppArmor";
+  enfStr.split("|").forEach(function(e){
+    var el=document.querySelector('input[name="enforcer"][value="'+e.trim()+'"]');
+    if(el) el.checked=true;
+  });
+  onEnforcerChange();
+
+  // Target kind
+  $("sel-kind").value=target.kind||"Deployment";
+
+  // Target by name vs selector
+  if(target.selector&&target.selector.matchLabels){
+    document.querySelector('input[name="tgt-mode"][value="selector"]').checked=true;
+    onTargetModeChange();
+    var lines=Object.entries(target.selector.matchLabels).map(function(kv){return kv[0]+"="+kv[1];});
+    $("ta-selector").value=lines.join("\n");
+  } else {
+    document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
+    onTargetModeChange();
+    // Populate workload dropdown with at least the current target name
+    var opt=document.createElement("option");opt.value=target.name||"";opt.textContent=target.name||"";opt.selected=true;
+    $("sel-target").innerHTML="";$("sel-target").appendChild(opt);
+    loadWorkloadsForKind($("sel-kind").value).then(function(){
+      if(target.name) $("sel-target").value=target.name;
+    });
+  }
+
+  // Containers
+  if(target.containers&&target.containers.length) $("inp-containers").value=target.containers.join(", ");
+
+  // updateExistingWorkloads
+  $("chk-update-existing").checked=!!spec.updateExistingWorkloads;
+
+  // EnhanceProtect rules
+  var allRules=[];
+  (ep.hardeningRules||[]).forEach(function(r){allRules.push(r);});
+  (ep.vulMitigationRules||[]).forEach(function(r){allRules.push(r);});
+  (ep.attackProtectionRules||[]).forEach(function(g){(g.rules||[]).forEach(function(r){allRules.push(r);});});
+  allRules.forEach(function(r){
+    var el=document.querySelector('input[name="rule"][value="'+r+'"]');
+    if(el) el.checked=true;
+  });
+  updateRuleCounts();
+
+  // Banned files (appArmorRawRules)
+  var bannedLines=(ep.appArmorRawRules||[]).map(function(r){
+    return (r.rules||"").replace(/^deny\s+/,"").replace(/\s+\S+,\s*$/,"").trim();
+  }).filter(Boolean);
+  $("ta-banned").value=bannedLines.join("\n");
+
+  // Audit/allow violations
+  $("chk-audit-viol").checked=!!ep.auditViolations;
+  $("chk-allow-viol").checked=!!ep.allowViolations;
+
+  // BPF raw rules
+  (ep.bpfRawRules||[]).forEach(function(bpfObj){
+    (bpfObj.files||[]).forEach(function(fr){addBpfRow("bpf-files",fr.pattern,fr.permissions);});
+    (bpfObj.processes||[]).forEach(function(pr){addBpfRow("bpf-procs",pr.pattern,pr.permissions);});
+  });
+
+  // Seccomp raw rules
+  var sr=(ep.syscallRawRules||[])[0];
+  if(sr){
+    $("ta-seccomp").value=(sr.names||[]).join("\n");
+    if(sr.action) $("sel-seccomp-action").value=sr.action;
+  }
+
+  // BehaviorModeling duration (CRD stores seconds, form shows minutes)
+  var dur=(pol.modelingOptions||{}).duration||3600;
+  $("inp-duration").value=Math.round(dur/60);
+}
+
+function cancelEdit(){
+  editMode=null;
+  $("inp-pname").readOnly=false;
+  document.querySelectorAll('input[name="scope"]').forEach(function(r){r.disabled=false;});
+  hide("edit-banner");hide("btn-cancel-edit");
+  $("btn-create-label").textContent="Apply Policy";
+  $("form-title").innerHTML='<svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Create Policy';
+  $("form-create").reset();
+  document.querySelector('input[name="enforcer"][value="AppArmor"]').checked=true;
+  $("chk-auto-restart").checked=true;
+  $("sel-mode").value="EnhanceProtect";
+  onModeChange();onEnforcerChange();updateRuleCounts();
+  $("bpf-files").innerHTML="";$("bpf-procs").innerHTML="";
+  document.querySelector('input[name="scope"][value="namespace"]').checked=true;
+  document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
+  onTargetModeChange();
+  hideEl($("create-msg"));
 }
 
 // ── Deployments sidebar ──
@@ -674,7 +911,8 @@ function renderPolicies(pols){
     var tgtKind=tgt.kind?('<div style="font-size:.7rem;color:#475569">'+esc(tgt.kind)+'</div>'):"";
     var enfs=(p.enforcer||"").split("|").filter(Boolean);
     var enfBadges=enfs.length?enfs.map(function(e){return'<span class="badge badge-blue" style="margin-right:2px">'+esc(e)+'</span>';}).join(""):'<span class="badge badge-gray">&#8212;</span>';
-    var viewBtn='<button onclick="openDetailModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-ghost btn-sm" style="margin-right:4px">View</button>';
+    var editBtn='<button onclick="loadPolicyForEdit(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>';
+    var viewBtn='<button onclick="openDetailModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-ghost btn-sm" style="margin-right:2px">View</button>';
     var delBtn='<button onclick="openDelModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>';
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
@@ -687,7 +925,7 @@ function renderPolicies(pols){
       +'<td class="td">'+enfBadges+'</td>'
       +'<td class="td">'+sb+'</td>'
       +'<td class="td" style="color:#475569;font-size:.75rem">'+cr+'</td>'
-      +'<td class="td th-r" style="white-space:nowrap">'+viewBtn+delBtn+'</td>';
+      +'<td class="td th-r" style="white-space:nowrap">'+editBtn+viewBtn+delBtn+'</td>';
     $("pol-body").appendChild(tr);
   });
 }
@@ -701,6 +939,73 @@ function modeColor(m){
   return c[m]||'<span class="badge badge-gray">'+(esc(m)||"&#8212;")+'</span>';
 }
 
+// ── Audit Log ──
+async function loadAuditLogs(){
+  setLoading("audit",true);hide("audit-empty");hide("audit-err");$("audit-body").innerHTML="";
+  try{
+    var r=await api("/api/audit-logs?limit=100"),data=await r.json();
+    setLoading("audit",false);
+    if(!r.ok){showEl($("audit-err"),data.error||"Failed to load audit logs");return;}
+    renderAuditLogs(data.events||[]);
+  }catch(err){setLoading("audit",false);showEl($("audit-err"),err.message);}
+}
+
+function renderAuditLogs(events){
+  $("audit-body").innerHTML="";
+  if(!events.length){show("audit-empty");return;}
+  hide("audit-empty");
+  events.forEach(function(ev){
+    var ok=ev.status==="SUCCESS";
+    var sb=ok?'<span class="badge badge-green">&#x25CF; OK</span>':'<span class="badge badge-red">&#x25CF; FAIL</span>';
+    var actionColor={CREATE:"#60a5fa",UPDATE:"#fbbf24",DELETE:"#f87171",
+      ENABLE_PROTECTION:"#4ade80",DISABLE_PROTECTION:"#fb923c"};
+    var ac='<span style="font-size:.75rem;font-weight:600;color:'+(actionColor[ev.action]||"#94a3b8")+'">'+esc(ev.action)+'</span>';
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b";
+    tr.innerHTML='<td class="td" style="font-size:.7rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ev.ts)+'</td>'
+      +'<td class="td" style="font-size:.8rem;color:#94a3b8">'+esc(ev.user)+'</td>'
+      +'<td class="td">'+ac+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.75rem;color:#93c5fd">'+esc(ev.policy)+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#64748b">'+esc(ev.namespace)+'</td>'
+      +'<td class="td">'+sb+'</td>'
+      +'<td class="td" style="font-size:.7rem;color:#64748b;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.details||"")+'">'+esc(ev.details||"&#8212;")+'</td>';
+    $("audit-body").appendChild(tr);
+  });
+}
+
+// ── Profile Models (ArmorProfileModel) ──
+async function loadProfileModels(){
+  setLoading("models",true);hide("models-empty");hide("models-err");$("models-body").innerHTML="";
+  try{
+    var r=await api("/api/namespaces/"+ns()+"/profile-models"),data=await r.json();
+    setLoading("models",false);
+    if(!r.ok){showEl($("models-err"),data.error||"Failed to load behavior models");return;}
+    renderProfileModels(data.models||[]);
+  }catch(err){setLoading("models",false);showEl($("models-err"),err.message);}
+}
+
+function renderProfileModels(models){
+  $("models-body").innerHTML="";
+  if(!models.length){show("models-empty");return;}
+  hide("models-empty");
+  models.forEach(function(m){
+    var phaseColors={Completed:"badge-green",Ready:"badge-green",Modeling:"badge-purple",Unknown:"badge-gray"};
+    var phBadge='<span class="badge '+(phaseColors[m.phase]||"badge-gray")+'">'+esc(m.phase)+'</span>';
+    var cr=m.created_at?new Date(m.created_at).toLocaleDateString("vi-VN"):"&#8212;";
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
+    tr.onmouseover=function(){tr.style.background="#243552";};
+    tr.onmouseout=function(){tr.style.background="";};
+    tr.innerHTML='<td class="td" style="font-family:monospace;color:#4ade80;font-size:.8rem">'+esc(m.name)+'</td>'
+      +'<td class="td">'+phBadge+'</td>'
+      +'<td class="td" style="color:#475569;font-size:.75rem">'+cr+'</td>'
+      +'<td class="td th-r">'
+        +'<button onclick="openModelModal(this)" data-name="'+esc(m.name)+'" data-ns="'+esc(m.namespace)+'" class="btn btn-ghost btn-sm">View</button>'
+      +'</td>';
+    $("models-body").appendChild(tr);
+  });
+}
+
 // ── Form submit ──
 $("form-create").addEventListener("submit",async function(e){
   e.preventDefault();
@@ -712,7 +1017,7 @@ $("form-create").addEventListener("submit",async function(e){
   var tgtMode=document.querySelector('input[name="tgt-mode"]:checked').value;
   var mode=$("sel-mode").value;
   var namespace=ns();
-  var autoR=$("chk-auto-restart").checked&&scope==="namespace";
+  var autoR=$("chk-auto-restart").checked&&scope==="namespace"&&!editMode;
   if(!name){showMsg(msgEl,"error","Policy name is required.");return;}
 
   var targetDeployment="",targetSelector=null;
@@ -736,7 +1041,7 @@ $("form-create").addEventListener("submit",async function(e){
   var seccompSyscalls=$("ta-seccomp").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var seccompAction=$("sel-seccomp-action").value;
   var containers=$("inp-containers").value.split(",").map(function(c){return c.trim();}).filter(Boolean);
-  var duration=parseInt($("inp-duration").value)||60;
+  var durationMins=parseInt($("inp-duration").value)||60;
   var updateExisting=$("chk-update-existing").checked;
   var auditViol=$("chk-audit-viol").checked;
   var allowViol=$("chk-allow-viol").checked;
@@ -755,15 +1060,25 @@ $("form-create").addEventListener("submit",async function(e){
     target_containers:containers,mode:mode,enforcers:enforcers,
     rules:rules,banned_files:banned,bpf_file_rules:bpfFileRules,
     bpf_process_rules:bpfProcRules,seccomp_syscalls:seccompSyscalls,
-    seccomp_action:seccompAction,modeling_duration:duration,
+    seccomp_action:seccompAction,
+    modeling_duration:durationMins*60,
     update_existing_workloads:updateExisting,audit_violations:auditViol,allow_violations:allowViol
   };
 
   try{
-    var res=await api("/api/policies",{method:"POST",body:JSON.stringify(payload)});
+    var method,path;
+    if(editMode){
+      method="PUT";
+      path=editMode.scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(editMode.name)
+        :"/api/namespaces/"+editMode.ns+"/policies/"+encodeURIComponent(editMode.name);
+    }else{
+      method="POST";path="/api/policies";
+    }
+    var res=await api(path,{method:method,body:JSON.stringify(payload)});
     var data=await res.json();
     if(!res.ok){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",data.error||"Failed");btn.disabled=false;return;}
     setStep("policy","done");
+
     if(autoR&&kind==="Deployment"&&targetDeployment){
       setStep("restart","spin");await sleep(2000);
       try{
@@ -774,24 +1089,14 @@ $("form-create").addEventListener("submit",async function(e){
       }catch(e2){setStep("restart","fail");progEl.classList.add("hidden");showMsg(msgEl,"warn","Policy created &#8212; restart error: "+e2.message);}
     }else{
       setStep("restart","skip");await sleep(300);progEl.classList.add("hidden");
-      showMsg(msgEl,"success","Policy \""+name+"\" applied successfully.");
+      var okMsg=editMode?("Policy \""+name+"\" updated successfully."):"Policy \""+name+"\" applied successfully.";
+      showMsg(msgEl,"success",okMsg);
     }
-    resetForm();setTimeout(loadAll,1200);
+    cancelEdit();
+    setTimeout(loadAll,1200);
   }catch(err){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",err.message);}
   finally{btn.disabled=false;}
 });
-
-function resetForm(){
-  $("form-create").reset();
-  document.querySelector('input[name="enforcer"][value="AppArmor"]').checked=true;
-  $("chk-auto-restart").checked=true;
-  $("sel-mode").value="EnhanceProtect";
-  onModeChange();onEnforcerChange();updateRuleCounts();
-  $("bpf-files").innerHTML="";$("bpf-procs").innerHTML="";
-  document.querySelector('input[name="scope"][value="namespace"]').checked=true;
-  document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
-  onTargetModeChange();
-}
 
 function setStep(s,state){
   var row=$("step-"+s),icon=$("icon-"+s);
@@ -803,6 +1108,12 @@ function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
 function toggleGroup(id){
   var body=$(id),arr=$("arr-"+id.replace("grp-",""));
+  var h=body.classList.contains("hidden");
+  if(h){body.classList.remove("hidden");arr.textContent="▼";}else{body.classList.add("hidden");arr.textContent="►";}
+}
+
+function toggleSection(contentId,arrId){
+  var body=$(contentId),arr=$(arrId);
   var h=body.classList.contains("hidden");
   if(h){body.classList.remove("hidden");arr.textContent="▼";}else{body.classList.add("hidden");arr.textContent="►";}
 }
@@ -862,7 +1173,7 @@ $("btn-protect-confirm").addEventListener("click",async function(){
 });
 $("modal-protect").addEventListener("click",function(e){if(e.target===$("modal-protect"))closeProtectModal();});
 
-// ── Detail modal ──
+// ── Detail modal (Policy) ──
 async function openDetailModal(el){
   var name=el.dataset.name,namespace=el.dataset.ns,scope=el.dataset.scope||"namespace";
   $("detail-name").textContent=(scope==="cluster"?"cluster / ":namespace+" / ")+name;
@@ -879,6 +1190,23 @@ async function openDetailModal(el){
 }
 function closeDetailModal(){hide("modal-detail");}
 $("modal-detail").addEventListener("click",function(e){if(e.target===$("modal-detail"))closeDetailModal();});
+
+// ── Model detail modal (ArmorProfileModel) ──
+async function openModelModal(el){
+  var name=el.dataset.name,namespace=el.dataset.ns;
+  $("model-detail-name").textContent=namespace+" / "+name;
+  show("model-detail-loading");hide("model-detail-err");hide("model-detail-body");$("model-detail-body").textContent="";
+  show("modal-model");
+  try{
+    var res=await api("/api/namespaces/"+namespace+"/profile-models/"+encodeURIComponent(name));
+    var data=await res.json();
+    hide("model-detail-loading");
+    if(!res.ok){showEl($("model-detail-err"),data.error||"Failed.");return;}
+    $("model-detail-body").textContent=JSON.stringify(data,null,2);show("model-detail-body");
+  }catch(err){hide("model-detail-loading");showEl($("model-detail-err"),err.message);}
+}
+function closeModelModal(){hide("modal-model");}
+$("modal-model").addEventListener("click",function(e){if(e.target===$("modal-model"))closeModelModal();});
 
 // ── Helpers ──
 function $(id){return document.getElementById(id);}
