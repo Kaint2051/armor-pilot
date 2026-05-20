@@ -6,76 +6,49 @@
   <title>vArmor Console</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html { color-scheme: dark; }
-    body { background-color: #0f172a; color: #e2e8f0; font-family: ui-sans-serif,system-ui,sans-serif; }
-    .spin { animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .form-label {
-      display: block; font-size: 0.8125rem; font-weight: 500;
-      color: #94a3b8; margin-bottom: 0.375rem; letter-spacing: 0.01em;
-    }
-    .form-input {
-      width: 100%; background-color: #1e293b; border: 1px solid #334155;
-      border-radius: 0.5rem; padding: 0.5rem 0.75rem; color: #f1f5f9;
-      font-size: 0.875rem; line-height: 1.5; outline: none; box-sizing: border-box;
-      transition: border-color 150ms, box-shadow 150ms;
-    }
-    .form-input::placeholder { color: #475569; }
-    .form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
-    .form-input:-webkit-autofill,
-    .form-input:-webkit-autofill:hover,
-    .form-input:-webkit-autofill:focus {
-      -webkit-text-fill-color: #f1f5f9;
-      -webkit-box-shadow: 0 0 0 1000px #1e293b inset;
-      caret-color: #f1f5f9;
-      transition: background-color 5000s ease-in-out 0s;
-    }
-    .form-input option { background-color: #1e293b; color: #f1f5f9; }
-    .cb-row { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
-    .cb-row input[type="checkbox"] {
-      width: 1rem; height: 1rem; border-radius: 0.25rem;
-      accent-color: #3b82f6; cursor: pointer; flex-shrink: 0;
-    }
-    .cb-row span { font-size: 0.8125rem; color: #cbd5e1; }
-    .cb-row span.dim { color: #64748b; font-size: 0.75rem; }
-    .th { padding: 0.5rem 0.75rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; text-align: left; }
-    .th-r { text-align: right; }
-    .td { padding: 0.5rem 0.75rem; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 1rem; padding: 1.5rem; }
-    .btn {
-      display: inline-flex; align-items: center; gap: 0.375rem;
-      font-size: 0.875rem; font-weight: 600; padding: 0.5rem 1rem;
-      border-radius: 0.5rem; border: none; cursor: pointer;
-      transition: filter 150ms, opacity 150ms;
-    }
-    .btn:hover:not(:disabled) { filter: brightness(1.12); }
-    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-    .btn-primary { background: #2563eb; color: #fff; }
-    .btn-danger  { background: #dc2626; color: #fff; }
-    .btn-ghost   { background: transparent; color: #94a3b8; border: 1px solid #334155; }
-    .btn-cyan    { background: #0284c7; color: #fff; }
-    .btn-green   { background: #15803d; color: #fff; }
-    .btn-sm { font-size: 0.75rem; padding: 0.25rem 0.625rem; border-radius: 0.375rem; font-weight: 500; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 0.25rem;
-      font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem;
-      border-radius: 9999px; white-space: nowrap;
-    }
-    .badge-green { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-    .badge-amber { background: #451a03; color: #fb923c; border: 1px solid #9a3412; }
-    .badge-blue  { background: #0c1a3b; color: #93c5fd; border: 1px solid #1d4ed8; }
-    .badge-purple{ background: #2e1065; color: #c4b5fd; border: 1px solid #6d28d9; }
-    .badge-gray  { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
-    .step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; font-family: monospace; color: #64748b; }
-    .rule-group { border: 1px solid #334155; border-radius: 0.75rem; overflow: hidden; }
-    .rule-group-hdr {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.625rem 0.875rem; background: #0f172a; cursor: pointer; user-select: none;
-    }
-    .rule-group-hdr:hover { background: #162032; }
-    .rule-group-body { padding: 0.75rem 0.875rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.5rem; }
-    .rule-group-body.hidden { display: none; }
-    pre { white-space: pre-wrap; word-break: break-all; }
+    html{color-scheme:dark}
+    body{background:#0f172a;color:#e2e8f0;font-family:ui-sans-serif,system-ui,sans-serif}
+    .spin{animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .form-label{display:block;font-size:.8125rem;font-weight:500;color:#94a3b8;margin-bottom:.375rem;letter-spacing:.01em}
+    .form-input{width:100%;background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:.5rem .75rem;color:#f1f5f9;font-size:.875rem;line-height:1.5;outline:none;box-sizing:border-box;transition:border-color 150ms,box-shadow 150ms}
+    .form-input::placeholder{color:#475569}
+    .form-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+    .form-input:-webkit-autofill,.form-input:-webkit-autofill:hover,.form-input:-webkit-autofill:focus{-webkit-text-fill-color:#f1f5f9;-webkit-box-shadow:0 0 0 1000px #1e293b inset;caret-color:#f1f5f9;transition:background-color 5000s ease-in-out 0s}
+    .form-input option{background:#1e293b;color:#f1f5f9}
+    .cb-row{display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none}
+    .cb-row input[type=checkbox],.cb-row input[type=radio]{width:1rem;height:1rem;accent-color:#3b82f6;cursor:pointer;flex-shrink:0}
+    .cb-row span{font-size:.8125rem;color:#cbd5e1}
+    .cb-row span.dim{color:#64748b;font-size:.75rem}
+    .th{padding:.5rem .75rem;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#475569;text-align:left}
+    .th-r{text-align:right}
+    .td{padding:.5rem .75rem}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:1rem;padding:1.5rem}
+    .btn{display:inline-flex;align-items:center;gap:.375rem;font-size:.875rem;font-weight:600;padding:.5rem 1rem;border-radius:.5rem;border:none;cursor:pointer;transition:filter 150ms,opacity 150ms}
+    .btn:hover:not(:disabled){filter:brightness(1.12)}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .btn-primary{background:#2563eb;color:#fff}
+    .btn-danger{background:#dc2626;color:#fff}
+    .btn-ghost{background:transparent;color:#94a3b8;border:1px solid #334155}
+    .btn-cyan{background:#0284c7;color:#fff}
+    .btn-green{background:#15803d;color:#fff}
+    .btn-sm{font-size:.75rem;padding:.25rem .625rem;border-radius:.375rem;font-weight:500}
+    .badge{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;font-weight:600;padding:.2rem .5rem;border-radius:9999px;white-space:nowrap}
+    .badge-green{background:#052e16;color:#4ade80;border:1px solid #166534}
+    .badge-amber{background:#451a03;color:#fb923c;border:1px solid #9a3412}
+    .badge-blue{background:#0c1a3b;color:#93c5fd;border:1px solid #1d4ed8}
+    .badge-purple{background:#2e1065;color:#c4b5fd;border:1px solid #6d28d9}
+    .badge-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+    .badge-red{background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d}
+    .step{display:flex;align-items:center;gap:.5rem;font-size:.8125rem;font-family:monospace;color:#64748b}
+    .rule-group{border:1px solid #334155;border-radius:.75rem;overflow:hidden}
+    .rule-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:.625rem .875rem;background:#0f172a;cursor:pointer;user-select:none}
+    .rule-group-hdr:hover{background:#162032}
+    .rule-group-body{padding:.75rem .875rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.5rem}
+    .rule-group-body.hidden{display:none}
+    .bpf-row{display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:center;margin-bottom:.375rem}
+    .perm-check{display:inline-flex;align-items:center;gap:.2rem;font-size:.75rem;color:#94a3b8;cursor:pointer}
+    .perm-check input{accent-color:#3b82f6;width:.875rem;height:.875rem}
   </style>
 </head>
 <body class="min-h-screen">
@@ -86,10 +59,7 @@
     <div class="flex flex-col items-center mb-8">
       <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:#2563eb">
         <svg class="w-9 h-9" style="color:#fff" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0
-               01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622
-               5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
         </svg>
       </div>
       <h1 class="text-2xl font-bold tracking-tight" style="color:#f1f5f9">vArmor Console</h1>
@@ -97,40 +67,34 @@
     </div>
     <form id="login-form" novalidate>
       <div class="mb-4">
-        <label class="form-label" for="inp-user">Username</label>
-        <input id="inp-user" type="text" autocomplete="username" placeholder="admin" class="form-input" />
+        <label class="form-label">Username</label>
+        <input id="inp-user" type="text" autocomplete="username" placeholder="admin" class="form-input"/>
       </div>
       <div class="mb-5">
-        <label class="form-label" for="inp-pass">Password</label>
-        <input id="inp-pass" type="password" autocomplete="current-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" class="form-input" />
+        <label class="form-label">Password</label>
+        <input id="inp-pass" type="password" autocomplete="current-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" class="form-input"/>
       </div>
-      <div id="login-err" class="hidden mb-4 p-3 rounded-lg text-sm"
-        style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-      <button type="submit" class="btn btn-primary w-full justify-center" style="padding-top:0.625rem;padding-bottom:0.625rem">Sign In</button>
+      <div id="login-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+      <button type="submit" class="btn btn-primary w-full justify-center" style="padding-top:.625rem;padding-bottom:.625rem">Sign In</button>
     </form>
   </div>
 </div>
 
 <!-- DASHBOARD -->
 <div id="pg-dash" class="hidden min-h-screen flex flex-col">
-  <header class="sticky top-0 z-20"
-    style="background:rgba(15,23,42,0.96);backdrop-filter:blur(8px);border-bottom:1px solid #1e293b">
+  <header class="sticky top-0 z-20" style="background:rgba(15,23,42,.96);backdrop-filter:blur(8px);border-bottom:1px solid #1e293b">
     <div class="max-w-screen-2xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
       <div class="flex items-center gap-2.5 shrink-0">
         <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#2563eb">
           <svg class="w-4 h-4" style="color:#fff" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0
-                 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622
-                 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
           </svg>
         </div>
         <span class="font-bold text-base tracking-tight" style="color:#f1f5f9">vArmor Console</span>
       </div>
       <div class="flex items-center gap-2">
         <span class="text-xs hidden sm:block" style="color:#64748b">Namespace</span>
-        <input id="inp-ns" value="default" class="form-input"
-          style="width:9rem;padding:0.35rem 0.625rem;font-size:0.8rem" />
+        <input id="inp-ns" value="default" class="form-input" style="width:9rem;padding:.35rem .625rem;font-size:.8rem"/>
         <button onclick="loadAll()" class="btn btn-primary btn-sm">Load</button>
       </div>
       <div class="flex items-center gap-3 shrink-0">
@@ -149,18 +113,28 @@
         <!-- CREATE POLICY -->
         <section class="card">
           <h2 class="text-base font-semibold flex items-center gap-2 mb-5" style="color:#f1f5f9">
-            <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-            </svg>
-            Create VarmorPolicy
+            <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Create Policy
           </h2>
           <form id="form-create" novalidate>
 
-            <!-- Row 1: name + target kind -->
+            <!-- Scope -->
+            <div class="mb-4 p-3 rounded-xl flex flex-wrap gap-5" style="background:#0f172a;border:1px solid #334155">
+              <label class="cb-row">
+                <input type="radio" name="scope" value="namespace" checked onchange="onScopeChange()">
+                <span style="color:#93c5fd;font-weight:600">Namespace <span class="dim">(VarmorPolicy)</span></span>
+              </label>
+              <label class="cb-row">
+                <input type="radio" name="scope" value="cluster" onchange="onScopeChange()">
+                <span style="color:#c4b5fd;font-weight:600">Cluster <span class="dim">(VarmorClusterPolicy — applies across all namespaces)</span></span>
+              </label>
+            </div>
+
+            <!-- Name + Kind -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label class="form-label">Policy Name <span style="color:#f87171">*</span></label>
-                <input id="inp-pname" type="text" placeholder="e.g. protect-nginx" class="form-input" />
+                <input id="inp-pname" type="text" placeholder="e.g. protect-nginx" class="form-input"/>
               </div>
               <div>
                 <label class="form-label">Target Kind</label>
@@ -173,15 +147,40 @@
               </div>
             </div>
 
-            <!-- Row 2: target workload -->
-            <div class="mb-4">
+            <!-- Target mode toggle -->
+            <div class="mb-3 flex gap-4">
+              <label class="cb-row">
+                <input type="radio" name="tgt-mode" value="name" checked onchange="onTargetModeChange()">
+                <span>By Name</span>
+              </label>
+              <label class="cb-row">
+                <input type="radio" name="tgt-mode" value="selector" onchange="onTargetModeChange()">
+                <span>By Label Selector</span>
+              </label>
+            </div>
+
+            <!-- By Name -->
+            <div id="sec-tgt-name" class="mb-4">
               <label class="form-label">Target Workload <span style="color:#f87171">*</span></label>
               <select id="sel-target" class="form-input">
                 <option value="">&#8212; select workload &#8212;</option>
               </select>
             </div>
 
-            <!-- Mode selector -->
+            <!-- By Label Selector -->
+            <div id="sec-tgt-selector" class="hidden mb-4">
+              <label class="form-label">Label Selector <span style="color:#f87171">*</span> <span style="color:#475569;font-size:.75rem;font-weight:400">(matchLabels — key=value, one per line)</span></label>
+              <textarea id="ta-selector" rows="3" placeholder="app=nginx&#10;env=production" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              <p class="mt-1 text-xs" style="color:#64748b">Mutually exclusive with target name. Selects all matching workloads in namespace.</p>
+            </div>
+
+            <!-- Containers (optional) -->
+            <div class="mb-4">
+              <label class="form-label">Target Containers <span style="color:#475569;font-size:.75rem;font-weight:400">(optional — comma-separated, leave blank to protect all)</span></label>
+              <input id="inp-containers" type="text" placeholder="app, sidecar" class="form-input"/>
+            </div>
+
+            <!-- Mode -->
             <div class="mb-5">
               <label class="form-label">Policy Mode <span style="color:#f87171">*</span></label>
               <select id="sel-mode" class="form-input" onchange="onModeChange()">
@@ -189,174 +188,193 @@
                 <option value="AlwaysAllow">AlwaysAllow — disable all restrictions</option>
                 <option value="RuntimeDefault">RuntimeDefault — container runtime defaults</option>
                 <option value="BehaviorModeling">BehaviorModeling — record behavior (experimental)</option>
-                <option value="DefenseInDepth">DefenseInDepth — allowlist-based strict (experimental)</option>
+                <option value="DefenseInDepth">DefenseInDepth — allowlist strict mode (experimental)</option>
               </select>
             </div>
 
             <!-- EnhanceProtect options -->
             <div id="sec-enhance">
-              <!-- Kernel enforcers -->
+              <!-- Enforcers -->
               <div class="mb-4">
-                <label class="form-label" style="margin-bottom:0.625rem">Kernel Enforcers</label>
+                <label class="form-label" style="margin-bottom:.625rem">Kernel Enforcers</label>
                 <div class="flex flex-wrap gap-5">
-                  <label class="cb-row"><input type="checkbox" name="enforcer" value="AppArmor" checked><span>AppArmor</span></label>
-                  <label class="cb-row"><input type="checkbox" name="enforcer" value="Seccomp"><span>Seccomp</span></label>
-                  <label class="cb-row"><input type="checkbox" name="enforcer" value="BPF"><span>BPF</span></label>
-                  <label class="cb-row"><input type="checkbox" name="enforcer" value="NetworkProxy"><span>NetworkProxy</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="AppArmor" checked onchange="onEnforcerChange()"><span>AppArmor</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="Seccomp" onchange="onEnforcerChange()"><span>Seccomp</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="BPF" onchange="onEnforcerChange()"><span>BPF</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="NetworkProxy" onchange="onEnforcerChange()"><span>NetworkProxy</span></label>
                 </div>
               </div>
 
               <!-- Built-in rules -->
               <div class="mb-4 space-y-2">
-                <label class="form-label" style="margin-bottom:0.5rem">Built-in Defense Rules</label>
-
-                <!-- Hardening -->
+                <label class="form-label" style="margin-bottom:.5rem">Built-in Defense Rules</label>
                 <div class="rule-group">
                   <div class="rule-group-hdr" onclick="toggleGroup('grp-hardening')">
-                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#c4b5fd">
-                      <span>&#127755;</span> Hardening
-                      <span id="cnt-hardening" class="text-xs font-normal" style="color:#64748b"></span>
-                    </span>
-                    <span id="arr-hardening" style="color:#64748b;font-size:0.75rem">&#9658;</span>
+                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#c4b5fd">&#127755; Hardening <span id="cnt-hardening" class="text-xs font-normal" style="color:#64748b"></span></span>
+                    <span id="arr-hardening" style="color:#64748b;font-size:.75rem">&#9658;</span>
                   </div>
                   <div id="grp-hardening" class="rule-group-body hidden">
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-all"><span>Disable all capabilities</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-privileged"><span>Disable privileged capabilities <span class="dim">(Baseline PSS)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-all-except-net-bind-service"><span>Disable all except NET_BIND_SERVICE <span class="dim">(Restricted PSS)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-insmod"><span>Prohibit loading kernel modules</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount"><span>Disable mount syscall</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-umount"><span>Disable umount syscall</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-abuse-user-ns"><span>Prohibit abusing user namespaces</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-create-user-ns"><span>Prohibit creating user namespaces <span class="dim">(Seccomp)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-prog"><span>Prohibit loading privileged eBPF programs</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-all-bpf-prog"><span>Prohibit loading any eBPF programs <span class="dim">(Seccomp)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-core-pattern"><span>Prohibit modifying core_pattern <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-securityfs"><span>Prohibit mounting securityfs <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-release-agent"><span>Prohibit modifying release_agent <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-cgroupfs"><span>Prohibit remounting cgroupfs <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-procfs"><span>Prohibit remounting procfs <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-debug-disk-device"><span>Prohibit debugging disk devices <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-disk-device"><span>Prohibit mounting host disk devices <span class="dim">(privileged)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-procfs-root"><span>Prohibit accessing /proc/[PID]/root</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-kallsyms"><span>Prohibit reading /proc/kallsyms</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-userfaultfd-creation"><span>Prohibit userfaultfd creation <span class="dim">(Seccomp)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-via-setsockopt"><span>Prohibit cBPF via setsockopt <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-all" onchange="updateRuleCounts()"><span>Disable all capabilities</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-privileged" onchange="updateRuleCounts()"><span>Disable privileged capabilities <span class="dim">(Baseline PSS)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-all-except-net-bind-service" onchange="updateRuleCounts()"><span>Disable all except NET_BIND_SERVICE <span class="dim">(Restricted PSS)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-insmod" onchange="updateRuleCounts()"><span>Prohibit loading kernel modules</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount" onchange="updateRuleCounts()"><span>Disable mount syscall</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-umount" onchange="updateRuleCounts()"><span>Disable umount syscall</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-abuse-user-ns" onchange="updateRuleCounts()"><span>Prohibit abusing user namespaces</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-create-user-ns" onchange="updateRuleCounts()"><span>Prohibit creating user namespaces <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-prog" onchange="updateRuleCounts()"><span>Prohibit privileged eBPF programs</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-all-bpf-prog" onchange="updateRuleCounts()"><span>Prohibit any eBPF programs <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-core-pattern" onchange="updateRuleCounts()"><span>Prohibit modifying core_pattern <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-securityfs" onchange="updateRuleCounts()"><span>Prohibit mounting securityfs <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-release-agent" onchange="updateRuleCounts()"><span>Prohibit modifying release_agent <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-cgroupfs" onchange="updateRuleCounts()"><span>Prohibit remounting cgroupfs <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-procfs" onchange="updateRuleCounts()"><span>Prohibit remounting procfs <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-debug-disk-device" onchange="updateRuleCounts()"><span>Prohibit debugging disk devices <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-procfs-root" onchange="updateRuleCounts()"><span>Prohibit accessing /proc/[PID]/root</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-kallsyms" onchange="updateRuleCounts()"><span>Prohibit reading /proc/kallsyms</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-userfaultfd-creation" onchange="updateRuleCounts()"><span>Prohibit userfaultfd <span class="dim">(Seccomp)</span></span></label>
                   </div>
                 </div>
-
-                <!-- Attack Protection -->
                 <div class="rule-group">
                   <div class="rule-group-hdr" onclick="toggleGroup('grp-attack')" style="background:#0c1a3b">
-                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#93c5fd">
-                      <span>&#128737;</span> Attack Protection
-                      <span id="cnt-attack" class="text-xs font-normal" style="color:#64748b"></span>
-                    </span>
-                    <span id="arr-attack" style="color:#64748b;font-size:0.75rem">&#9660;</span>
+                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#93c5fd">&#128737; Attack Protection <span id="cnt-attack" class="text-xs font-normal" style="color:#64748b"></span></span>
+                    <span id="arr-attack" style="color:#64748b;font-size:.75rem">&#9660;</span>
                   </div>
                   <div id="grp-attack" class="rule-group-body">
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-sa-leak"><span>Mitigate ServiceAccount token leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-host-ip-leak"><span>Mitigate host IP/MAC leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-disk-device-number-leak"><span>Mitigate disk device number leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-overlayfs-leak"><span>Mitigate overlayfs path leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-metadata-service"><span>Block all cloud metadata services <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-aws-metadata-service"><span>Block AWS/GCP/Azure metadata <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-kube-apiserver"><span>Block kube-apiserver access <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-container-runtime"><span>Block container runtime sockets (CVE-2024-0132)</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-etc"><span>Prohibit writing to /etc</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-shadow"><span>Prohibit access to /etc/shadow</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-passwd"><span>Prohibit access to /etc/passwd</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-ssh-dir"><span>Prohibit access to .ssh directories</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-shell"><span>Prohibit Unix shell creation (anti-reverse-shell)</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-wget"><span>Prohibit wget</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-curl"><span>Prohibit curl</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-busybox"><span>Prohibit busybox execution</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod"><span>Prohibit chmod command</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-x-bit"><span>Prohibit setting execute bit <span class="dim">(Seccomp)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-s-bit"><span>Prohibit setting SUID/SGID bit <span class="dim">(Seccomp)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-su-sudo"><span>Prohibit su/sudo</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-network"><span>Prohibit all network access</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet"><span>Prohibit IPv4 (disable-inet)</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet6"><span>Prohibit IPv6 (disable-inet6)</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-tcp"><span>Prohibit TCP</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-udp"><span>Prohibit UDP</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-sa-leak" onchange="updateRuleCounts()"><span>Mitigate ServiceAccount token leakage</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-host-ip-leak" onchange="updateRuleCounts()"><span>Mitigate host IP/MAC leakage</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-disk-device-number-leak" onchange="updateRuleCounts()"><span>Mitigate disk device number leakage</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-overlayfs-leak" onchange="updateRuleCounts()"><span>Mitigate overlayfs path leakage</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-metadata-service" onchange="updateRuleCounts()"><span>Block all cloud metadata services <span class="dim">(BPF)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-aws-metadata-service" onchange="updateRuleCounts()"><span>Block AWS/GCP/Azure metadata <span class="dim">(BPF)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-kube-apiserver" onchange="updateRuleCounts()"><span>Block kube-apiserver access <span class="dim">(BPF)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-container-runtime" onchange="updateRuleCounts()"><span>Block container runtime sockets <span class="dim">(CVE-2024-0132)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-etc" onchange="updateRuleCounts()"><span>Prohibit writing to /etc</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-shadow" onchange="updateRuleCounts()"><span>Prohibit access to /etc/shadow</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-passwd" onchange="updateRuleCounts()"><span>Prohibit access to /etc/passwd</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-ssh-dir" onchange="updateRuleCounts()"><span>Prohibit access to .ssh directories</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-shell" onchange="updateRuleCounts()"><span>Prohibit Unix shell creation</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-wget" onchange="updateRuleCounts()"><span>Prohibit wget</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-curl" onchange="updateRuleCounts()"><span>Prohibit curl</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-busybox" onchange="updateRuleCounts()"><span>Prohibit busybox</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod" onchange="updateRuleCounts()"><span>Prohibit chmod command</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-su-sudo" onchange="updateRuleCounts()"><span>Prohibit su/sudo</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-network" onchange="updateRuleCounts()"><span>Prohibit all network access</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet" onchange="updateRuleCounts()"><span>Prohibit IPv4</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet6" onchange="updateRuleCounts()"><span>Prohibit IPv6</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-tcp" onchange="updateRuleCounts()"><span>Prohibit TCP</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-udp" onchange="updateRuleCounts()"><span>Prohibit UDP</span></label>
                   </div>
                 </div>
-
-                <!-- Vulnerability Mitigation -->
                 <div class="rule-group">
                   <div class="rule-group-hdr" onclick="toggleGroup('grp-vuln')">
-                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#4ade80">
-                      <span>&#128203;</span> Vulnerability Mitigation
-                      <span id="cnt-vuln" class="text-xs font-normal" style="color:#64748b"></span>
-                    </span>
-                    <span id="arr-vuln" style="color:#64748b;font-size:0.75rem">&#9658;</span>
+                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#4ade80">&#128203; Vulnerability Mitigation <span id="cnt-vuln" class="text-xs font-normal" style="color:#64748b"></span></span>
+                    <span id="arr-vuln" style="color:#64748b;font-size:.75rem">&#9658;</span>
                   </div>
                   <div id="grp-vuln" class="rule-group-body hidden">
-                    <label class="cb-row"><input type="checkbox" name="rule" value="cgroups-lxcfs-escape-mitigation"><span>Mitigate cgroups/lxcfs escape <span class="dim">(CVE-2022-0492)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="runc-override-mitigation"><span>Mitigate runc override escape <span class="dim">(CVE-2019-5736)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="dirty-pipe-mitigation"><span>Mitigate Dirty Pipe <span class="dim">(CVE-2022-0847, Seccomp)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="ingress-nightmare-mitigation"><span>Mitigate IngressNightmare <span class="dim">(CVE-2025-1974, BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="copy-fail-mitigation"><span>Mitigate Copy Fail <span class="dim">(CVE-2026-31431)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="cgroups-lxcfs-escape-mitigation" onchange="updateRuleCounts()"><span>Mitigate cgroups/lxcfs escape <span class="dim">(CVE-2022-0492)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="runc-override-mitigation" onchange="updateRuleCounts()"><span>Mitigate runc override <span class="dim">(CVE-2019-5736)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="dirty-pipe-mitigation" onchange="updateRuleCounts()"><span>Mitigate Dirty Pipe <span class="dim">(CVE-2022-0847)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="ingress-nightmare-mitigation" onchange="updateRuleCounts()"><span>Mitigate IngressNightmare <span class="dim">(CVE-2025-1974)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="copy-fail-mitigation" onchange="updateRuleCounts()"><span>Mitigate Copy Fail <span class="dim">(CVE-2026-31431)</span></span></label>
                   </div>
                 </div>
               </div>
 
-              <!-- Banned file paths -->
+              <!-- AppArmor banned files -->
               <div class="mb-4">
-                <label class="form-label">Banned File Paths <span style="color:#475569;font-size:0.75rem;font-weight:400">(one per line — AppArmor deny rules)</span></label>
-                <textarea id="ta-banned" rows="3"
-                  placeholder="/etc/shadow&#10;/proc/sysrq-trigger&#10;/sys/kernel/debug"
-                  class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                <label class="form-label">Banned File Paths <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor deny — one per line)</span></label>
+                <textarea id="ta-banned" rows="3" placeholder="/etc/shadow&#10;/proc/sysrq-trigger&#10;/sys/kernel/debug" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
               </div>
 
-              <!-- Observation options -->
+              <!-- BPF raw rules (shown when BPF checked) -->
+              <div id="sec-bpf-rules" class="hidden mb-4 rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-bpf')" style="background:#051a0a">
+                  <span class="text-sm font-semibold" style="color:#4ade80">&#9881; Custom BPF Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(bpfRawRules)</span></span>
+                  <span id="arr-bpf" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                </div>
+                <div id="grp-bpf" class="hidden p-3 space-y-4">
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">FILE RULES</span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-files')">+ Add File Rule</button>
+                    </div>
+                    <div id="bpf-files" class="space-y-1"></div>
+                  </div>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">PROCESS RULES</span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-procs')">+ Add Process Rule</button>
+                    </div>
+                    <div id="bpf-procs" class="space-y-1"></div>
+                  </div>
+                  <p class="text-xs" style="color:#475569">Permissions: r=read, w=write, a=append, e=exec, *=all</p>
+                </div>
+              </div>
+
+              <!-- Seccomp raw rules (shown when Seccomp checked) -->
+              <div id="sec-seccomp-rules" class="hidden mb-4 rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-seccomp')" style="background:#1c0a05">
+                  <span class="text-sm font-semibold" style="color:#fb923c">&#128274; Custom Seccomp Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(syscallRawRules)</span></span>
+                  <span id="arr-seccomp" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                </div>
+                <div id="grp-seccomp" class="hidden p-3 space-y-3">
+                  <div>
+                    <label class="form-label">Action</label>
+                    <select id="sel-seccomp-action" class="form-input" style="max-width:20rem">
+                      <option value="SCMP_ACT_ERRNO">SCMP_ACT_ERRNO — return error (recommended)</option>
+                      <option value="SCMP_ACT_KILL">SCMP_ACT_KILL — kill process</option>
+                      <option value="SCMP_ACT_LOG">SCMP_ACT_LOG — log only</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="form-label">Blocked Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                    <textarea id="ta-seccomp" rows="5" placeholder="execve&#10;fork&#10;clone&#10;unshare" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Observation -->
               <div class="mb-4 flex flex-wrap gap-5">
-                <label class="cb-row"><input type="checkbox" id="chk-audit-viol"><span style="color:#94a3b8">Audit violations (log but don't block)</span></label>
-                <label class="cb-row"><input type="checkbox" id="chk-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only mode)</span></label>
+                <label class="cb-row"><input type="checkbox" id="chk-audit-viol"><span style="color:#94a3b8">Audit violations (log detections)</span></label>
+                <label class="cb-row"><input type="checkbox" id="chk-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only)</span></label>
               </div>
             </div>
 
-            <!-- BehaviorModeling options -->
+            <!-- BehaviorModeling -->
             <div id="sec-modeling" class="hidden mb-4">
-              <label class="form-label">Modeling Duration <span style="color:#475569;font-size:0.75rem;font-weight:400">(seconds)</span></label>
-              <input id="inp-duration" type="number" min="60" value="3600" class="form-input" style="max-width:16rem" />
-              <p class="mt-1 text-xs" style="color:#64748b">vArmor will record container behavior for this duration, then transition to Ready state.</p>
+              <label class="form-label">Modeling Duration <span style="color:#475569;font-size:.75rem;font-weight:400">(minutes)</span></label>
+              <input id="inp-duration" type="number" min="1" value="60" class="form-input" style="max-width:12rem"/>
+              <p class="mt-1 text-xs" style="color:#64748b">vArmor records container behavior for this duration, then transitions to Completed state.</p>
             </div>
 
-            <!-- AlwaysAllow / RuntimeDefault info -->
+            <!-- AlwaysAllow / RuntimeDefault / DefenseInDepth info -->
             <div id="sec-simple" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
               <span id="simple-note"></span>
             </div>
 
-            <!-- Options row -->
+            <!-- Options -->
             <div class="mb-5 p-3 rounded-xl space-y-2" style="background:#0c1a3b;border:1px solid #1d4ed8">
               <label class="cb-row">
                 <input type="checkbox" id="chk-auto-restart" checked>
-                <span style="font-weight:600;color:#93c5fd">Auto-restart deployment after policy creation</span>
+                <span style="font-weight:600;color:#93c5fd">Auto-restart Deployment after policy creation</span>
               </label>
-              <p style="font-size:0.78rem;color:#475569;line-height:1.5;margin-left:1.5rem">
-                Adds <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> label and triggers rolling restart.
-              </p>
+              <p style="font-size:.78rem;color:#475569;line-height:1.5;margin-left:1.5rem">Adds <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> label and triggers rolling restart.</p>
               <label class="cb-row">
                 <input type="checkbox" id="chk-update-existing">
-                <span style="color:#93c5fd">updateExistingWorkloads — apply to already-running pods via vArmor CRD</span>
+                <span style="color:#93c5fd">updateExistingWorkloads <span style="color:#475569;font-weight:400;font-size:.8rem">— vArmor rolling update existing pods</span></span>
               </label>
             </div>
 
-            <!-- Progress tracker -->
-            <div id="create-progress" class="hidden mb-4 p-4 rounded-xl space-y-2"
-              style="background:#0f172a;border:1px solid #1e293b">
-              <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Creating VarmorPolicy CRD&#8230;</span></div>
+            <!-- Progress -->
+            <div id="create-progress" class="hidden mb-4 p-4 rounded-xl space-y-2" style="background:#0f172a;border:1px solid #1e293b">
+              <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Creating policy CRD&#8230;</span></div>
               <div id="step-restart" class="step"><span id="icon-restart">&#9675;</span><span>Labeling &amp; restarting deployment&#8230;</span></div>
             </div>
-
             <div id="create-msg" class="hidden mb-4"></div>
-
             <div class="flex justify-end">
               <button type="submit" id="btn-create" class="btn btn-primary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Apply Policy
               </button>
             </div>
@@ -367,44 +385,29 @@
         <section class="card">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
-              <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-              </svg>
+              <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
               Active Policies
             </h2>
             <button onclick="loadPolicies()" class="btn btn-ghost btn-sm">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Refresh
             </button>
           </div>
-          <!-- Search -->
           <div class="mb-3">
-            <input id="inp-search" type="text" placeholder="Search policies by name or target&#8230;"
-              class="form-input" oninput="filterPolicies()" style="font-size:0.8125rem" />
+            <input id="inp-search" type="text" placeholder="Search by name, target or mode&#8230;" class="form-input" oninput="filterPolicies()" style="font-size:.8125rem"/>
           </div>
           <div id="pol-loading" class="hidden py-8 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-            </svg>
+            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           </div>
           <div id="pol-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No policies found.</div>
-          <div id="pol-err" class="hidden mb-4 p-3 rounded-lg text-sm"
-            style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <div id="pol-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr style="border-bottom:1px solid #1e293b">
-                  <th class="th">Name</th>
-                  <th class="th">Target</th>
-                  <th class="th">Mode</th>
-                  <th class="th">Enforcer</th>
-                  <th class="th">Status</th>
-                  <th class="th">Created</th>
-                  <th class="th th-r">Actions</th>
+                  <th class="th">Name</th><th class="th">Scope</th><th class="th">Target</th>
+                  <th class="th">Mode</th><th class="th">Enforcer</th>
+                  <th class="th">Status</th><th class="th">Created</th><th class="th th-r">Actions</th>
                 </tr>
               </thead>
               <tbody id="pol-body"></tbody>
@@ -413,45 +416,32 @@
         </section>
       </div>
 
-      <!-- RIGHT 4 cols: Deployments -->
+      <!-- RIGHT 4 cols -->
       <div class="col-span-12 xl:col-span-4">
         <div class="card xl:sticky xl:top-20">
           <div class="flex items-center justify-between mb-5">
             <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
-              <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0
-                     01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
-              </svg>
+              <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
               Deployments
             </h2>
-            <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:0.3rem">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
+            <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:.3rem">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
           </div>
           <div id="dep-loading" class="hidden py-6 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-            </svg>
+            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           </div>
           <div id="dep-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No deployments found.</div>
-          <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm"
-            style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
           <div id="dep-list" class="space-y-2"></div>
         </div>
       </div>
-
     </div>
   </main>
 </div>
 
 <!-- DELETE MODAL -->
-<div id="modal-del" class="hidden fixed inset-0 z-50 flex items-center justify-center"
-  style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)">
+<div id="modal-del" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4" style="max-width:24rem;border-color:#475569">
     <h3 class="text-base font-semibold mb-2" style="color:#f1f5f9">Confirm Deletion</h3>
     <p class="text-sm mb-1" style="color:#94a3b8">About to permanently delete:</p>
@@ -464,15 +454,12 @@
 </div>
 
 <!-- PROTECT MODAL -->
-<div id="modal-protect" class="hidden fixed inset-0 z-50 flex items-center justify-center"
-  style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)">
+<div id="modal-protect" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4" style="max-width:26rem;border-color:#334155">
     <h3 id="protect-title" class="text-base font-semibold mb-2" style="color:#f1f5f9">Manage Protection</h3>
     <p class="text-sm mb-1" style="color:#94a3b8">Deployment:</p>
     <p id="protect-dname" class="font-mono font-semibold text-sm mb-4" style="color:#93c5fd"></p>
-    <p class="text-xs mb-5" style="color:#64748b;line-height:1.6">
-      Sets <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> and triggers rolling restart.
-    </p>
+    <p class="text-xs mb-5" style="color:#64748b;line-height:1.6">Sets <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> and triggers rolling restart.</p>
     <div id="protect-msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
     <div class="flex gap-3 justify-end">
       <button onclick="closeProtectModal()" class="btn btn-ghost">Cancel</button>
@@ -481,9 +468,8 @@
   </div>
 </div>
 
-<!-- POLICY DETAIL MODAL -->
-<div id="modal-detail" class="hidden fixed inset-0 z-50 flex items-center justify-center"
-  style="background:rgba(0,0,0,0.85);backdrop-filter:blur(4px)">
+<!-- DETAIL MODAL -->
+<div id="modal-detail" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4 flex flex-col" style="max-width:52rem;max-height:85vh;border-color:#475569">
     <div class="flex items-center justify-between mb-4 flex-shrink-0">
       <div>
@@ -493,36 +479,24 @@
       <button onclick="closeDetailModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
     </div>
     <div id="detail-loading" class="py-8 flex justify-center">
-      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-      </svg>
+      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
     </div>
-    <div id="detail-err" class="hidden p-3 rounded-lg text-sm mb-2"
-      style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-    <div id="detail-body" class="hidden flex-1 overflow-auto rounded-lg p-4 text-xs font-mono"
-      style="background:#0f172a;border:1px solid #334155;color:#7dd3fc;min-height:12rem"></div>
+    <div id="detail-err" class="hidden p-3 rounded-lg text-sm mb-2" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div id="detail-body" class="hidden flex-1 overflow-auto rounded-lg p-4 text-xs font-mono" style="background:#0f172a;border:1px solid #334155;color:#7dd3fc;min-height:12rem;white-space:pre-wrap;word-break:break-all"></div>
   </div>
 </div>
 
 <script>
 "use strict";
 var AUTH_HEADER=null,CURRENT_USER=null;
-var pendingDel={name:null,ns:null};
+var pendingDel={name:null,ns:null,scope:null};
 var pendingProtect={name:null,ns:null};
 var allPolicies=[];
 
-// Init rule-group selection counters
-document.querySelectorAll('input[name="rule"]').forEach(function(cb){
-  cb.addEventListener("change",updateRuleCounts);
-});
-
 window.addEventListener("DOMContentLoaded",function(){
   updateRuleCounts();
-  try{
-    var s=JSON.parse(localStorage.getItem("va_auth")||"null");
-    if(s&&s.header&&s.user){AUTH_HEADER=s.header;CURRENT_USER=s.user;enterDashboard();return;}
-  }catch(x){}
+  try{var s=JSON.parse(localStorage.getItem("va_auth")||"null");
+    if(s&&s.header&&s.user){AUTH_HEADER=s.header;CURRENT_USER=s.user;enterDashboard();return;}}catch(x){}
   enterLogin();
 });
 
@@ -532,97 +506,125 @@ function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=CURRENT_USER=nu
 
 $("login-form").addEventListener("submit",async function(e){
   e.preventDefault();
-  var user=$("inp-user").value.trim(),pass=$("inp-pass").value,errEl=$("login-err");
+  var u=$("inp-user").value.trim(),p=$("inp-pass").value,errEl=$("login-err");
   hideEl(errEl);
-  if(!user||!pass){showEl(errEl,"Please enter username and password.");return;}
-  var header="Basic "+btoa(user+":"+pass);
+  if(!u||!p){showEl(errEl,"Please enter username and password.");return;}
+  var hdr="Basic "+btoa(u+":"+p);
   try{
-    var res=await fetch("/api/namespaces/default/deployments",{headers:{Authorization:header}});
-    if(res.status===401){showEl(errEl,"Invalid username or password.");return;}
-    AUTH_HEADER=header;CURRENT_USER=user;
-    localStorage.setItem("va_auth",JSON.stringify({header:header,user:user}));
+    var r=await fetch("/api/namespaces/default/deployments",{headers:{Authorization:hdr}});
+    if(r.status===401){showEl(errEl,"Invalid username or password.");return;}
+    AUTH_HEADER=hdr;CURRENT_USER=u;
+    localStorage.setItem("va_auth",JSON.stringify({header:hdr,user:u}));
     enterDashboard();
   }catch(err){showEl(errEl,"Connection error: "+err.message);}
 });
 
 async function api(path,opts){
   opts=opts||{};
-  var res=await fetch(path,Object.assign({},opts,{
-    headers:Object.assign({Authorization:AUTH_HEADER,"Content-Type":"application/json"},opts.headers||{})
-  }));
-  if(res.status===401){logout();throw new Error("Session expired.");}
-  return res;
+  var r=await fetch(path,Object.assign({},opts,{headers:Object.assign({Authorization:AUTH_HEADER,"Content-Type":"application/json"},opts.headers||{})}));
+  if(r.status===401){logout();throw new Error("Session expired.");}
+  return r;
 }
 
 function ns(){return $("inp-ns").value.trim()||"default";}
 function loadAll(){loadDeployments();loadPolicies();}
 
-// ── Mode selector ──
-function onModeChange(){
-  var mode=$("sel-mode").value;
-  var isEnhance=mode==="EnhanceProtect";
-  var isModeling=mode==="BehaviorModeling";
-  var isSimple=mode==="AlwaysAllow"||mode==="RuntimeDefault"||mode==="DefenseInDepth";
-  toggleVis("sec-enhance",isEnhance);
-  toggleVis("sec-modeling",isModeling);
-  toggleVis("sec-simple",isSimple);
-  var notes={
-    AlwaysAllow:"AlwaysAllow disables all security restrictions. Use only for testing.",
-    RuntimeDefault:"RuntimeDefault applies the container runtime's default AppArmor/seccomp profile.",
-    DefenseInDepth:"DefenseInDepth (experimental) uses a deny-by-default allowlist profile. Custom profile management is not yet exposed in this UI — apply via kubectl."
-  };
-  if(isSimple) $("simple-note").textContent=notes[mode]||"";
+// ── Scope / mode / target toggles ──
+function onScopeChange(){
+  // Cluster scope: namespace field not relevant (grayed info only)
 }
-
-// ── Target kind selector ──
+function onModeChange(){
+  var m=$("sel-mode").value;
+  toggleVis("sec-enhance",m==="EnhanceProtect");
+  toggleVis("sec-modeling",m==="BehaviorModeling");
+  var isSimple=(m==="AlwaysAllow"||m==="RuntimeDefault"||m==="DefenseInDepth");
+  toggleVis("sec-simple",isSimple);
+  var notes={AlwaysAllow:"AlwaysAllow disables all security restrictions. Use only for testing.",
+    RuntimeDefault:"RuntimeDefault applies the container runtime's default AppArmor/Seccomp profile.",
+    DefenseInDepth:"DefenseInDepth (experimental) uses deny-by-default allowlist. Custom profile editing not yet supported via UI — use kubectl."};
+  if(isSimple) $("simple-note").textContent=notes[m]||"";
+}
+function onTargetModeChange(){
+  var byLabel=document.querySelector('input[name="tgt-mode"]:checked').value==="selector";
+  toggleVis("sec-tgt-name",!byLabel);
+  toggleVis("sec-tgt-selector",byLabel);
+}
 function onKindChange(){
-  var kind=$("sel-kind").value;
-  loadWorkloadsForKind(kind);
+  loadWorkloadsForKind($("sel-kind").value);
+}
+function onEnforcerChange(){
+  var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
+  toggleVis("sec-bpf-rules",enfs.includes("BPF"));
+  toggleVis("sec-seccomp-rules",enfs.includes("Seccomp"));
 }
 
 async function loadWorkloadsForKind(kind){
   $("sel-target").innerHTML="<option value=\"\">&#8212; loading&#8230; &#8212;</option>";
   try{
-    var res=await api("/api/namespaces/"+ns()+"/workloads?kind="+encodeURIComponent(kind));
-    var data=await res.json();
+    var r=await api("/api/namespaces/"+ns()+"/workloads?kind="+encodeURIComponent(kind));
+    var data=await r.json();
     $("sel-target").innerHTML="<option value=\"\">&#8212; select "+kind+" &#8212;</option>";
-    if(res.ok){
-      (data.workloads||[]).forEach(function(w){
-        var o=document.createElement("option");
-        o.value=w.name;o.textContent=w.name;
-        $("sel-target").appendChild(o);
-      });
-    }
-  }catch(e){
-    $("sel-target").innerHTML="<option value=\"\">&#8212; error loading &#8212;</option>";
-  }
+    (data.workloads||[]).forEach(function(w){
+      var o=document.createElement("option");o.value=w.name;o.textContent=w.name;
+      $("sel-target").appendChild(o);
+    });
+  }catch(e){$("sel-target").innerHTML="<option value=\"\">&#8212; error &#8212;</option>";}
+}
+
+// ── BPF raw rules dynamic rows ──
+function addBpfRow(containerId){
+  var div=document.createElement("div");
+  div.className="bpf-row";
+  div.innerHTML='<input type="text" class="form-input" placeholder="/etc/** or /bin/sh" style="font-family:monospace;font-size:.8rem"/>'
+    +'<div style="display:flex;gap:.375rem;flex-shrink:0">'
+    +'<label class="perm-check"><input type="checkbox" value="read" checked> r</label>'
+    +'<label class="perm-check"><input type="checkbox" value="write"> w</label>'
+    +'<label class="perm-check"><input type="checkbox" value="append"> a</label>'
+    +'<label class="perm-check"><input type="checkbox" value="exec"> e</label>'
+    +'<label class="perm-check"><input type="checkbox" value="all"> *</label>'
+    +'</div>'
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove()">&#10005;</button>';
+  $(containerId).appendChild(div);
+}
+
+function collectBpfRules(containerId){
+  var rows=$(containerId).querySelectorAll(".bpf-row");
+  var result=[];
+  rows.forEach(function(row){
+    var pattern=row.querySelector("input[type=text]").value.trim();
+    if(!pattern) return;
+    var perms=Array.from(row.querySelectorAll("input[type=checkbox]:checked")).map(function(c){return c.value;});
+    if(!perms.length) perms=["read"];
+    result.push({pattern:pattern,permissions:perms});
+  });
+  return result;
 }
 
 // ── Deployments sidebar ──
 async function loadDeployments(){
   setLoading("dep",true);hide("dep-empty");hide("dep-err");
   $("dep-list").innerHTML="";
-  $("sel-target").innerHTML="<option value=\"\">&#8212; select workload &#8212;</option>";
+  if($("sel-kind").value==="Deployment")
+    $("sel-target").innerHTML="<option value=\"\">&#8212; select workload &#8212;</option>";
   try{
-    var res=await api("/api/namespaces/"+ns()+"/deployments"),data=await res.json();
+    var r=await api("/api/namespaces/"+ns()+"/deployments"),data=await r.json();
     setLoading("dep",false);
-    if(!res.ok){showEl($("dep-err"),data.error||"Failed");return;}
+    if(!r.ok){showEl($("dep-err"),data.error||"Failed");return;}
     var deps=data.deployments||[];
     if(!deps.length){show("dep-empty");return;}
     deps.forEach(function(d){
       var card=document.createElement("div");
-      card.style.cssText="background:#0f172a;border:1px solid #1e293b;border-radius:0.75rem;padding:0.625rem 0.75rem";
+      card.style.cssText="background:#0f172a;border:1px solid #1e293b;border-radius:.75rem;padding:.625rem .75rem";
       var p=d.varmor_enabled;
-      var badge=p?'<span class="badge badge-green">\u{1F6E1} Protected</span>'
-                 :'<span class="badge badge-amber">⚠ No Shield</span>';
+      var badge=p?'<span class="badge badge-green">&#128737; Protected</span>'
+                 :'<span class="badge badge-amber">&#9888; No Shield</span>';
       var abtn=p?('<button class="btn btn-ghost btn-sm" onclick="openProtectModal(this)" data-name="'+esc(d.name)+'" data-ns="'+esc(ns())+'" data-already="1">&#x21BA; Restart</button>')
                :('<button class="btn btn-green btn-sm" onclick="openProtectModal(this)" data-name="'+esc(d.name)+'" data-ns="'+esc(ns())+'" data-already="0">+ Shield</button>');
-      card.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">'
-        +'<div style="min-width:0;flex:1"><p style="font-size:0.875rem;font-weight:500;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(d.name)+'</p>'
-        +'<p style="font-size:0.75rem;color:#475569">'+d.ready_replicas+"/"+d.replicas+' replicas</p></div>'
-        +'<div style="display:flex;align-items:center;gap:0.375rem;flex-shrink:0">'+badge+abtn+'</div></div>';
+      card.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">'
+        +'<div style="min-width:0;flex:1"><p style="font-size:.875rem;font-weight:500;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(d.name)+'</p>'
+        +'<p style="font-size:.75rem;color:#475569">'+d.ready_replicas+"/"+d.replicas+' replicas</p></div>'
+        +'<div style="display:flex;align-items:center;gap:.375rem;flex-shrink:0">'+badge+abtn+'</div></div>';
       $("dep-list").appendChild(card);
-      // Populate target dropdown (Deployments only by default)
       if($("sel-kind").value==="Deployment"){
         var opt=document.createElement("option");opt.value=d.name;opt.textContent=d.name;
         $("sel-target").appendChild(opt);
@@ -633,13 +635,17 @@ async function loadDeployments(){
 
 // ── Policies table ──
 async function loadPolicies(){
-  setLoading("pol",true);hide("pol-empty");hide("pol-err");$("pol-body").innerHTML="";
-  allPolicies=[];
+  setLoading("pol",true);hide("pol-empty");hide("pol-err");$("pol-body").innerHTML="";allPolicies=[];
   try{
-    var res=await api("/api/namespaces/"+ns()+"/policies"),data=await res.json();
+    var [r1,r2]=await Promise.allSettled([
+      api("/api/namespaces/"+ns()+"/policies"),
+      api("/api/cluster-policies"),
+    ]);
     setLoading("pol",false);
-    if(!res.ok){showEl($("pol-err"),data.error||"Failed");return;}
-    allPolicies=data.policies||[];
+    var combined=[];
+    if(r1.status==="fulfilled"){var d1=await r1.value.json();if(r1.value.ok) combined=combined.concat(d1.policies||[]);}
+    if(r2.status==="fulfilled"){var d2=await r2.value.json();if(r2.value.ok) combined=combined.concat(d2.policies||[]);}
+    allPolicies=combined;
     renderPolicies(allPolicies);
   }catch(err){setLoading("pol",false);showEl($("pol-err"),err.message);}
 }
@@ -649,8 +655,7 @@ function filterPolicies(){
   if(!q){renderPolicies(allPolicies);return;}
   renderPolicies(allPolicies.filter(function(p){
     var tgt=(p.target&&p.target.name)||"";
-    return p.name.toLowerCase().includes(q)||tgt.toLowerCase().includes(q)||
-      (p.mode||"").toLowerCase().includes(q);
+    return p.name.toLowerCase().includes(q)||tgt.toLowerCase().includes(q)||(p.mode||"").toLowerCase().includes(q)||(p.scope||"").toLowerCase().includes(q);
   }));
 }
 
@@ -660,96 +665,118 @@ function renderPolicies(pols){
   hide("pol-empty");
   pols.forEach(function(p){
     var rdy=p.status==="Ready";
-    var sb=rdy?'<span class="badge badge-green">&#x25CF; Ready</span>'
-              :'<span class="badge badge-amber">&#x23F3; Pending</span>';
+    var sb=rdy?'<span class="badge badge-green">&#x25CF; Ready</span>':'<span class="badge badge-amber">&#x23F3; Pending</span>';
     var cr=p.created_at?new Date(p.created_at).toLocaleDateString("vi-VN"):"&#8212;";
-    var tgt=(p.target&&p.target.name)?esc(p.target.name):"&#8212;";
-    var tgtKind=(p.target&&p.target.kind)?p.target.kind:"";
-    var enforcers=(p.enforcer||"").split("|").filter(Boolean);
-    var enfBadges=enforcers.length
-      ?enforcers.map(function(e){return '<span class="badge badge-blue" style="margin-right:2px">'+esc(e)+'</span>';}).join("")
-      :'<span class="badge badge-gray">&#8212;</span>';
-    var modeBadge=modeColor(p.mode);
+    var isCluster=p.scope==="cluster";
+    var scopeBadge=isCluster?'<span class="badge badge-purple">Cluster</span>':'<span class="badge badge-gray">NS</span>';
+    var tgt=p.target||{};
+    var tgtName=tgt.name?esc(tgt.name):(tgt.selector?'<span style="color:#64748b;font-size:.7rem">selector</span>':"&#8212;");
+    var tgtKind=tgt.kind?('<div style="font-size:.7rem;color:#475569">'+esc(tgt.kind)+'</div>'):"";
+    var enfs=(p.enforcer||"").split("|").filter(Boolean);
+    var enfBadges=enfs.length?enfs.map(function(e){return'<span class="badge badge-blue" style="margin-right:2px">'+esc(e)+'</span>';}).join(""):'<span class="badge badge-gray">&#8212;</span>';
+    var viewBtn='<button onclick="openDetailModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-ghost btn-sm" style="margin-right:4px">View</button>';
+    var delBtn='<button onclick="openDelModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>';
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
     tr.onmouseover=function(){tr.style.background="#243552";};
     tr.onmouseout=function(){tr.style.background="";};
-    tr.innerHTML='<td class="td" style="font-family:monospace;color:#93c5fd;font-size:0.75rem">'+esc(p.name)+'</td>'
-      +'<td class="td" style="font-size:0.8rem"><div style="color:#cbd5e1">'+tgt+'</div>'
-        +(tgtKind?'<div style="font-size:0.7rem;color:#475569">'+esc(tgtKind)+'</div>':'')+'</td>'
-      +'<td class="td">'+modeBadge+'</td>'
+    tr.innerHTML='<td class="td" style="font-family:monospace;color:#93c5fd;font-size:.75rem">'+esc(p.name)+'</td>'
+      +'<td class="td">'+scopeBadge+'</td>'
+      +'<td class="td" style="font-size:.8rem"><div style="color:#cbd5e1">'+tgtName+'</div>'+tgtKind+'</td>'
+      +'<td class="td">'+modeColor(p.mode)+'</td>'
       +'<td class="td">'+enfBadges+'</td>'
       +'<td class="td">'+sb+'</td>'
-      +'<td class="td" style="color:#475569;font-size:0.75rem">'+cr+'</td>'
-      +'<td class="td th-r" style="white-space:nowrap">'
-        +'<button onclick="openDetailModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace)+'" class="btn btn-ghost btn-sm" style="margin-right:4px">View</button>'
-        +'<button onclick="openDelModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace)+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>'
-        +'</td>';
+      +'<td class="td" style="color:#475569;font-size:.75rem">'+cr+'</td>'
+      +'<td class="td th-r" style="white-space:nowrap">'+viewBtn+delBtn+'</td>';
     $("pol-body").appendChild(tr);
   });
 }
 
-function modeColor(mode){
-  var colors={
-    EnhanceProtect:'<span class="badge badge-blue">'+esc(mode)+'</span>',
-    AlwaysAllow:'<span class="badge badge-amber">'+esc(mode)+'</span>',
-    RuntimeDefault:'<span class="badge badge-gray">'+esc(mode)+'</span>',
-    BehaviorModeling:'<span class="badge badge-purple">'+esc(mode)+'</span>',
-    DefenseInDepth:'<span class="badge badge-green">'+esc(mode)+'</span>',
-  };
-  return colors[mode]||('<span class="badge badge-gray">'+(esc(mode)||"&#8212;")+'</span>');
+function modeColor(m){
+  var c={EnhanceProtect:'<span class="badge badge-blue">'+esc(m)+'</span>',
+    AlwaysAllow:'<span class="badge badge-amber">'+esc(m)+'</span>',
+    RuntimeDefault:'<span class="badge badge-gray">'+esc(m)+'</span>',
+    BehaviorModeling:'<span class="badge badge-purple">'+esc(m)+'</span>',
+    DefenseInDepth:'<span class="badge badge-green">'+esc(m)+'</span>'};
+  return c[m]||'<span class="badge badge-gray">'+(esc(m)||"&#8212;")+'</span>';
 }
 
-// ── Create policy form submit ──
+// ── Form submit ──
 $("form-create").addEventListener("submit",async function(e){
   e.preventDefault();
   var msgEl=$("create-msg"),progEl=$("create-progress");
   hideEl(msgEl);
-  var name=$("inp-pname").value.trim(),target=$("sel-target").value,namespace=ns();
+  var name=$("inp-pname").value.trim();
+  var scope=document.querySelector('input[name="scope"]:checked').value;
   var kind=$("sel-kind").value;
+  var tgtMode=document.querySelector('input[name="tgt-mode"]:checked').value;
   var mode=$("sel-mode").value;
-  var autoR=$("chk-auto-restart").checked;
-  var updateExisting=$("chk-update-existing").checked;
-  var auditViol=$("chk-audit-viol").checked;
-  var allowViol=$("chk-allow-viol").checked;
+  var namespace=ns();
+  var autoR=$("chk-auto-restart").checked&&scope==="namespace";
   if(!name){showMsg(msgEl,"error","Policy name is required.");return;}
-  if(!target){showMsg(msgEl,"error","Please select a target workload.");return;}
+
+  var targetDeployment="",targetSelector=null;
+  if(tgtMode==="selector"){
+    var selectorLines=$("ta-selector").value.split("\n").filter(Boolean);
+    var matchLabels={};
+    selectorLines.forEach(function(l){var p=l.split("=");if(p.length===2) matchLabels[p[0].trim()]=p[1].trim();});
+    if(!Object.keys(matchLabels).length){showMsg(msgEl,"error","Label selector requires at least one key=value pair.");return;}
+    targetSelector={matchLabels:matchLabels};
+  } else {
+    targetDeployment=$("sel-target").value;
+    if(!targetDeployment){showMsg(msgEl,"error","Please select a target workload.");return;}
+  }
+
   var enforcers=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
   if(!enforcers.length){showMsg(msgEl,"error","Select at least one enforcer.");return;}
   var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
   var banned=$("ta-banned").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var duration=parseInt($("inp-duration").value)||3600;
-  if(mode==="EnhanceProtect"&&!rules.length&&!banned.length){
-    showMsg(msgEl,"error","EnhanceProtect requires at least one rule or banned file.");return;
+  var bpfFileRules=collectBpfRules("bpf-files");
+  var bpfProcRules=collectBpfRules("bpf-procs");
+  var seccompSyscalls=$("ta-seccomp").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var seccompAction=$("sel-seccomp-action").value;
+  var containers=$("inp-containers").value.split(",").map(function(c){return c.trim();}).filter(Boolean);
+  var duration=parseInt($("inp-duration").value)||60;
+  var updateExisting=$("chk-update-existing").checked;
+  var auditViol=$("chk-audit-viol").checked;
+  var allowViol=$("chk-allow-viol").checked;
+
+  if(mode==="EnhanceProtect"&&!rules.length&&!banned.length&&!bpfFileRules.length&&!bpfProcRules.length&&!seccompSyscalls.length){
+    showMsg(msgEl,"error","EnhanceProtect requires at least one rule, banned file, or raw rule.");return;
   }
+
   progEl.classList.remove("hidden");
   setStep("policy","spin");setStep("restart","wait");
   var btn=$("btn-create");btn.disabled=true;
+
   var payload={
-    name:name,namespace:namespace,target_deployment:target,target_kind:kind,
-    mode:mode,enforcers:enforcers,rules:rules,banned_files:banned,
-    modeling_duration:duration,update_existing_workloads:updateExisting,
-    audit_violations:auditViol,allow_violations:allowViol
+    name:name,namespace:namespace,scope:scope,target_kind:kind,
+    target_deployment:targetDeployment,target_selector:targetSelector,
+    target_containers:containers,mode:mode,enforcers:enforcers,
+    rules:rules,banned_files:banned,bpf_file_rules:bpfFileRules,
+    bpf_process_rules:bpfProcRules,seccomp_syscalls:seccompSyscalls,
+    seccomp_action:seccompAction,modeling_duration:duration,
+    update_existing_workloads:updateExisting,audit_violations:auditViol,allow_violations:allowViol
   };
+
   try{
     var res=await api("/api/policies",{method:"POST",body:JSON.stringify(payload)});
     var data=await res.json();
     if(!res.ok){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",data.error||"Failed");btn.disabled=false;return;}
     setStep("policy","done");
-    if(autoR&&kind==="Deployment"){
+    if(autoR&&kind==="Deployment"&&targetDeployment){
       setStep("restart","spin");await sleep(2000);
       try{
-        var r2=await api("/api/namespaces/"+namespace+"/deployments/"+encodeURIComponent(target)+"/protect",{method:"PUT",body:JSON.stringify({enable:true})});
+        var r2=await api("/api/namespaces/"+namespace+"/deployments/"+encodeURIComponent(targetDeployment)+"/protect",{method:"PUT",body:JSON.stringify({enable:true})});
         var d2=await r2.json();
-        if(r2.ok){setStep("restart","done");await sleep(600);progEl.classList.add("hidden");showMsg(msgEl,"success","Policy \""+name+"\" created. Deployment \""+target+"\" restarted.");}
+        if(r2.ok){setStep("restart","done");await sleep(600);progEl.classList.add("hidden");showMsg(msgEl,"success","Policy created. Deployment \""+targetDeployment+"\" restarted.");}
         else{setStep("restart","fail");progEl.classList.add("hidden");showMsg(msgEl,"warn","Policy created &#8212; restart failed: "+(d2.error||"unknown"));}
       }catch(e2){setStep("restart","fail");progEl.classList.add("hidden");showMsg(msgEl,"warn","Policy created &#8212; restart error: "+e2.message);}
     }else{
       setStep("restart","skip");await sleep(300);progEl.classList.add("hidden");
       showMsg(msgEl,"success","Policy \""+name+"\" applied successfully.");
     }
-    resetForm();
-    setTimeout(loadAll,1200);
+    resetForm();setTimeout(loadAll,1200);
   }catch(err){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",err.message);}
   finally{btn.disabled=false;}
 });
@@ -759,8 +786,11 @@ function resetForm(){
   document.querySelector('input[name="enforcer"][value="AppArmor"]').checked=true;
   $("chk-auto-restart").checked=true;
   $("sel-mode").value="EnhanceProtect";
-  onModeChange();
-  updateRuleCounts();
+  onModeChange();onEnforcerChange();updateRuleCounts();
+  $("bpf-files").innerHTML="";$("bpf-procs").innerHTML="";
+  document.querySelector('input[name="scope"][value="namespace"]').checked=true;
+  document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
+  onTargetModeChange();
 }
 
 function setStep(s,state){
@@ -771,30 +801,34 @@ function setStep(s,state){
 }
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
-// ── Rule group toggle ──
 function toggleGroup(id){
   var body=$(id),arr=$("arr-"+id.replace("grp-",""));
-  var isHidden=body.classList.contains("hidden");
-  if(isHidden){body.classList.remove("hidden");arr.textContent="▼";}
-  else{body.classList.add("hidden");arr.textContent="►";}
+  var h=body.classList.contains("hidden");
+  if(h){body.classList.remove("hidden");arr.textContent="▼";}else{body.classList.add("hidden");arr.textContent="►";}
 }
 
 function updateRuleCounts(){
   ["hardening","attack","vuln"].forEach(function(g){
-    var cbs=document.querySelectorAll('#grp-'+g+' input[type="checkbox"]:checked');
-    var el=$("cnt-"+g);
-    if(el) el.textContent=cbs.length?("("+cbs.length+" selected)"):"";
+    var n=document.querySelectorAll('#grp-'+g+' input[type="checkbox"]:checked').length;
+    var el=$("cnt-"+g);if(el) el.textContent=n?("("+n+" selected)"):"";
   });
 }
 
 // ── Delete modal ──
-function openDelModal(el){var name=el.dataset.name,ns_=el.dataset.ns;pendingDel={name:name,ns:ns_};$("del-pname").textContent=name;show("modal-del");}
-function closeDelModal(){pendingDel={name:null,ns:null};hide("modal-del");}
+function openDelModal(el){
+  pendingDel={name:el.dataset.name,ns:el.dataset.ns,scope:el.dataset.scope||"namespace"};
+  $("del-pname").textContent=(pendingDel.scope==="cluster"?"[cluster] ":"")+pendingDel.name;
+  show("modal-del");
+}
+function closeDelModal(){pendingDel={name:null,ns:null,scope:null};hide("modal-del");}
 $("btn-del-confirm").addEventListener("click",async function(){
-  var name=pendingDel.name,namespace=pendingDel.ns;if(!name||!namespace)return;
+  var name=pendingDel.name,namespace=pendingDel.ns,scope=pendingDel.scope;
+  if(!name) return;
   closeDelModal();
   try{
-    var res=await api("/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name),{method:"DELETE"});
+    var path=scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(name)
+      :"/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name);
+    var res=await api(path,{method:"DELETE"});
     var data=await res.json();
     if(!res.ok){alert("Delete failed: "+(data.error||"unknown"));return;}
     setTimeout(loadAll,600);
@@ -815,7 +849,7 @@ function openProtectModal(el){
 }
 function closeProtectModal(){pendingProtect={name:null,ns:null};hide("modal-protect");}
 $("btn-protect-confirm").addEventListener("click",async function(){
-  var name=pendingProtect.name,namespace=pendingProtect.ns;if(!name||!namespace)return;
+  var name=pendingProtect.name,namespace=pendingProtect.ns;if(!name||!namespace) return;
   var btn=$("btn-protect-confirm");btn.disabled=true;
   var msgEl=$("protect-msg");hideEl(msgEl);
   try{
@@ -830,18 +864,17 @@ $("modal-protect").addEventListener("click",function(e){if(e.target===$("modal-p
 
 // ── Detail modal ──
 async function openDetailModal(el){
-  var name=el.dataset.name,namespace=el.dataset.ns;
-  $("detail-name").textContent=namespace+"/"+name;
+  var name=el.dataset.name,namespace=el.dataset.ns,scope=el.dataset.scope||"namespace";
+  $("detail-name").textContent=(scope==="cluster"?"cluster / ":namespace+" / ")+name;
   show("detail-loading");hide("detail-err");hide("detail-body");$("detail-body").textContent="";
   show("modal-detail");
   try{
-    var res=await api("/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name));
-    var data=await res.json();
+    var path=scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(name)
+      :"/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name);
+    var res=await api(path);var data=await res.json();
     hide("detail-loading");
-    if(!res.ok){showEl($("detail-err"),data.error||"Failed to load policy detail.");return;}
-    var pretty=JSON.stringify(data,null,2);
-    $("detail-body").textContent=pretty;
-    show("detail-body");
+    if(!res.ok){showEl($("detail-err"),data.error||"Failed.");return;}
+    $("detail-body").textContent=JSON.stringify(data,null,2);show("detail-body");
   }catch(err){hide("detail-loading");showEl($("detail-err"),err.message);}
 }
 function closeDetailModal(){hide("modal-detail");}
@@ -851,7 +884,7 @@ $("modal-detail").addEventListener("click",function(e){if(e.target===$("modal-de
 function $(id){return document.getElementById(id);}
 function show(id){$(id).classList.remove("hidden");}
 function hide(id){$(id).classList.add("hidden");}
-function toggleVis(id,visible){visible?show(id):hide(id);}
+function toggleVis(id,v){v?show(id):hide(id);}
 function showEl(el,msg){el.textContent=msg;el.classList.remove("hidden");}
 function hideEl(el){el.classList.add("hidden");}
 function setLoading(p,on){on?show(p+"-loading"):hide(p+"-loading");}
@@ -860,15 +893,11 @@ function showMsg(el,type,text){
   var s={success:"background:#052e16;border:1px solid #166534;color:#86efac",
     error:"background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5",
     warn:"background:#451a03;border:1px solid #9a3412;color:#fdba74"};
-  el.style.cssText="padding:0.75rem;border-radius:0.5rem;font-size:0.875rem;"+(s[type]||s.error);
+  el.style.cssText="padding:.75rem;border-radius:.5rem;font-size:.875rem;"+(s[type]||s.error);
   el.classList.remove("hidden");
   if(type!=="error")setTimeout(function(){hideEl(el);},9000);
 }
-function esc(s){
-  return String(s==null?"":s)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
 </script>
 </body>
 </html>
