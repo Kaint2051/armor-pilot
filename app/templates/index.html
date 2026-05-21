@@ -49,7 +49,8 @@
     .rule-group-hdr:hover{background:#162032}
     .rule-group-body{padding:.75rem .875rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.5rem}
     .rule-group-body.hidden{display:none}
-    .bpf-row{display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:center;margin-bottom:.375rem}
+    .bpf-row{display:grid;grid-template-columns:1fr 5.5rem auto auto;gap:.5rem;align-items:center;margin-bottom:.375rem}
+    .mount-row{display:grid;grid-template-columns:1fr 4.5rem 5rem 4.5rem auto;gap:.375rem;align-items:center;margin-bottom:.375rem}
     .perm-check{display:inline-flex;align-items:center;gap:.2rem;font-size:.75rem;color:#94a3b8;cursor:pointer}
     .perm-check input{accent-color:#3b82f6;width:.875rem;height:.875rem}
     .edit-banner{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.625rem 1rem;border-radius:.75rem;margin-bottom:1rem;background:#1c1205;border:1px solid #d97706}
@@ -250,6 +251,7 @@
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-procfs-root" onchange="updateRuleCounts()"><span>Prohibit accessing /proc/[PID]/root</span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-kallsyms" onchange="updateRuleCounts()"><span>Prohibit reading /proc/kallsyms</span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-userfaultfd-creation" onchange="updateRuleCounts()"><span>Prohibit userfaultfd <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-disk-device" onchange="updateRuleCounts()"><span>Prohibit mounting block devices <span class="dim">(privileged)</span></span></label>
                   </div>
                 </div>
                 <div class="rule-group">
@@ -281,6 +283,14 @@
                     <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet6" onchange="updateRuleCounts()"><span>Prohibit IPv6</span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disable-tcp" onchange="updateRuleCounts()"><span>Prohibit TCP</span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disable-udp" onchange="updateRuleCounts()"><span>Prohibit UDP</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-icmp" onchange="updateRuleCounts()"><span>Prohibit ICMP</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-unix-domain-socket" onchange="updateRuleCounts()"><span>Prohibit Unix domain sockets</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-skills" onchange="updateRuleCounts()"><span>Prohibit writing skill files</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-x-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +x (set exec bit)</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-s-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +s (set SUID/SGID)</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-volc-metadata-service" onchange="updateRuleCounts()"><span>Block Volcengine metadata service <span class="dim">(BPF)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-alibaba-metadata-service" onchange="updateRuleCounts()"><span>Block Alibaba Cloud metadata service <span class="dim">(BPF)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-oci-metadata-service" onchange="updateRuleCounts()"><span>Block OCI metadata service <span class="dim">(BPF)</span></span></label>
                   </div>
                 </div>
                 <div class="rule-group">
@@ -296,6 +306,13 @@
                     <label class="cb-row"><input type="checkbox" name="rule" value="copy-fail-mitigation" onchange="updateRuleCounts()"><span>Mitigate Copy Fail <span class="dim">(CVE-2026-31431)</span></span></label>
                   </div>
                 </div>
+              </div>
+
+              <!-- Attack targets -->
+              <div class="mb-4">
+                <label class="form-label">Attack Protection Targets <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor only — restrict attack rules to specific executables, one per line)</span></label>
+                <textarea id="ta-attack-targets" rows="2" placeholder="/usr/bin/python3&#10;/bin/bash" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                <p class="mt-1 text-xs" style="color:#475569">Leave blank to apply attack protection rules to all processes.</p>
               </div>
 
               <!-- AppArmor banned files -->
@@ -325,7 +342,56 @@
                     </div>
                     <div id="bpf-procs" class="space-y-1"></div>
                   </div>
-                  <p class="text-xs" style="color:#475569">Permissions: r=read, w=write, a=append, e=exec, *=all</p>
+                  <p class="text-xs" style="color:#475569">File/Process: pattern | qualifier | permissions (r=read, w=write, a=append, e=exec, *=all)</p>
+
+                  <!-- Ptrace rules -->
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">PTRACE RULE</span>
+                      <label class="cb-row"><input type="checkbox" id="chk-ptrace-enable" onchange="onPtraceEnableChange()"><span class="text-xs" style="color:#94a3b8">Enable ptrace rule</span></label>
+                    </div>
+                    <div id="sec-ptrace-rule" class="hidden p-2 rounded space-y-2" style="background:#0a0f1a;border:1px solid #1e293b">
+                      <div class="flex flex-wrap gap-4">
+                        <div style="min-width:9rem">
+                          <label class="form-label">Qualifier</label>
+                          <select id="sel-ptrace-qual" class="form-input" style="padding:.3rem .5rem">
+                            <option value="deny">deny</option>
+                            <option value="audit">audit</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="form-label">Permissions</label>
+                          <div class="flex flex-wrap gap-3">
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-all" value="all">all</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-trace" value="trace">trace</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-traceby" value="traceby">traceby</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-read" value="read">read</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-readby" value="readby">readby</label>
+                          </div>
+                        </div>
+                      </div>
+                      <label class="cb-row"><input type="checkbox" id="chk-ptrace-strict"><span style="color:#94a3b8;font-size:.8rem">Strict Mode (also restrict traceby/readby)</span></label>
+                    </div>
+                  </div>
+
+                  <!-- Mount rules -->
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">MOUNT RULES <span style="color:#475569;font-weight:400">(source pattern | fstype | flags | qualifier)</span></span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addMountRow()">+ Add Mount Rule</button>
+                    </div>
+                    <div id="bpf-mounts" class="space-y-1"></div>
+                  </div>
+
+                  <!-- Network rules (JSON) -->
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">NETWORK RULES <span style="color:#475569;font-weight:400">(NetworkRule JSON)</span></span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="fillNetworkTemplate()">Template</button>
+                    </div>
+                    <textarea id="ta-bpf-network" rows="4" placeholder='{"egress":[{"ipBlock":{"cidr":"169.254.169.254/32"},"ports":[{"protocol":"TCP","port":80}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                    <p class="text-xs mt-1" style="color:#475569">Leave empty to skip. Click Template for a cloud-metadata-block example.</p>
+                  </div>
                 </div>
               </div>
 
@@ -358,6 +424,38 @@
               </div>
             </div>
 
+            <!-- NetworkProxy MITM Config (shown when NetworkProxy enforcer enabled) -->
+            <div id="sec-np-config" class="hidden mb-4 rule-group">
+              <div class="rule-group-hdr" onclick="toggleGroup('grp-np')" style="background:#051429">
+                <span class="text-sm font-semibold" style="color:#38bdf8">&#127760; NetworkProxy MITM Config <span style="color:#64748b;font-weight:400;font-size:.75rem">(networkProxyConfig)</span></span>
+                <span id="arr-grp-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
+              </div>
+              <div id="grp-np" class="hidden p-3 space-y-4">
+                <div>
+                  <label class="form-label">MITM Domains <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                  <textarea id="ta-np-mitm-domains" rows="3" placeholder="example.com&#10;*.internal.corp" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                </div>
+                <div>
+                  <label class="form-label">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON array of {header, value, operation})</span></label>
+                  <textarea id="ta-np-mitm-mutations" rows="3" placeholder='[{"header":"X-Forwarded-For","value":"","operation":"Remove"}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="form-label">Proxy UID</label>
+                    <input id="inp-np-proxy-uid" type="number" min="0" placeholder="1337" class="form-input"/>
+                  </div>
+                  <div>
+                    <label class="form-label">Proxy Port</label>
+                    <input id="inp-np-proxy-port" type="number" min="1" max="65535" placeholder="15001" class="form-input"/>
+                  </div>
+                  <div>
+                    <label class="form-label">Admin Port</label>
+                    <input id="inp-np-proxy-admin-port" type="number" min="1" max="65535" placeholder="15000" class="form-input"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- BehaviorModeling -->
             <div id="sec-modeling" class="hidden mb-4">
               <label class="form-label">Modeling Duration <span style="color:#475569;font-size:.75rem;font-weight:400">(minutes)</span></label>
@@ -365,7 +463,81 @@
               <p class="mt-1 text-xs" style="color:#64748b">vArmor records container behavior for this duration, then transitions to Completed state.</p>
             </div>
 
-            <!-- AlwaysAllow / RuntimeDefault / DefenseInDepth info -->
+            <!-- DefenseInDepth full config -->
+            <div id="sec-did" class="hidden mb-4 space-y-3">
+              <div class="p-3 rounded-lg text-sm" style="background:#0c1205;border:1px solid #166534;color:#86efac">
+                DefenseInDepth applies a deny-by-default allowlist profile. Configure AppArmor/Seccomp profiles and optional NetworkProxy egress rules below.
+              </div>
+              <!-- DID AppArmor -->
+              <div class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('did-apparmor')" style="background:#0c1205">
+                  <span class="text-sm font-semibold" style="color:#4ade80">AppArmor Profile</span>
+                  <span id="arr-did-apparmor" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                </div>
+                <div id="did-apparmor" class="hidden p-3 space-y-3">
+                  <div>
+                    <label class="form-label">Profile Type</label>
+                    <div class="flex gap-5">
+                      <label class="cb-row"><input type="radio" name="did-aa-type" value="BehaviorModel" onchange="onDidAaTypeChange()"><span>BehaviorModel <span class="dim">(use recorded model)</span></span></label>
+                      <label class="cb-row"><input type="radio" name="did-aa-type" value="Custom" onchange="onDidAaTypeChange()"><span>Custom <span class="dim">(provide profile)</span></span></label>
+                    </div>
+                  </div>
+                  <div id="did-aa-custom-sec" class="hidden">
+                    <label class="form-label">Custom Profile <span style="color:#475569;font-size:.75rem;font-weight:400">(base64-encoded AppArmor profile)</span></label>
+                    <textarea id="ta-did-aa-custom" rows="3" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Additional Raw Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line, appended to profile)</span></label>
+                    <textarea id="ta-did-aa-raw" rows="3" placeholder="deny /etc/shadow r,&#10;deny /proc/sysrq-trigger rwmlk," class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                </div>
+              </div>
+              <!-- DID Seccomp -->
+              <div class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('did-seccomp')" style="background:#1c0a05">
+                  <span class="text-sm font-semibold" style="color:#fb923c">Seccomp Profile</span>
+                  <span id="arr-did-seccomp" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                </div>
+                <div id="did-seccomp" class="hidden p-3 space-y-3">
+                  <div>
+                    <label class="form-label">Profile Type</label>
+                    <div class="flex gap-5">
+                      <label class="cb-row"><input type="radio" name="did-sc-type" value="BehaviorModel" onchange="onDidScTypeChange()"><span>BehaviorModel</span></label>
+                      <label class="cb-row"><input type="radio" name="did-sc-type" value="Custom" onchange="onDidScTypeChange()"><span>Custom</span></label>
+                    </div>
+                  </div>
+                  <div id="did-sc-custom-sec" class="hidden">
+                    <label class="form-label">Custom Profile <span style="color:#475569;font-size:.75rem;font-weight:400">(base64-encoded Seccomp profile)</span></label>
+                    <textarea id="ta-did-sc-custom" rows="3" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Allowed Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                    <textarea id="ta-did-sc-syscalls" rows="4" placeholder="read&#10;write&#10;open&#10;close" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Action for listed syscalls</label>
+                    <select id="sel-did-sc-action" class="form-input" style="max-width:22rem">
+                      <option value="SCMP_ACT_ALLOW">SCMP_ACT_ALLOW — allow these syscalls</option>
+                      <option value="SCMP_ACT_ERRNO">SCMP_ACT_ERRNO — block (return error)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <!-- DID NetworkProxy egress -->
+              <div class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('did-np')" style="background:#051429">
+                  <span class="text-sm font-semibold" style="color:#38bdf8">NetworkProxy Egress <span style="color:#64748b;font-weight:400;font-size:.75rem">(optional)</span></span>
+                  <span id="arr-did-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                </div>
+                <div id="did-np" class="hidden p-3">
+                  <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON object)</span></label>
+                  <textarea id="ta-did-np-egress" rows="4" placeholder='{"ports":[{"protocol":"TCP","port":443}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                </div>
+              </div>
+              <label class="cb-row"><input type="checkbox" id="did-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only mode)</span></label>
+            </div>
+
+            <!-- AlwaysAllow / RuntimeDefault info -->
             <div id="sec-simple" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
               <span id="simple-note"></span>
             </div>
@@ -642,12 +814,13 @@ function onScopeChange(){}
 function onModeChange(){
   var m=$("sel-mode").value;
   toggleVis("sec-enhance",m==="EnhanceProtect");
+  toggleVis("sec-np-config",m==="EnhanceProtect"&&Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).some(function(c){return c.value==="NetworkProxy";}));
   toggleVis("sec-modeling",m==="BehaviorModeling");
-  var isSimple=(m==="AlwaysAllow"||m==="RuntimeDefault"||m==="DefenseInDepth");
+  toggleVis("sec-did",m==="DefenseInDepth");
+  var isSimple=(m==="AlwaysAllow"||m==="RuntimeDefault");
   toggleVis("sec-simple",isSimple);
   var notes={AlwaysAllow:"AlwaysAllow disables all security restrictions. Use only for testing.",
-    RuntimeDefault:"RuntimeDefault applies the container runtime's default AppArmor/Seccomp profile.",
-    DefenseInDepth:"DefenseInDepth (experimental) uses deny-by-default allowlist. Custom profile editing not yet supported via UI — use kubectl."};
+    RuntimeDefault:"RuntimeDefault applies the container runtime's default AppArmor/Seccomp profile."};
   if(isSimple) $("simple-note").textContent=notes[m]||"";
 }
 function onTargetModeChange(){
@@ -662,6 +835,7 @@ function onEnforcerChange(){
   var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
   toggleVis("sec-bpf-rules",enfs.includes("BPF"));
   toggleVis("sec-seccomp-rules",enfs.includes("Seccomp"));
+  toggleVis("sec-np-config",enfs.includes("NetworkProxy")&&$("sel-mode").value==="EnhanceProtect");
 }
 
 async function loadWorkloadsForKind(kind){
@@ -678,12 +852,18 @@ async function loadWorkloadsForKind(kind){
 }
 
 // ── BPF raw rules dynamic rows ──
-function addBpfRow(containerId,pattern,permissions){
+function addBpfRow(containerId,pattern,permissions,qualifiers){
   var div=document.createElement("div");
   div.className="bpf-row";
   var perms=permissions||[];
+  var quals=qualifiers||["deny"];
   function chk(v){return(perms.length===0&&v==="read")||perms.includes(v)?'checked':'';}
+  var qualSel='<select class="form-input" style="font-size:.75rem;padding:.25rem .4rem">'
+    +'<option value="deny"'+(quals.includes("deny")?" selected":"")+'>deny</option>'
+    +'<option value="audit"'+(quals.includes("audit")?" selected":"")+'>audit</option>'
+    +'</select>';
   div.innerHTML='<input type="text" class="form-input" value="'+esc(pattern||'')+'" placeholder="/etc/** or /bin/sh" style="font-family:monospace;font-size:.8rem"/>'
+    +qualSel
     +'<div style="display:flex;gap:.375rem;flex-shrink:0">'
     +'<label class="perm-check"><input type="checkbox" value="read" '+chk("read")+'>r</label>'
     +'<label class="perm-check"><input type="checkbox" value="write" '+chk("write")+'>w</label>'
@@ -703,9 +883,74 @@ function collectBpfRules(containerId){
     if(!pattern) return;
     var perms=Array.from(row.querySelectorAll("input[type=checkbox]:checked")).map(function(c){return c.value;});
     if(!perms.length) perms=["read"];
-    result.push({pattern:pattern,permissions:perms});
+    var qualSel=row.querySelector("select");
+    var quals=qualSel?[qualSel.value]:["deny"];
+    result.push({pattern:pattern,permissions:perms,qualifiers:quals});
   });
   return result;
+}
+
+// ── BPF mount / ptrace / network helpers ──
+function addMountRow(sp,ft,flags,qual){
+  var div=document.createElement("div");
+  div.className="mount-row";
+  var flagStr=Array.isArray(flags)?flags.join(","):(flags||"");
+  div.innerHTML='<input type="text" class="form-input" value="'+esc(sp||'')+'" placeholder="/** (source)" style="font-family:monospace;font-size:.78rem"/>'
+    +'<input type="text" class="form-input" value="'+esc(ft||'')+'" placeholder="tmpfs" style="font-size:.78rem"/>'
+    +'<input type="text" class="form-input" value="'+esc(flagStr)+'" placeholder="ro,bind" style="font-size:.78rem"/>'
+    +'<select class="form-input" style="font-size:.75rem;padding:.25rem .4rem">'
+    +'<option value="deny"'+(!qual||qual==="deny"?" selected":"")+'>deny</option>'
+    +'<option value="audit"'+(qual==="audit"?" selected":"")+'>audit</option>'
+    +'</select>'
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove()">&#10005;</button>';
+  $("bpf-mounts").appendChild(div);
+}
+
+function collectMountRules(){
+  var rows=$("bpf-mounts").querySelectorAll(".mount-row");
+  var result=[];
+  rows.forEach(function(row){
+    var inputs=row.querySelectorAll("input[type=text]");
+    var sp=inputs[0].value.trim();if(!sp) return;
+    var ft=inputs[1].value.trim();
+    var flags=inputs[2].value.trim().split(",").map(function(f){return f.trim();}).filter(Boolean);
+    var qual=row.querySelector("select").value;
+    result.push({sourcePattern:sp,fstype:ft,flags:flags,qualifiers:[qual]});
+  });
+  return result;
+}
+
+function collectPtraceRule(){
+  if(!$("chk-ptrace-enable").checked) return null;
+  var quals=[$("sel-ptrace-qual").value];
+  var perms=["all","trace","traceby","read","readby"].filter(function(v){
+    var el=$("ptrace-perm-"+v);return el&&el.checked;
+  });
+  if(!perms.length) perms=["all"];
+  var rule={qualifiers:quals,permissions:perms};
+  if($("chk-ptrace-strict").checked) rule.strictMode=true;
+  return rule;
+}
+
+function fillNetworkTemplate(){
+  $("ta-bpf-network").value=JSON.stringify({egress:[
+    {ipBlock:{cidr:"169.254.169.254/32"},ports:[{protocol:"TCP",port:80}]},
+    {ipBlock:{cidr:"169.254.169.254/32"},ports:[{protocol:"TCP",port:443}]}
+  ]},null,2);
+}
+
+function onPtraceEnableChange(){
+  toggleVis("sec-ptrace-rule",$("chk-ptrace-enable").checked);
+}
+
+function onDidAaTypeChange(){
+  var v=document.querySelector('input[name="did-aa-type"]:checked');
+  toggleVis("did-aa-custom-sec",v&&v.value==="Custom");
+}
+
+function onDidScTypeChange(){
+  var v=document.querySelector('input[name="did-sc-type"]:checked');
+  toggleVis("did-sc-custom-sec",v&&v.value==="Custom");
 }
 
 // ── Edit mode ──
@@ -738,6 +983,9 @@ function parseSpecIntoForm(crd,scope,name){
   // Reset to clean slate first
   $("form-create").reset();
   $("bpf-files").innerHTML="";$("bpf-procs").innerHTML="";
+  $("bpf-mounts").innerHTML="";
+  $("chk-ptrace-enable").checked=false;hide("sec-ptrace-rule");
+  $("ta-bpf-network").value="";
   document.querySelectorAll('input[name="rule"]').forEach(function(c){c.checked=false;});
   document.querySelectorAll('input[name="enforcer"]').forEach(function(c){c.checked=false;});
 
@@ -800,10 +1048,29 @@ function parseSpecIntoForm(crd,scope,name){
   $("chk-audit-viol").checked=!!ep.auditViolations;
   $("chk-allow-viol").checked=!!ep.allowViolations;
 
-  // BPF raw rules
+  // Attack protection targets
+  var atk=(ep.attackProtectionRules||[])[0];
+  if(atk&&atk.targets&&atk.targets.length) $("ta-attack-targets").value=atk.targets.join("\n");
+
+  // BPF raw rules (files, processes, ptrace, mounts, network)
   (ep.bpfRawRules||[]).forEach(function(bpfObj){
-    (bpfObj.files||[]).forEach(function(fr){addBpfRow("bpf-files",fr.pattern,fr.permissions);});
-    (bpfObj.processes||[]).forEach(function(pr){addBpfRow("bpf-procs",pr.pattern,pr.permissions);});
+    (bpfObj.files||[]).forEach(function(fr){addBpfRow("bpf-files",fr.pattern,fr.permissions,fr.qualifiers);});
+    (bpfObj.processes||[]).forEach(function(pr){addBpfRow("bpf-procs",pr.pattern,pr.permissions,pr.qualifiers);});
+    if(bpfObj.ptrace){
+      $("chk-ptrace-enable").checked=true;show("sec-ptrace-rule");
+      var pt=bpfObj.ptrace;
+      if(pt.qualifiers&&pt.qualifiers[0]) $("sel-ptrace-qual").value=pt.qualifiers[0];
+      (pt.permissions||[]).forEach(function(v){var el=$("ptrace-perm-"+v);if(el)el.checked=true;});
+      if(pt.strictMode) $("chk-ptrace-strict").checked=true;
+    }
+    (bpfObj.mounts||[]).forEach(function(mr){
+      var flagStr=Array.isArray(mr.flags)?mr.flags.join(","):(mr.flags||"");
+      var qual=(mr.qualifiers||["deny"])[0];
+      addMountRow(mr.sourcePattern,mr.fstype,flagStr,qual);
+    });
+    if(bpfObj.network){
+      try{$("ta-bpf-network").value=JSON.stringify(bpfObj.network,null,2);}catch(e){}
+    }
   });
 
   // Seccomp raw rules
@@ -816,6 +1083,43 @@ function parseSpecIntoForm(crd,scope,name){
   // BehaviorModeling duration (CRD stores seconds, form shows minutes)
   var dur=(pol.modelingOptions||{}).duration||3600;
   $("inp-duration").value=Math.round(dur/60);
+
+  // DefenseInDepth
+  var did=pol.defenseInDepth||{};
+  if(pol.mode==="DefenseInDepth"){
+    var didAa=did.appArmor||{};
+    if(didAa.profileType){
+      var aaRadio=document.querySelector('input[name="did-aa-type"][value="'+didAa.profileType+'"]');
+      if(aaRadio){aaRadio.checked=true;onDidAaTypeChange();}
+    }
+    if(didAa.customProfile) $("ta-did-aa-custom").value=didAa.customProfile;
+    if(didAa.appArmorRawRules&&didAa.appArmorRawRules.length)
+      $("ta-did-aa-raw").value=(didAa.appArmorRawRules||[]).map(function(r){return r.rules||"";}).join("\n");
+    var didSc=did.seccomp||{};
+    if(didSc.profileType){
+      var scRadio=document.querySelector('input[name="did-sc-type"][value="'+didSc.profileType+'"]');
+      if(scRadio){scRadio.checked=true;onDidScTypeChange();}
+    }
+    if(didSc.customProfile) $("ta-did-sc-custom").value=didSc.customProfile;
+    var didScSr=(didSc.syscallRawRules||[])[0];
+    if(didScSr){
+      $("ta-did-sc-syscalls").value=(didScSr.names||[]).join("\n");
+      if(didScSr.action) $("sel-did-sc-action").value=didScSr.action;
+    }
+    if(did.networkProxy&&did.networkProxy.egress)
+      try{$("ta-did-np-egress").value=JSON.stringify(did.networkProxy.egress,null,2);}catch(e){}
+    if(did.allowViolations) $("did-allow-viol").checked=true;
+  }
+
+  // NetworkProxy MITM config
+  var npCfg=pol.networkProxyConfig||{};
+  var mitm=npCfg.mitm||{};
+  if(mitm.domains&&mitm.domains.length) $("ta-np-mitm-domains").value=mitm.domains.join("\n");
+  if(mitm.headerMutations)
+    try{$("ta-np-mitm-mutations").value=JSON.stringify(mitm.headerMutations,null,2);}catch(e){}
+  if(npCfg.proxyUID!=null) $("inp-np-proxy-uid").value=npCfg.proxyUID;
+  if(npCfg.proxyPort!=null) $("inp-np-proxy-port").value=npCfg.proxyPort;
+  if(npCfg.proxyAdminPort!=null) $("inp-np-proxy-admin-port").value=npCfg.proxyAdminPort;
 }
 
 function cancelEdit(){
@@ -831,6 +1135,15 @@ function cancelEdit(){
   $("sel-mode").value="EnhanceProtect";
   onModeChange();onEnforcerChange();updateRuleCounts();
   $("bpf-files").innerHTML="";$("bpf-procs").innerHTML="";
+  $("bpf-mounts").innerHTML="";
+  $("ta-attack-targets").value="";
+  $("ta-bpf-network").value="";
+  $("chk-ptrace-enable").checked=false;hide("sec-ptrace-rule");
+  $("ta-did-aa-raw").value="";$("ta-did-aa-custom").value="";hide("did-aa-custom-sec");
+  $("ta-did-sc-syscalls").value="";$("ta-did-sc-custom").value="";hide("did-sc-custom-sec");
+  $("ta-did-np-egress").value="";
+  $("ta-np-mitm-domains").value="";$("ta-np-mitm-mutations").value="";
+  $("inp-np-proxy-uid").value="";$("inp-np-proxy-port").value="";$("inp-np-proxy-admin-port").value="";
   document.querySelector('input[name="scope"][value="namespace"]').checked=true;
   document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
   onTargetModeChange();
@@ -1036,8 +1349,14 @@ $("form-create").addEventListener("submit",async function(e){
   if(!enforcers.length){showMsg(msgEl,"error","Select at least one enforcer.");return;}
   var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
   var banned=$("ta-banned").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var attackTargets=$("ta-attack-targets").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var bpfFileRules=collectBpfRules("bpf-files");
   var bpfProcRules=collectBpfRules("bpf-procs");
+  var bpfMountRules=collectMountRules();
+  var bpfPtraceRule=collectPtraceRule();
+  var bpfNetworkStr=($("ta-bpf-network").value||"").trim();
+  var bpfNetwork=null;
+  if(bpfNetworkStr){try{bpfNetwork=JSON.parse(bpfNetworkStr);}catch(e){showMsg(msgEl,"error","BPF Network Rules: invalid JSON — "+e.message);return;}}
   var seccompSyscalls=$("ta-seccomp").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var seccompAction=$("sel-seccomp-action").value;
   var containers=$("inp-containers").value.split(",").map(function(c){return c.trim();}).filter(Boolean);
@@ -1045,6 +1364,30 @@ $("form-create").addEventListener("submit",async function(e){
   var updateExisting=$("chk-update-existing").checked;
   var auditViol=$("chk-audit-viol").checked;
   var allowViol=$("chk-allow-viol").checked;
+
+  // DefenseInDepth fields
+  var didAaTypeEl=document.querySelector('input[name="did-aa-type"]:checked');
+  var didAaType=didAaTypeEl?didAaTypeEl.value:"";
+  var didAaCustom=$("ta-did-aa-custom").value.trim();
+  var didAaRaw=$("ta-did-aa-raw").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var didScTypeEl=document.querySelector('input[name="did-sc-type"]:checked');
+  var didScType=didScTypeEl?didScTypeEl.value:"";
+  var didScCustom=$("ta-did-sc-custom").value.trim();
+  var didScSyscalls=$("ta-did-sc-syscalls").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var didScAction=$("sel-did-sc-action").value;
+  var didAllowViol=$("did-allow-viol").checked;
+  var didNpEgressStr=($("ta-did-np-egress").value||"").trim();
+  var didNpEgress=null;
+  if(didNpEgressStr){try{didNpEgress=JSON.parse(didNpEgressStr);}catch(e){showMsg(msgEl,"error","DID NetworkProxy Egress: invalid JSON — "+e.message);return;}}
+
+  // NetworkProxy MITM config fields
+  var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var npMitmMutStr=($("ta-np-mitm-mutations").value||"").trim();
+  var npMitmMut=null;
+  if(npMitmMutStr){try{npMitmMut=JSON.parse(npMitmMutStr);}catch(e){showMsg(msgEl,"error","NP MITM mutations: invalid JSON — "+e.message);return;}}
+  var npProxyUid=$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
+  var npProxyPort=$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
+  var npProxyAdminPort=$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
 
   if(mode==="EnhanceProtect"&&!rules.length&&!banned.length&&!bpfFileRules.length&&!bpfProcRules.length&&!seccompSyscalls.length){
     showMsg(msgEl,"error","EnhanceProtect requires at least one rule, banned file, or raw rule.");return;
@@ -1058,11 +1401,18 @@ $("form-create").addEventListener("submit",async function(e){
     name:name,namespace:namespace,scope:scope,target_kind:kind,
     target_deployment:targetDeployment,target_selector:targetSelector,
     target_containers:containers,mode:mode,enforcers:enforcers,
-    rules:rules,banned_files:banned,bpf_file_rules:bpfFileRules,
-    bpf_process_rules:bpfProcRules,seccomp_syscalls:seccompSyscalls,
-    seccomp_action:seccompAction,
+    rules:rules,banned_files:banned,attack_targets:attackTargets,
+    bpf_file_rules:bpfFileRules,bpf_process_rules:bpfProcRules,
+    bpf_mounts:bpfMountRules,bpf_ptrace:bpfPtraceRule,bpf_network:bpfNetwork,
+    seccomp_syscalls:seccompSyscalls,seccomp_action:seccompAction,
     modeling_duration:durationMins*60,
-    update_existing_workloads:updateExisting,audit_violations:auditViol,allow_violations:allowViol
+    update_existing_workloads:updateExisting,audit_violations:auditViol,allow_violations:allowViol,
+    did_apparmor_type:didAaType,did_apparmor_custom:didAaCustom,did_apparmor_raw_rules:didAaRaw,
+    did_seccomp_type:didScType,did_seccomp_custom:didScCustom,
+    did_seccomp_syscalls:didScSyscalls,did_seccomp_action:didScAction,
+    did_allow_violations:didAllowViol,did_np_egress:didNpEgress,
+    np_mitm_domains:npMitmDomains,np_mitm_mutations:npMitmMut,
+    np_proxy_uid:npProxyUid,np_proxy_port:npProxyPort,np_proxy_admin_port:npProxyAdminPort
   };
 
   try{
