@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import re
 
@@ -53,6 +54,7 @@ VULN_RULES = frozenset([
 VALID_MODES = frozenset(["AlwaysAllow", "RuntimeDefault", "EnhanceProtect", "BehaviorModeling", "DefenseInDepth"])
 VALID_KINDS = frozenset(["Deployment", "StatefulSet", "DaemonSet", "Pod"])
 VALID_SCMP_ACTIONS = frozenset(["SCMP_ACT_KILL", "SCMP_ACT_ERRNO", "SCMP_ACT_LOG", "SCMP_ACT_ALLOW"])
+VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
 
 
 def _sanitize_name(raw: str) -> str:
@@ -82,9 +84,19 @@ def _parse_policy_item(item: dict, scope: str = "namespace", ns_fallback: str = 
     }
 
 
+def _build_file_rule(r: dict) -> dict:
+    rule: dict = {"pattern": r["pattern"], "permissions": r["permissions"]}
+    quals = r.get("qualifiers") or []
+    if quals:
+        rule["qualifiers"] = quals
+    return rule
+
+
 def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rules,
+                            bpf_network, bpf_ptrace, bpf_mounts,
                             seccomp_syscalls, seccomp_action, enforcers,
-                            audit_violations, allow_violations) -> dict:
+                            audit_violations, allow_violations,
+                            attack_targets) -> dict:
     hardening = [r for r in rules if r in HARDENING_RULES]
     attack = [r for r in rules if r in ATTACK_RULES]
     vuln = [r for r in rules if r in VULN_RULES]
@@ -94,7 +106,10 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
     if hardening:
         ep["hardeningRules"] = hardening
     if attack:
-        ep["attackProtectionRules"] = [{"rules": attack}]
+        atk_entry: dict = {"rules": attack}
+        if attack_targets:
+            atk_entry["targets"] = attack_targets
+        ep["attackProtectionRules"] = [atk_entry]
     if vuln:
         ep["vulMitigationRules"] = vuln
     if apparmor_raw:
@@ -104,16 +119,21 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
     if allow_violations:
         ep["allowViolations"] = True
 
-    if "BPF" in enforcers and (bpf_file_rules or bpf_process_rules):
+    if "BPF" in enforcers:
         bpf_obj: dict = {}
-        files = [{"pattern": r["pattern"], "permissions": r["permissions"]}
-                 for r in bpf_file_rules if r.get("pattern")]
-        procs = [{"pattern": r["pattern"], "permissions": r["permissions"]}
-                 for r in bpf_process_rules if r.get("pattern")]
+        files = [_build_file_rule(r) for r in bpf_file_rules if r.get("pattern")]
+        procs = [_build_file_rule(r) for r in bpf_process_rules if r.get("pattern")]
         if files:
             bpf_obj["files"] = files
         if procs:
             bpf_obj["processes"] = procs
+        if bpf_network and isinstance(bpf_network, dict):
+            bpf_obj["network"] = bpf_network
+        if bpf_ptrace and isinstance(bpf_ptrace, dict):
+            bpf_obj["ptrace"] = bpf_ptrace
+        mounts = [r for r in (bpf_mounts or []) if r.get("sourcePattern")]
+        if mounts:
+            bpf_obj["mounts"] = mounts
         if bpf_obj:
             ep["bpfRawRules"] = [bpf_obj]
 
@@ -122,6 +142,67 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
         ep["syscallRawRules"] = [{"names": seccomp_syscalls, "action": action}]
 
     return ep
+
+
+def _build_defense_in_depth(body: dict) -> dict:
+    did: dict = {}
+
+    if body.get("did_allow_violations"):
+        did["allowViolations"] = True
+
+    aa_type = (body.get("did_apparmor_type") or "").strip()
+    if aa_type in VALID_DID_PROFILE_TYPES:
+        aa: dict = {"profileType": aa_type}
+        aa_custom = (body.get("did_apparmor_custom") or "").strip()
+        if aa_type == "Custom" and aa_custom:
+            aa["customProfile"] = aa_custom
+        aa_raw = [l.strip() for l in (body.get("did_apparmor_raw_rules") or []) if str(l).strip()]
+        if aa_raw:
+            aa["appArmorRawRules"] = [{"rules": r} for r in aa_raw]
+        did["appArmor"] = aa
+
+    sc_type = (body.get("did_seccomp_type") or "").strip()
+    if sc_type in VALID_DID_PROFILE_TYPES:
+        sc: dict = {"profileType": sc_type}
+        sc_custom = (body.get("did_seccomp_custom") or "").strip()
+        if sc_type == "Custom" and sc_custom:
+            sc["customProfile"] = sc_custom
+        sc_syscalls = [s.strip() for s in (body.get("did_seccomp_syscalls") or []) if str(s).strip()]
+        if sc_syscalls:
+            action = body.get("did_seccomp_action") or "SCMP_ACT_ERRNO"
+            if action not in VALID_SCMP_ACTIONS:
+                action = "SCMP_ACT_ERRNO"
+            sc["syscallRawRules"] = [{"names": sc_syscalls, "action": action}]
+        did["seccomp"] = sc
+
+    np_egress = body.get("did_np_egress")
+    if np_egress and isinstance(np_egress, dict):
+        did["networkProxy"] = {"egress": np_egress}
+
+    return did
+
+
+def _build_network_proxy_config(body: dict) -> dict:
+    cfg: dict = {}
+
+    domains = [d.strip() for d in (body.get("np_mitm_domains") or []) if str(d).strip()]
+    if domains:
+        mitm: dict = {"domains": domains}
+        mutations = body.get("np_mitm_mutations")
+        if mutations and isinstance(mutations, list):
+            mitm["headerMutations"] = mutations
+        cfg["mitm"] = mitm
+
+    for key, field in [("np_proxy_uid", "proxyUID"), ("np_proxy_port", "proxyPort"),
+                        ("np_proxy_admin_port", "proxyAdminPort")]:
+        val = body.get(key)
+        if val is not None:
+            try:
+                cfg[field] = int(val)
+            except (ValueError, TypeError):
+                pass
+
+    return cfg
 
 
 def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str) -> tuple:
@@ -136,8 +217,12 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     banned_files: list = body.get("banned_files") or []
     bpf_file_rules: list = body.get("bpf_file_rules") or []
     bpf_process_rules: list = body.get("bpf_process_rules") or []
+    bpf_network = body.get("bpf_network")
+    bpf_ptrace = body.get("bpf_ptrace")
+    bpf_mounts: list = body.get("bpf_mounts") or []
     seccomp_syscalls: list = [s.strip() for s in body.get("seccomp_syscalls") or [] if str(s).strip()]
     seccomp_action: str = body.get("seccomp_action") or "SCMP_ACT_ERRNO"
+    attack_targets: list = [t.strip() for t in body.get("attack_targets") or [] if str(t).strip()]
     modeling_duration: int = int(body.get("modeling_duration") or 3600)
     update_existing = bool(body.get("update_existing_workloads", False))
     audit_violations = bool(body.get("audit_violations", False))
@@ -171,14 +256,26 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     if mode == "EnhanceProtect":
         ep = _build_enhance_protect(
             rules, banned_files, bpf_file_rules, bpf_process_rules,
+            bpf_network, bpf_ptrace, bpf_mounts,
             seccomp_syscalls, seccomp_action, enforcers,
-            audit_violations, allow_violations,
+            audit_violations, allow_violations, attack_targets,
         )
         if not ep:
             return None, "EnhanceProtect policy must have at least one rule, banned file, or raw rule"
         spec_policy["enhanceProtect"] = ep
+
+        if "NetworkProxy" in enforcers:
+            np_cfg = _build_network_proxy_config(body)
+            if np_cfg:
+                spec_policy["networkProxyConfig"] = np_cfg
+
     elif mode == "BehaviorModeling":
         spec_policy["modelingOptions"] = {"duration": modeling_duration}
+
+    elif mode == "DefenseInDepth":
+        did = _build_defense_in_depth(body)
+        if did:
+            spec_policy["defenseInDepth"] = did
 
     spec: dict = {
         "updateExistingWorkloads": update_existing,
