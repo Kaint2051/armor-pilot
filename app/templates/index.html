@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>vArmor Console</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <style>
     html{color-scheme:dark}
     body{background:#0f172a;color:#e2e8f0;font-family:ui-sans-serif,system-ui,sans-serif}
@@ -57,6 +58,9 @@
     .collapsible-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:.375rem 0}
     .collapsible-hdr:hover .collapsible-title{color:#f1f5f9}
     .collapsible-title{color:#94a3b8;transition:color 150ms}
+    .tab-btn{padding:.3rem .75rem;font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;color:#64748b;background:transparent;border-radius:.375rem;transition:color 150ms,background 150ms,border-color 150ms}
+    .tab-btn:hover{color:#94a3b8;background:#1e293b}
+    .tab-btn.tab-active{color:#f1f5f9;background:#1e293b;border-color:#334155}
   </style>
 </head>
 <body class="min-h-screen">
@@ -105,18 +109,119 @@
         <input id="inp-ns" value="default" class="form-input" style="width:9rem;padding:.35rem .625rem;font-size:.8rem"/>
         <button onclick="loadAll()" class="btn btn-primary btn-sm">Load</button>
       </div>
-      <div class="flex items-center gap-3 shrink-0">
+      <div class="flex items-center gap-1 shrink-0">
+        <button id="tab-btn-dashboard" class="tab-btn" onclick="switchTab('dashboard')">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Dashboard
+        </button>
+        <button id="tab-btn-policy" class="tab-btn tab-active" onclick="switchTab('policy')">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Policy
+        </button>
+        <button id="tab-btn-logs" class="tab-btn" onclick="switchTab('logs')">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Logs
+        </button>
+        <button id="tab-btn-users" class="tab-btn" onclick="switchTab('users')">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          Users
+        </button>
+        <div class="w-px h-5 mx-2" style="background:#334155"></div>
         <span id="lbl-user" class="text-sm hidden sm:block" style="color:#64748b"></span>
         <button onclick="logout()" class="btn btn-ghost btn-sm">Logout</button>
       </div>
     </div>
   </header>
 
-  <main class="flex-1 max-w-screen-2xl mx-auto w-full px-6 py-6">
-    <div class="grid grid-cols-12 gap-6">
+  <main class="flex-1">
 
-      <!-- LEFT 8 cols -->
-      <div class="col-span-12 xl:col-span-8 space-y-6">
+    <!-- ═══════════════ TAB: DASHBOARD ═══════════════ -->
+    <div id="tab-dashboard" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold flex items-center gap-2" style="color:#f1f5f9">
+          <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Security Dashboard
+        </h2>
+        <div class="flex items-center gap-3">
+          <span id="dash-updated" class="text-xs" style="color:#475569"></span>
+          <button onclick="loadDashboard()" class="btn btn-ghost btn-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">NS Policies</div>
+          <div id="dash-ns" class="text-3xl font-bold mb-1" style="color:#93c5fd">—</div>
+          <div class="text-xs" style="color:#64748b">Namespace scoped</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Cluster Policies</div>
+          <div id="dash-cluster" class="text-3xl font-bold mb-1" style="color:#c4b5fd">—</div>
+          <div class="text-xs" style="color:#64748b">Cluster scoped</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Ready</div>
+          <div id="dash-ready" class="text-3xl font-bold mb-1" style="color:#4ade80">—</div>
+          <div class="text-xs" style="color:#64748b">Policies active</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Not Ready</div>
+          <div id="dash-notready" class="text-3xl font-bold mb-1" style="color:#fb923c">—</div>
+          <div class="text-xs" style="color:#64748b">Pending / Error</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Protected</div>
+          <div id="dash-protected" class="text-3xl font-bold mb-1" style="color:#22d3ee">—</div>
+          <div class="text-xs" style="color:#64748b">Workloads shielded</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Total Workloads</div>
+          <div id="dash-workloads" class="text-3xl font-bold mb-1" style="color:#94a3b8">—</div>
+          <div class="text-xs" style="color:#64748b">Deployments found</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card">
+          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+            Policies by Mode
+          </h3>
+          <div id="dash-modes"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+        </div>
+        <div class="card">
+          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            Policies by Enforcer
+          </h3>
+          <div id="dash-enforcers"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2" style="color:#94a3b8">
+          <svg class="w-4 h-4" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Recent Activity
+        </h3>
+        <div id="dash-activity"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════ TAB: POLICY ═══════════════ -->
+    <div id="tab-policy" class="max-w-screen-2xl mx-auto w-full px-6 py-6">
+      <div class="grid grid-cols-12 gap-6">
+
+        <!-- LEFT 8 cols -->
+        <div class="col-span-12 xl:col-span-8 space-y-6">
 
         <!-- CREATE / EDIT POLICY -->
         <section class="card">
@@ -242,6 +347,7 @@
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-create-user-ns" onchange="updateRuleCounts()"><span>Prohibit creating user namespaces <span class="dim">(Seccomp)</span></span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-prog" onchange="updateRuleCounts()"><span>Prohibit privileged eBPF programs</span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-all-bpf-prog" onchange="updateRuleCounts()"><span>Prohibit any eBPF programs <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-via-setsockopt" onchange="updateRuleCounts()"><span>Prohibit cBPF via setsockopt <span class="dim">(Seccomp)</span></span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-core-pattern" onchange="updateRuleCounts()"><span>Prohibit modifying core_pattern <span class="dim">(privileged)</span></span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-securityfs" onchange="updateRuleCounts()"><span>Prohibit mounting securityfs <span class="dim">(privileged)</span></span></label>
                     <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-release-agent" onchange="updateRuleCounts()"><span>Prohibit modifying release_agent <span class="dim">(privileged)</span></span></label>
@@ -577,6 +683,7 @@
             <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
               <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
               Active Policies
+              <span id="auto-refresh-badge" class="hidden badge badge-purple" style="font-size:.65rem;padding:.15rem .45rem">&#x21BB; auto-refreshing</span>
             </h2>
             <button onclick="loadPolicies()" class="btn btn-ghost btn-sm">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -591,10 +698,17 @@
           </div>
           <div id="pol-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No policies found.</div>
           <div id="pol-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <!-- Batch toolbar (shown when checkboxes selected) -->
+          <div id="batch-bar" class="hidden mb-3 flex items-center gap-3 px-3 py-2 rounded-lg" style="background:#1c1a05;border:1px solid #854d0e">
+            <span id="batch-count" class="text-sm font-semibold" style="color:#fbbf24">0 selected</span>
+            <button onclick="confirmBatchDelete()" class="btn btn-danger btn-sm">Delete Selected</button>
+            <button onclick="clearSelection()" class="btn btn-ghost btn-sm">Clear</button>
+          </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr style="border-bottom:1px solid #1e293b">
+                  <th class="th" style="width:2rem;text-align:center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer" title="Select all"></th>
                   <th class="th">Name</th><th class="th">Scope</th><th class="th">Target</th>
                   <th class="th">Mode</th><th class="th">Enforcer</th>
                   <th class="th">Status</th><th class="th">Created</th><th class="th th-r">Actions</th>
@@ -602,41 +716,6 @@
               </thead>
               <tbody id="pol-body"></tbody>
             </table>
-          </div>
-        </section>
-
-        <!-- AUDIT LOG -->
-        <section class="card">
-          <div class="collapsible-hdr" onclick="toggleSection('audit-content','audit-arr')">
-            <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
-              <svg class="w-5 h-5" style="color:#fb923c" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-              Audit Log
-            </h2>
-            <div class="flex items-center gap-2">
-              <button onclick="event.stopPropagation();loadAuditLogs()" class="btn btn-ghost btn-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Refresh
-              </button>
-              <span id="audit-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
-            </div>
-          </div>
-          <div id="audit-content" class="mt-4">
-            <div id="audit-loading" class="hidden py-6 flex justify-center">
-              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            </div>
-            <div id="audit-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No audit events recorded yet.</div>
-            <div id="audit-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr style="border-bottom:1px solid #1e293b">
-                    <th class="th">Time</th><th class="th">User</th><th class="th">Action</th>
-                    <th class="th">Policy</th><th class="th">Namespace</th><th class="th">Status</th><th class="th">Details</th>
-                  </tr>
-                </thead>
-                <tbody id="audit-body"></tbody>
-              </table>
-            </div>
           </div>
         </section>
 
@@ -675,30 +754,252 @@
           </div>
         </section>
 
-      </div>
+        </div>
 
-      <!-- RIGHT 4 cols -->
-      <div class="col-span-12 xl:col-span-4">
-        <div class="card xl:sticky xl:top-20">
-          <div class="flex items-center justify-between mb-5">
-            <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
-              <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
-              Deployments
-            </h2>
-            <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:.3rem">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            </button>
+        <!-- RIGHT 4 cols -->
+        <div class="col-span-12 xl:col-span-4">
+          <div class="card xl:sticky xl:top-28">
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
+                Deployments
+              </h2>
+              <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:.3rem">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              </button>
+            </div>
+            <div id="dep-loading" class="hidden py-6 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="dep-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No deployments found.</div>
+            <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div id="dep-list" class="space-y-2"></div>
           </div>
-          <div id="dep-loading" class="hidden py-6 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          </div>
-          <div id="dep-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No deployments found.</div>
-          <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-          <div id="dep-list" class="space-y-2"></div>
         </div>
       </div>
     </div>
+
+    <!-- ═══════════════ TAB: LOGS ═══════════════ -->
+    <div id="tab-logs" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
+
+      <!-- AUDIT LOG -->
+      <section class="card">
+        <div class="collapsible-hdr" onclick="toggleSection('audit-content','audit-arr')">
+          <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+            <svg class="w-5 h-5" style="color:#fb923c" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Audit Log
+          </h2>
+          <div class="flex items-center gap-2">
+            <button onclick="event.stopPropagation();loadAuditLogs()" class="btn btn-ghost btn-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+            <span id="audit-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
+          </div>
+        </div>
+        <div id="audit-content" class="mt-4">
+          <div id="audit-loading" class="hidden py-6 flex justify-center">
+            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          </div>
+          <div id="audit-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No audit events recorded yet.</div>
+          <div id="audit-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr style="border-bottom:1px solid #1e293b">
+                  <th class="th">Time</th><th class="th">User</th><th class="th">Action</th>
+                  <th class="th">Policy</th><th class="th">Namespace</th><th class="th">Status</th><th class="th">Details</th>
+                </tr>
+              </thead>
+              <tbody id="audit-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- APPARMOR KERNEL EVENTS -->
+      <section class="card">
+        <div class="collapsible-hdr" onclick="toggleSection('aa-events-content','aa-events-arr')">
+          <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+            <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            AppArmor Kernel Events
+            <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(kern.log)</span>
+          </h2>
+          <div class="flex items-center gap-2">
+            <button onclick="event.stopPropagation();loadAaEvents()" class="btn btn-ghost btn-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+            <span id="aa-events-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
+          </div>
+        </div>
+        <div id="aa-events-content" class="mt-4">
+          <div id="aa-events-loading" class="hidden py-6 flex justify-center">
+            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          </div>
+          <div id="aa-events-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No AppArmor events found.</div>
+          <div id="aa-events-warn" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1404;border:1px solid #713f12;color:#fde68a"></div>
+          <div id="aa-events-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr style="border-bottom:1px solid #1e293b">
+                  <th class="th">Time</th><th class="th">Profile</th><th class="th">Operation</th><th class="th">Name</th><th class="th">Disposition</th>
+                </tr>
+              </thead>
+              <tbody id="aa-events-body"></tbody>
+            </table>
+          </div>
+          <p class="mt-3 text-xs" style="color:#475569">Reads <code>/var/log/kern.log</code> inside the pod. Requires a hostPath volume mount on the console deployment.</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ═══════════════ TAB: USERS ═══════════════ -->
+    <div id="tab-users" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
+      <div class="grid grid-cols-12 gap-6">
+
+        <!-- LEFT: My Profile + Change Password -->
+        <div class="col-span-12 lg:col-span-4 space-y-5">
+
+          <!-- My Profile card -->
+          <section class="card">
+            <h2 class="text-base font-semibold flex items-center gap-2 mb-4" style="color:#f1f5f9">
+              <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              My Profile
+            </h2>
+            <div class="flex items-center gap-3 p-3 rounded-xl mb-4" style="background:#0f172a;border:1px solid #334155">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0" style="background:#1d4ed8;color:#fff" id="user-avatar">A</div>
+              <div class="min-w-0">
+                <p id="user-display-name" class="font-semibold truncate" style="color:#f1f5f9">admin</p>
+                <span id="user-role-badge" class="badge badge-blue text-xs">admin</span>
+              </div>
+              <span class="ml-auto badge badge-green shrink-0">Active</span>
+            </div>
+          </section>
+
+          <!-- Change own password -->
+          <section class="card">
+            <h2 class="text-base font-semibold flex items-center gap-2 mb-4" style="color:#f1f5f9">
+              <svg class="w-5 h-5" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+              Change My Password
+            </h2>
+            <form id="form-chgpwd" novalidate>
+              <div class="mb-3">
+                <label class="form-label">Current Password <span style="color:#f87171">*</span></label>
+                <input id="inp-cur-pass" type="password" autocomplete="current-password" class="form-input" placeholder="Current password"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">New Password <span style="color:#f87171">*</span></label>
+                <input id="inp-new-pass" type="password" autocomplete="new-password" class="form-input" placeholder="Min 8 characters"/>
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Confirm New Password <span style="color:#f87171">*</span></label>
+                <input id="inp-confirm-pass" type="password" autocomplete="new-password" class="form-input" placeholder="Repeat new password"/>
+              </div>
+              <div id="chgpwd-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+              <button type="submit" class="btn btn-primary btn-sm">Update Password</button>
+            </form>
+          </section>
+
+        </div>
+
+        <!-- RIGHT: User Management table (admin only) -->
+        <div class="col-span-12 lg:col-span-8">
+          <section class="card">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                User Management
+              </h2>
+              <div class="flex items-center gap-2">
+                <button onclick="loadUsers()" class="btn btn-ghost btn-sm">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Refresh
+                </button>
+                <button id="btn-add-user" onclick="openAddUserModal()" class="btn btn-primary btn-sm">+ Add User</button>
+              </div>
+            </div>
+            <div id="users-admin-notice" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1a05;border:1px solid #713f12;color:#fde68a">Only admins can manage users.</div>
+            <div id="users-loading" class="hidden py-6 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="users-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th">Username</th>
+                    <th class="th">Role</th>
+                    <th class="th">Created</th>
+                    <th class="th">Last Login</th>
+                    <th class="th th-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- ADD USER MODAL -->
+<div id="modal-add-user" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:26rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Add New User</h3>
+      <button onclick="closeAddUserModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <form id="form-add-user" novalidate>
+      <div class="mb-3">
+        <label class="form-label">Username <span style="color:#f87171">*</span></label>
+        <input id="inp-new-uname" type="text" autocomplete="off" class="form-input" placeholder="e.g. operator1"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password <span style="color:#f87171">*</span></label>
+        <input id="inp-new-upass" type="password" autocomplete="new-password" class="form-input" placeholder="Min 8 characters"/>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Role</label>
+        <select id="sel-new-role" class="form-input">
+          <option value="viewer">viewer — Read-only access</option>
+          <option value="admin">admin — Full access</option>
+        </select>
+      </div>
+      <div id="add-user-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="closeAddUserModal()" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div id="modal-reset-pwd" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:24rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Reset Password</h3>
+      <button onclick="closeResetPwdModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <p class="text-sm mb-1" style="color:#94a3b8">User:</p>
+    <p id="reset-pwd-uname" class="font-mono font-semibold text-sm mb-4" style="color:#93c5fd"></p>
+    <div class="mb-3">
+      <label class="form-label">New Password <span style="color:#f87171">*</span></label>
+      <input id="inp-reset-pass" type="password" autocomplete="new-password" class="form-input" placeholder="Min 8 characters"/>
+    </div>
+    <div id="reset-pwd-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeResetPwdModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-reset-pwd-confirm" class="btn btn-warning">Reset Password</button>
+    </div>
+  </div>
 </div>
 
 <!-- DELETE MODAL -->
@@ -772,6 +1073,28 @@ var pendingDel={name:null,ns:null,scope:null};
 var pendingProtect={name:null,ns:null};
 var allPolicies=[];
 var editMode=null; // {name, ns, scope} when editing
+var statusPollTimer=null;
+var CURRENT_TAB="policy";
+function switchTab(tab){
+  ["dashboard","policy","logs","users"].forEach(function(t){
+    var p=$("tab-"+t);
+    if(p) p.classList.toggle("hidden",t!==tab);
+    var b=$("tab-btn-"+t);
+    if(b) b.classList.toggle("tab-active",t===tab);
+  });
+  CURRENT_TAB=tab;
+  if(tab==="dashboard"){loadDashboard();}
+  if(tab==="logs"){loadAuditLogs();loadAaEvents();}
+  if(tab==="users"){
+    if(CURRENT_USER){
+      $("user-display-name").textContent=CURRENT_USER;
+      $("user-avatar").textContent=(CURRENT_USER[0]||"U").toUpperCase();
+      var rb=$("user-role-badge");
+      if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(CURRENT_ROLE==="admin"?"badge-blue":"badge-gray");}
+    }
+    loadUsers();
+  }
+}
 
 window.addEventListener("DOMContentLoaded",function(){
   updateRuleCounts();
@@ -781,7 +1104,18 @@ window.addEventListener("DOMContentLoaded",function(){
 });
 
 function enterLogin(){show("pg-login");hide("pg-dash");}
-function enterDashboard(){hide("pg-login");show("pg-dash");$("lbl-user").textContent="\u{1F464} "+CURRENT_USER;loadAll();}
+function enterDashboard(){
+  hide("pg-login");show("pg-dash");
+  $("lbl-user").textContent="\u{1F464} "+CURRENT_USER;
+  if($("user-display-name")){$("user-display-name").textContent=CURRENT_USER;$("user-avatar").textContent=(CURRENT_USER[0]||"U").toUpperCase();}
+  // Fetch current user's role
+  api("/api/me").then(function(r){return r.json();}).then(function(d){
+    CURRENT_ROLE=d.role||"viewer";
+    var rb=$("user-role-badge");
+    if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(CURRENT_ROLE==="admin"?"badge-blue":"badge-gray");}
+  }).catch(function(){});
+  loadAll();
+}
 function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=CURRENT_USER=null;enterLogin();}
 
 $("login-form").addEventListener("submit",async function(e){
@@ -807,7 +1141,7 @@ async function api(path,opts){
 }
 
 function ns(){return $("inp-ns").value.trim()||"default";}
-function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadProfileModels();}
+function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadAaEvents();loadProfileModels();}
 
 // ── Scope / mode / target toggles ──
 function onScopeChange(){}
@@ -933,10 +1267,14 @@ function collectPtraceRule(){
 }
 
 function fillNetworkTemplate(){
-  $("ta-bpf-network").value=JSON.stringify({egress:[
-    {ipBlock:{cidr:"169.254.169.254/32"},ports:[{protocol:"TCP",port:80}]},
-    {ipBlock:{cidr:"169.254.169.254/32"},ports:[{protocol:"TCP",port:443}]}
-  ]},null,2);
+  $("ta-bpf-network").value=JSON.stringify({
+    egress:{
+      toDestinations:[
+        {qualifiers:["deny"],cidr:"169.254.169.254/32",
+         ports:[{protocol:"TCP",port:80},{protocol:"TCP",port:443}]}
+      ]
+    }
+  },null,2);
 }
 
 function onPtraceEnableChange(){
@@ -1053,7 +1391,8 @@ function parseSpecIntoForm(crd,scope,name){
   if(atk&&atk.targets&&atk.targets.length) $("ta-attack-targets").value=atk.targets.join("\n");
 
   // BPF raw rules (files, processes, ptrace, mounts, network)
-  (ep.bpfRawRules||[]).forEach(function(bpfObj){
+  var bpfObj=ep.bpfRawRules;
+  if(bpfObj){
     (bpfObj.files||[]).forEach(function(fr){addBpfRow("bpf-files",fr.pattern,fr.permissions,fr.qualifiers);});
     (bpfObj.processes||[]).forEach(function(pr){addBpfRow("bpf-procs",pr.pattern,pr.permissions,pr.qualifiers);});
     if(bpfObj.ptrace){
@@ -1071,7 +1410,7 @@ function parseSpecIntoForm(crd,scope,name){
     if(bpfObj.network){
       try{$("ta-bpf-network").value=JSON.stringify(bpfObj.network,null,2);}catch(e){}
     }
-  });
+  }
 
   // Seccomp raw rules
   var sr=(ep.syscallRawRules||[])[0];
@@ -1197,6 +1536,14 @@ async function loadPolicies(){
     if(r2.status==="fulfilled"){var d2=await r2.value.json();if(r2.value.ok) combined=combined.concat(d2.policies||[]);}
     allPolicies=combined;
     renderPolicies(allPolicies);
+    var hasPending=combined.some(function(p){return p.status!=="Ready";});
+    if(hasPending&&!statusPollTimer){
+      statusPollTimer=setInterval(loadPolicies,5000);
+      show("auto-refresh-badge");
+    }else if(!hasPending&&statusPollTimer){
+      clearInterval(statusPollTimer);statusPollTimer=null;
+      hide("auto-refresh-badge");
+    }
   }catch(err){setLoading("pol",false);showEl($("pol-err"),err.message);}
 }
 
@@ -1211,11 +1558,19 @@ function filterPolicies(){
 
 function renderPolicies(pols){
   $("pol-body").innerHTML="";
+  if($("chk-all")) $("chk-all").checked=false;
+  updateBatchBar();
   if(!pols.length){show("pol-empty");return;}
   hide("pol-empty");
   pols.forEach(function(p){
     var rdy=p.status==="Ready";
-    var sb=rdy?'<span class="badge badge-green">&#x25CF; Ready</span>':'<span class="badge badge-amber">&#x23F3; Pending</span>';
+    var isPending=p.status==="Pending";
+    var statusMsg=p.status_message||"";
+    var sbClass=rdy?"badge-green":isPending?"badge-amber":"badge-red";
+    var sbIcon=rdy?"&#x25CF; ":isPending?"&#x23F3; ":"&#x26A0; ";
+    var sbLabel=rdy?"Ready":esc(p.status||"Pending");
+    var tooltipAttr=(!rdy&&statusMsg)?' title="'+esc(statusMsg)+'" style="cursor:help"':"";
+    var sb='<span class="badge '+sbClass+'"'+tooltipAttr+'>'+sbIcon+sbLabel+'</span>';
     var cr=p.created_at?new Date(p.created_at).toLocaleDateString("vi-VN"):"&#8212;";
     var isCluster=p.scope==="cluster";
     var scopeBadge=isCluster?'<span class="badge badge-purple">Cluster</span>':'<span class="badge badge-gray">NS</span>';
@@ -1224,21 +1579,25 @@ function renderPolicies(pols){
     var tgtKind=tgt.kind?('<div style="font-size:.7rem;color:#475569">'+esc(tgt.kind)+'</div>'):"";
     var enfs=(p.enforcer||"").split("|").filter(Boolean);
     var enfBadges=enfs.length?enfs.map(function(e){return'<span class="badge badge-blue" style="margin-right:2px">'+esc(e)+'</span>';}).join(""):'<span class="badge badge-gray">&#8212;</span>';
-    var editBtn='<button onclick="loadPolicyForEdit(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>';
-    var viewBtn='<button onclick="openDetailModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-ghost btn-sm" style="margin-right:2px">View</button>';
-    var delBtn='<button onclick="openDelModal(this)" data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>';
+    var chkAttrs='data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'"';
+    var chk='<input type="checkbox" class="pol-chk" '+chkAttrs+' onchange="updateBatchBar()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer">';
+    var editBtn='<button onclick="loadPolicyForEdit(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>';
+    var viewBtn='<button onclick="openDetailModal(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px">View</button>';
+    var exportBtn='<button onclick="exportPolicy(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Export YAML">&#11123;</button>';
+    var delBtn='<button onclick="openDelModal(this)" '+chkAttrs+' class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Del</button>';
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
     tr.onmouseover=function(){tr.style.background="#243552";};
     tr.onmouseout=function(){tr.style.background="";};
-    tr.innerHTML='<td class="td" style="font-family:monospace;color:#93c5fd;font-size:.75rem">'+esc(p.name)+'</td>'
+    tr.innerHTML='<td class="td" style="width:2rem;text-align:center">'+chk+'</td>'
+      +'<td class="td" style="font-family:monospace;color:#93c5fd;font-size:.75rem">'+esc(p.name)+'</td>'
       +'<td class="td">'+scopeBadge+'</td>'
       +'<td class="td" style="font-size:.8rem"><div style="color:#cbd5e1">'+tgtName+'</div>'+tgtKind+'</td>'
       +'<td class="td">'+modeColor(p.mode)+'</td>'
       +'<td class="td">'+enfBadges+'</td>'
       +'<td class="td">'+sb+'</td>'
       +'<td class="td" style="color:#475569;font-size:.75rem">'+cr+'</td>'
-      +'<td class="td th-r" style="white-space:nowrap">'+editBtn+viewBtn+delBtn+'</td>';
+      +'<td class="td th-r" style="white-space:nowrap">'+editBtn+viewBtn+exportBtn+delBtn+'</td>';
     $("pol-body").appendChild(tr);
   });
 }
@@ -1250,6 +1609,168 @@ function modeColor(m){
     BehaviorModeling:'<span class="badge badge-purple">'+esc(m)+'</span>',
     DefenseInDepth:'<span class="badge badge-green">'+esc(m)+'</span>'};
   return c[m]||'<span class="badge badge-gray">'+(esc(m)||"&#8212;")+'</span>';
+}
+
+// ── Dashboard ──
+async function loadDashboard(){
+  ["dash-ns","dash-cluster","dash-ready","dash-notready","dash-protected","dash-workloads"].forEach(function(id){
+    var el=$(id);if(el)el.textContent="…";
+  });
+  $("dash-modes").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading…</div>';
+  $("dash-enforcers").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading…</div>';
+  $("dash-activity").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading…</div>';
+  var namespace=ns();
+  try{
+    var [r1,r2,r3,r4]=await Promise.allSettled([
+      api("/api/namespaces/"+namespace+"/policies"),
+      api("/api/cluster-policies"),
+      api("/api/namespaces/"+namespace+"/deployments"),
+      api("/api/audit-logs?limit=10"),
+    ]);
+    var nsPols=[],clPols=[],deps=[],auditEvs=[];
+    if(r1.status==="fulfilled"&&r1.value.ok){var d1=await r1.value.json();nsPols=d1.policies||[];}
+    if(r2.status==="fulfilled"&&r2.value.ok){var d2=await r2.value.json();clPols=d2.policies||[];}
+    if(r3.status==="fulfilled"&&r3.value.ok){var d3=await r3.value.json();deps=d3.deployments||[];}
+    if(r4.status==="fulfilled"&&r4.value.ok){var d4=await r4.value.json();auditEvs=d4.events||[];}
+    var allPols=nsPols.concat(clPols);
+    var readyCnt=allPols.filter(function(p){return p.status==="Ready";}).length;
+    var protCnt=deps.filter(function(d){return d.varmor_enabled;}).length;
+    $("dash-ns").textContent=nsPols.length;
+    $("dash-cluster").textContent=clPols.length;
+    $("dash-ready").textContent=readyCnt;
+    $("dash-notready").textContent=allPols.length-readyCnt;
+    $("dash-protected").textContent=protCnt;
+    $("dash-workloads").textContent=deps.length;
+    // Mode chart
+    var modeCounts={};
+    allPols.forEach(function(p){var m=p.mode||"Unknown";modeCounts[m]=(modeCounts[m]||0)+1;});
+    renderBarChart("dash-modes",modeCounts,{
+      EnhanceProtect:"#3b82f6",AlwaysAllow:"#f59e0b",RuntimeDefault:"#64748b",
+      BehaviorModeling:"#a78bfa",DefenseInDepth:"#34d399",Unknown:"#475569"
+    });
+    // Enforcer chart
+    var enfCounts={};
+    allPols.forEach(function(p){
+      (p.enforcer||"AppArmor").split("|").filter(Boolean).forEach(function(e){enfCounts[e]=(enfCounts[e]||0)+1;});
+    });
+    renderBarChart("dash-enforcers",enfCounts,{
+      AppArmor:"#60a5fa",BPF:"#34d399",Seccomp:"#f472b6",NetworkProxy:"#fb923c"
+    });
+    // Status donut (text only)
+    renderDashActivity(auditEvs.slice(0,8));
+    var upd=$("dash-updated");
+    if(upd)upd.textContent="Updated "+new Date().toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }catch(err){console.error("Dashboard error:",err);}
+}
+
+function renderBarChart(containerId,counts,colorMap){
+  var el=$(containerId);if(!el)return;
+  var entries=Object.entries(counts).sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length){el.innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">No data</div>';return;}
+  var max=Math.max.apply(null,entries.map(function(e){return e[1];}));
+  el.innerHTML=entries.map(function(kv){
+    var label=kv[0],count=kv[1];
+    var pct=max>0?Math.round(count/max*100):0;
+    var color=colorMap[label]||"#64748b";
+    return '<div style="margin-bottom:.625rem">'
+      +'<div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem">'
+      +'<span style="color:#cbd5e1">'+esc(label)+'</span>'
+      +'<span style="color:#94a3b8;font-weight:600">'+count+'</span>'
+      +'</div>'
+      +'<div style="height:7px;background:#0f172a;border-radius:9999px;overflow:hidden">'
+      +'<div style="height:7px;background:'+color+';border-radius:9999px;width:'+pct+'%;transition:width 700ms ease"></div>'
+      +'</div></div>';
+  }).join("");
+}
+
+function renderDashActivity(events){
+  var el=$("dash-activity");if(!el)return;
+  if(!events.length){el.innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">No recent activity</div>';return;}
+  var actionColor={
+    CREATE:"#60a5fa",UPDATE:"#fbbf24",DELETE:"#f87171",
+    ENABLE_PROTECTION:"#4ade80",DISABLE_PROTECTION:"#fb923c",
+    CREATE_USER:"#60a5fa",DELETE_USER:"#f87171",CHANGE_PASSWORD:"#fbbf24",UPDATE_ROLE:"#a78bfa"
+  };
+  el.innerHTML=events.map(function(ev){
+    var ok=ev.status==="SUCCESS";
+    var ac=actionColor[ev.action]||"#94a3b8";
+    var ts=ev.ts?new Date(ev.ts).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
+    return '<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #1e293b">'
+      +'<span style="font-size:.7rem;color:#475569;min-width:4.5rem;white-space:nowrap;font-family:monospace">'+esc(ts)+'</span>'
+      +'<span style="font-size:.7rem;font-weight:700;color:'+ac+';min-width:6rem;white-space:nowrap">'+esc(ev.action||"")+'</span>'
+      +'<span style="font-size:.75rem;color:#94a3b8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(ev.policy||"")+(ev.namespace&&ev.namespace!=="cluster"?'<span style="color:#475569"> / '+esc(ev.namespace)+'</span>':"")+'</span>'
+      +'<span style="font-size:.7rem;color:#475569;white-space:nowrap">'+esc(ev.user||"")+'</span>'
+      +'<span class="badge '+(ok?"badge-green":"badge-red")+'" style="font-size:.6rem;flex-shrink:0">'+(ok?"OK":"FAIL")+'</span>'
+      +'</div>';
+  }).join("")+'<div style="font-size:.7rem;color:#475569;padding-top:.5rem;text-align:right"><a href="#" onclick="switchTab(\'logs\');return false" style="color:#3b82f6;text-decoration:none">View all logs →</a></div>';
+}
+
+// ── Batch select / delete ──
+function getCheckedPolicies(){
+  return Array.from(document.querySelectorAll(".pol-chk:checked")).map(function(el){
+    return{name:el.dataset.name,ns:el.dataset.ns,scope:el.dataset.scope||"namespace"};
+  });
+}
+function updateBatchBar(){
+  var items=getCheckedPolicies();
+  var bar=$("batch-bar"),cnt=$("batch-count"),all=$("chk-all");
+  if(items.length>0){show("batch-bar");cnt.textContent=items.length+" selected";}
+  else{hide("batch-bar");}
+  if(all){
+    var total=document.querySelectorAll(".pol-chk").length;
+    all.checked=total>0&&items.length===total;
+    all.indeterminate=items.length>0&&items.length<total;
+  }
+}
+function toggleSelectAll(){
+  var checked=$("chk-all").checked;
+  document.querySelectorAll(".pol-chk").forEach(function(el){el.checked=checked;});
+  updateBatchBar();
+}
+function clearSelection(){
+  document.querySelectorAll(".pol-chk").forEach(function(el){el.checked=false;});
+  if($("chk-all"))$("chk-all").checked=false;
+  updateBatchBar();
+}
+function confirmBatchDelete(){
+  var items=getCheckedPolicies();
+  if(!items.length) return;
+  if(!confirm("Delete "+items.length+" selected polic"+(items.length===1?"y":"ies")+"? This cannot be undone.")) return;
+  doBatchDelete(items);
+}
+async function doBatchDelete(items){
+  var errs=[];
+  for(var i=0;i<items.length;i++){
+    var p=items[i];
+    try{
+      var path=p.scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(p.name)
+        :"/api/namespaces/"+p.ns+"/policies/"+encodeURIComponent(p.name);
+      var res=await api(path,{method:"DELETE"});
+      if(!res.ok){var d=await res.json();errs.push(p.name+": "+(d.error||res.status));}
+    }catch(err){errs.push(p.name+": "+err.message);}
+  }
+  if(errs.length) alert("Some deletes failed:\n"+errs.join("\n"));
+  setTimeout(loadAll,400);
+}
+
+// ── Export policy as YAML ──
+async function exportPolicy(el){
+  var name=el.dataset.name,namespace=el.dataset.ns,scope=el.dataset.scope||"namespace";
+  try{
+    var path=scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(name)
+      :"/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name);
+    var res=await api(path);
+    if(!res.ok){var d=await res.json();alert("Export failed: "+(d.error||res.status));return;}
+    var data=await res.json();
+    var content=typeof jsyaml!=="undefined"?jsyaml.dump(data,{lineWidth:120}):JSON.stringify(data,null,2);
+    var ext=typeof jsyaml!=="undefined"?".yaml":".json";
+    var blob=new Blob([content],{type:"text/plain"});
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=name+ext;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(err){alert("Export error: "+err.message);}
 }
 
 // ── Audit Log ──
@@ -1283,6 +1804,42 @@ function renderAuditLogs(events){
       +'<td class="td">'+sb+'</td>'
       +'<td class="td" style="font-size:.7rem;color:#64748b;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.details||"")+'">'+esc(ev.details||"&#8212;")+'</td>';
     $("audit-body").appendChild(tr);
+  });
+}
+
+// ── AppArmor kernel events ──
+async function loadAaEvents(){
+  setLoading("aa-events",true);hide("aa-events-empty");hide("aa-events-err");hide("aa-events-warn");$("aa-events-body").innerHTML="";
+  try{
+    var r=await api("/api/apparmor-events?limit=200"),data=await r.json();
+    setLoading("aa-events",false);
+    if(!r.ok){showEl($("aa-events-err"),data.error||"Failed to load events");return;}
+    if(data.warn){showEl($("aa-events-warn"),data.warn);}
+    renderAaEvents(data.events||[]);
+  }catch(err){setLoading("aa-events",false);showEl($("aa-events-err"),err.message);}
+}
+
+function renderAaEvents(lines){
+  $("aa-events-body").innerHTML="";
+  if(!lines.length){show("aa-events-empty");return;}
+  hide("aa-events-empty");
+  var RE=/(\S+\s+\S+\s+\S+).*apparmor="(\w+)".*operation="([^"]*)".*name="([^"]*)"(?:.*profile="([^"]*)")?/i;
+  lines.forEach(function(line){
+    var m=RE.exec(line);
+    var ts=m?m[1]:"";
+    var disp=m?m[2]:"";
+    var op=m?m[3]:"";
+    var name=m?m[4]:"";
+    var prof=m?m[5]:"";
+    var dc=disp==="DENIED"?'<span class="badge badge-red">DENIED</span>':disp==="ALLOWED"?'<span class="badge badge-green">ALLOWED</span>':'<span class="badge badge-gray">'+esc(disp)+'</span>';
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b";
+    tr.innerHTML='<td class="td" style="font-size:.7rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ts||"")+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#93c5fd;max-width:10rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(prof||line)+'">'+esc(prof||"—")+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#94a3b8">'+esc(op||"—")+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#e2e8f0;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(name||line)+'">'+esc(name||line)+'</td>'
+      +'<td class="td">'+dc+'</td>';
+    $("aa-events-body").appendChild(tr);
   });
 }
 
@@ -1443,7 +2000,7 @@ $("form-create").addEventListener("submit",async function(e){
       showMsg(msgEl,"success",okMsg);
     }
     cancelEdit();
-    setTimeout(loadAll,1200);
+    setTimeout(function(){loadAll();if(!statusPollTimer){statusPollTimer=setInterval(loadPolicies,5000);show("auto-refresh-badge");}},1200);
   }catch(err){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",err.message);}
   finally{btn.disabled=false;}
 });
@@ -1557,6 +2114,134 @@ async function openModelModal(el){
 }
 function closeModelModal(){hide("modal-model");}
 $("modal-model").addEventListener("click",function(e){if(e.target===$("modal-model"))closeModelModal();});
+
+// ── User management ──
+var CURRENT_ROLE="viewer";
+
+async function loadUsers(){
+  setLoading("users",true);hide("users-err");$("users-body").innerHTML="";
+  try{
+    var r=await api("/api/users"),data=await r.json();
+    setLoading("users",false);
+    if(r.status===403){show("users-admin-notice");hide("btn-add-user");return;}
+    if(!r.ok){showEl($("users-err"),data.error||"Failed to load users");return;}
+    hide("users-admin-notice");show("btn-add-user");
+    renderUsers(data.users||[]);
+  }catch(err){setLoading("users",false);showEl($("users-err"),err.message);}
+}
+
+function renderUsers(users){
+  $("users-body").innerHTML="";
+  users.forEach(function(u){
+    var isMe=u.username===CURRENT_USER;
+    var roleBadge=u.role==="admin"?'<span class="badge badge-blue">admin</span>':'<span class="badge badge-gray">viewer</span>';
+    var altRole=u.role==="admin"?"viewer":"admin";
+    var cr=u.created_at?new Date(u.created_at).toLocaleDateString("vi-VN"):"—";
+    var ll=u.last_login?new Date(u.last_login).toLocaleDateString("vi-VN"):"Never";
+    var roleBtn=isMe?"":('<button onclick="toggleUserRole(this)" data-user="'+esc(u.username)+'" data-role="'+esc(altRole)+'" class="btn btn-ghost btn-sm" style="margin-right:2px" title="Switch to '+altRole+'">'+altRole+'</button>');
+    var resetBtn='<button onclick="openResetPwdModal(this)" data-user="'+esc(u.username)+'" class="btn btn-ghost btn-sm" style="margin-right:2px">Reset pwd</button>';
+    var delBtn=isMe?"":'<button onclick="deleteUser(this)" data-user="'+esc(u.username)+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>';
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
+    tr.onmouseover=function(){tr.style.background="#243552"};tr.onmouseout=function(){tr.style.background=""};
+    tr.innerHTML='<td class="td" style="font-family:monospace;font-size:.8rem;color:#f1f5f9">'+esc(u.username)+(isMe?' <span style="color:#475569;font-size:.7rem">(you)</span>':'')+'</td>'
+      +'<td class="td">'+roleBadge+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#64748b">'+cr+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#64748b">'+ll+'</td>'
+      +'<td class="td th-r" style="white-space:nowrap">'+roleBtn+resetBtn+delBtn+'</td>';
+    $("users-body").appendChild(tr);
+  });
+}
+
+async function toggleUserRole(el){
+  var username=el.dataset.user,role=el.dataset.role;
+  el.disabled=true;
+  try{
+    var r=await api("/api/users/"+encodeURIComponent(username)+"/role",{method:"PUT",body:JSON.stringify({role:role})});
+    var d=await r.json();
+    if(!r.ok){alert(d.error||"Failed");el.disabled=false;return;}
+    loadUsers();
+  }catch(e){alert(e.message);el.disabled=false;}
+}
+
+async function deleteUser(el){
+  var username=el.dataset.user;
+  if(!confirm("Delete user '"+username+"'? This cannot be undone."))return;
+  try{
+    var r=await api("/api/users/"+encodeURIComponent(username),{method:"DELETE"});
+    var d=await r.json();
+    if(!r.ok){alert(d.error||"Failed");return;}
+    loadUsers();
+  }catch(e){alert(e.message);}
+}
+
+function openAddUserModal(){
+  $("inp-new-uname").value="";$("inp-new-upass").value="";$("sel-new-role").value="viewer";
+  hideEl($("add-user-msg"));show("modal-add-user");
+}
+function closeAddUserModal(){hide("modal-add-user");}
+$("modal-add-user").addEventListener("click",function(e){if(e.target===$("modal-add-user"))closeAddUserModal();});
+
+$("form-add-user").addEventListener("submit",async function(e){
+  e.preventDefault();
+  var msgEl=$("add-user-msg");hideEl(msgEl);
+  var uname=$("inp-new-uname").value.trim();
+  var pass=$("inp-new-upass").value;
+  var role=$("sel-new-role").value;
+  if(!uname||!pass){showMsg(msgEl,"error","Username and password are required.");return;}
+  if(pass.length<8){showMsg(msgEl,"error","Password must be at least 8 characters.");return;}
+  var btn=this.querySelector('button[type=submit]');btn.disabled=true;
+  try{
+    var r=await api("/api/users",{method:"POST",body:JSON.stringify({username:uname,password:pass,role:role})});
+    var d=await r.json();
+    if(!r.ok){showMsg(msgEl,"error",d.error||"Failed");btn.disabled=false;return;}
+    closeAddUserModal();loadUsers();
+  }catch(err){showMsg(msgEl,"error",err.message);btn.disabled=false;}
+});
+
+var resetPwdTarget=null;
+function openResetPwdModal(el){
+  resetPwdTarget=el.dataset.user;
+  $("reset-pwd-uname").textContent=resetPwdTarget;
+  $("inp-reset-pass").value="";hideEl($("reset-pwd-msg"));show("modal-reset-pwd");
+}
+function closeResetPwdModal(){hide("modal-reset-pwd");resetPwdTarget=null;}
+$("modal-reset-pwd").addEventListener("click",function(e){if(e.target===$("modal-reset-pwd"))closeResetPwdModal();});
+$("btn-reset-pwd-confirm").addEventListener("click",async function(){
+  var msgEl=$("reset-pwd-msg");hideEl(msgEl);
+  var pass=$("inp-reset-pass").value;
+  if(!pass||pass.length<8){showMsg(msgEl,"error","Password must be at least 8 characters.");return;}
+  this.disabled=true;
+  try{
+    var r=await api("/api/users/"+encodeURIComponent(resetPwdTarget)+"/password",{method:"PUT",body:JSON.stringify({new_password:pass})});
+    var d=await r.json();
+    if(!r.ok){showMsg(msgEl,"error",d.error||"Failed");this.disabled=false;return;}
+    closeResetPwdModal();
+  }catch(e){showMsg(msgEl,"error",e.message);this.disabled=false;}
+  this.disabled=false;
+});
+
+$("form-chgpwd").addEventListener("submit",async function(e){
+  e.preventDefault();
+  var msgEl=$("chgpwd-msg");hideEl(msgEl);
+  var cur=$("inp-cur-pass").value;
+  var np=$("inp-new-pass").value;
+  var cp=$("inp-confirm-pass").value;
+  if(!cur||!np||!cp){showMsg(msgEl,"error","All fields are required.");return;}
+  if(np.length<8){showMsg(msgEl,"error","New password must be at least 8 characters.");return;}
+  if(np!==cp){showMsg(msgEl,"error","New passwords do not match.");return;}
+  var btn=this.querySelector('button[type=submit]');btn.disabled=true;
+  try{
+    var r=await api("/api/users/"+encodeURIComponent(CURRENT_USER)+"/password",{method:"PUT",body:JSON.stringify({current_password:cur,new_password:np})});
+    var d=await r.json();
+    if(!r.ok){showMsg(msgEl,"error",d.error||"Failed to change password.");btn.disabled=false;return;}
+    var newHdr="Basic "+btoa(CURRENT_USER+":"+np);
+    AUTH_HEADER=newHdr;localStorage.setItem("va_auth",JSON.stringify({header:newHdr,user:CURRENT_USER}));
+    $("inp-cur-pass").value="";$("inp-new-pass").value="";$("inp-confirm-pass").value="";
+    showMsg(msgEl,"success","Password changed successfully.");
+  }catch(err){showMsg(msgEl,"error",err.message);}
+  finally{btn.disabled=false;}
+});
 
 // ── Helpers ──
 function $(id){return document.getElementById(id);}
