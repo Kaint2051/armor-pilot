@@ -21,6 +21,9 @@ def create_app() -> Flask:
     from .routes.api import api_bp
     app.register_blueprint(api_bp)
 
+    from . import db as _db
+    _db.init_db()
+
     @app.route("/")
     def index():
         resp = make_response(render_template("index.html"))

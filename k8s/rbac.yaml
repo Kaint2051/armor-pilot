@@ -10,20 +10,17 @@ kind: ClusterRole
 metadata:
   name: varmor-console-role
 rules:
-  # Read Deployments across all namespaces
   - apiGroups: ["apps"]
-    resources: ["deployments"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "patch"]
+
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
     verbs: ["get", "list", "watch"]
 
-  # Full control over VarmorPolicy CRDs
   - apiGroups: ["crd.varmor.org"]
-    resources: ["varmorpolicies"]
+    resources: ["varmorpolicies", "varmorclusterpolicies", "armorprofilemodels", "armorprofiles"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-
-  # Read namespace list (optional – for future namespace picker feature)
-  - apiGroups: [""]
-    resources: ["namespaces"]
-    verbs: ["get", "list"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

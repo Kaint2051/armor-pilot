@@ -214,6 +214,39 @@
         <div id="dash-activity"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
       </div>
 
+      <!-- Agent Health -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Agent Health
+          </h3>
+          <div id="dash-agents-summary" class="text-xs font-semibold" style="color:#64748b"></div>
+        </div>
+        <div id="dash-agents"><div class="text-xs py-3 text-center" style="color:#475569">Loading…</div></div>
+      </div>
+
+      <!-- Enforcement Events -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            Enforcement Events <span class="text-xs font-normal ml-1" style="color:#475569">(Seccomp blocks · AppArmor denies)</span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <select id="enf-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadEnforcementEvents()">
+              <option value="all">All</option>
+              <option value="seccomp">Seccomp</option>
+              <option value="apparmor">AppArmor</option>
+            </select>
+            <button onclick="loadEnforcementEvents()" class="btn btn-ghost btn-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="dash-enforcement"><div class="text-xs py-3 text-center" style="color:#475569">Loading…</div></div>
+      </div>
+
     </div>
 
     <!-- ═══════════════ TAB: POLICY ═══════════════ -->
@@ -237,6 +270,10 @@
               <span id="edit-banner-name" class="font-mono text-sm ml-2" style="color:#fbbf24"></span>
             </div>
             <button type="button" onclick="cancelEdit()" class="btn btn-ghost btn-sm">&#10005; Cancel</button>
+          </div>
+
+          <div id="policy-admin-notice" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
+            Viewer role can inspect policies but cannot create, edit, delete, restart, or apply models.
           </div>
 
           <form id="form-create" novalidate>
@@ -533,7 +570,7 @@
             <!-- NetworkProxy MITM Config (shown when NetworkProxy enforcer enabled) -->
             <div id="sec-np-config" class="hidden mb-4 rule-group">
               <div class="rule-group-hdr" onclick="toggleGroup('grp-np')" style="background:#051429">
-                <span class="text-sm font-semibold" style="color:#38bdf8">&#127760; NetworkProxy MITM Config <span style="color:#64748b;font-weight:400;font-size:.75rem">(networkProxyConfig)</span></span>
+                <span class="text-sm font-semibold" style="color:#38bdf8">&#127760; NetworkProxy Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(networkProxyRawRules + config)</span></span>
                 <span id="arr-grp-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
               </div>
               <div id="grp-np" class="hidden p-3 space-y-4">
@@ -544,6 +581,10 @@
                 <div>
                   <label class="form-label">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON array of {header, value, operation})</span></label>
                   <textarea id="ta-np-mitm-mutations" rows="3" placeholder='[{"header":"X-Forwarded-For","value":"","operation":"Remove"}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                </div>
+                <div>
+                  <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(networkProxyRawRules.egress JSON object)</span></label>
+                  <textarea id="ta-np-egress" rows="5" placeholder='{"defaultAction":"deny","rules":[{"qualifiers":["allow"],"cidr":"10.0.0.0/8","ports":[{"port":443}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
                 </div>
                 <div class="grid grid-cols-3 gap-3">
                   <div>
@@ -637,7 +678,7 @@
                 </div>
                 <div id="did-np" class="hidden p-3">
                   <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON object)</span></label>
-                  <textarea id="ta-did-np-egress" rows="4" placeholder='{"ports":[{"protocol":"TCP","port":443}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  <textarea id="ta-did-np-egress" rows="4" placeholder='{"defaultAction":"deny","rules":[{"qualifiers":["allow"],"cidr":"10.0.0.0/8","ports":[{"port":443}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
                 </div>
               </div>
               <label class="cb-row"><input type="checkbox" id="did-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only mode)</span></label>
@@ -1068,7 +1109,7 @@
 
 <script>
 "use strict";
-var AUTH_HEADER=null,CURRENT_USER=null;
+var AUTH_HEADER=null,CURRENT_USER=null,CURRENT_ROLE="viewer";
 var pendingDel={name:null,ns:null,scope:null};
 var pendingProtect={name:null,ns:null};
 var allPolicies=[];
@@ -1108,15 +1149,30 @@ function enterDashboard(){
   hide("pg-login");show("pg-dash");
   $("lbl-user").textContent="\u{1F464} "+CURRENT_USER;
   if($("user-display-name")){$("user-display-name").textContent=CURRENT_USER;$("user-avatar").textContent=(CURRENT_USER[0]||"U").toUpperCase();}
-  // Fetch current user's role
   api("/api/me").then(function(r){return r.json();}).then(function(d){
     CURRENT_ROLE=d.role||"viewer";
     var rb=$("user-role-badge");
     if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(CURRENT_ROLE==="admin"?"badge-blue":"badge-gray");}
-  }).catch(function(){});
-  loadAll();
+  }).catch(function(){CURRENT_ROLE="viewer";}).then(function(){
+    applyRoleUi();
+    loadAll();
+  });
 }
-function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=CURRENT_USER=null;enterLogin();}
+function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();}
+
+function isAdmin(){return CURRENT_ROLE==="admin";}
+function applyRoleUi(){
+  var admin=isAdmin();
+  var form=$("form-create");
+  if(form){
+    form.querySelectorAll("input,select,textarea,button").forEach(function(el){el.disabled=!admin;});
+  }
+  var notice=$("policy-admin-notice");
+  if(notice) toggleVis("policy-admin-notice",!admin);
+  var all=$("chk-all");
+  if(all){all.disabled=!admin;all.checked=false;all.indeterminate=false;}
+  if(!admin) clearSelection();
+}
 
 $("login-form").addEventListener("submit",async function(e){
   e.preventDefault();
@@ -1293,6 +1349,7 @@ function onDidScTypeChange(){
 
 // ── Edit mode ──
 async function loadPolicyForEdit(el){
+  if(!isAdmin()){alert("Viewer role cannot edit policies.");return;}
   var name=el.dataset.name,namespace=el.dataset.ns,scope=el.dataset.scope||"namespace";
   var path=scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(name)
     :"/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name);
@@ -1451,6 +1508,9 @@ function parseSpecIntoForm(crd,scope,name){
   }
 
   // NetworkProxy MITM config
+  var npRaw=ep.networkProxyRawRules||{};
+  if(npRaw.egress)
+    try{$("ta-np-egress").value=JSON.stringify(npRaw.egress,null,2);}catch(e){}
   var npCfg=pol.networkProxyConfig||{};
   var mitm=npCfg.mitm||{};
   if(mitm.domains&&mitm.domains.length) $("ta-np-mitm-domains").value=mitm.domains.join("\n");
@@ -1481,7 +1541,7 @@ function cancelEdit(){
   $("ta-did-aa-raw").value="";$("ta-did-aa-custom").value="";hide("did-aa-custom-sec");
   $("ta-did-sc-syscalls").value="";$("ta-did-sc-custom").value="";hide("did-sc-custom-sec");
   $("ta-did-np-egress").value="";
-  $("ta-np-mitm-domains").value="";$("ta-np-mitm-mutations").value="";
+  $("ta-np-mitm-domains").value="";$("ta-np-mitm-mutations").value="";$("ta-np-egress").value="";
   $("inp-np-proxy-uid").value="";$("inp-np-proxy-port").value="";$("inp-np-proxy-admin-port").value="";
   document.querySelector('input[name="scope"][value="namespace"]').checked=true;
   document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
@@ -1507,8 +1567,10 @@ async function loadDeployments(){
       var p=d.varmor_enabled;
       var badge=p?'<span class="badge badge-green">&#128737; Protected</span>'
                  :'<span class="badge badge-amber">&#9888; No Shield</span>';
-      var abtn=p?('<button class="btn btn-ghost btn-sm" onclick="openProtectModal(this)" data-name="'+esc(d.name)+'" data-ns="'+esc(ns())+'" data-already="1">&#x21BA; Restart</button>')
-               :('<button class="btn btn-green btn-sm" onclick="openProtectModal(this)" data-name="'+esc(d.name)+'" data-ns="'+esc(ns())+'" data-already="0">+ Shield</button>');
+      var abtn=isAdmin()
+        ?(p?('<button class="btn btn-ghost btn-sm" onclick="openProtectModal(this)" data-name="'+esc(d.name)+'" data-ns="'+esc(ns())+'" data-already="1">&#x21BA; Restart</button>')
+            :('<button class="btn btn-green btn-sm" onclick="openProtectModal(this)" data-name="'+esc(d.name)+'" data-ns="'+esc(ns())+'" data-already="0">+ Shield</button>'))
+        :"";
       card.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">'
         +'<div style="min-width:0;flex:1"><p style="font-size:.875rem;font-weight:500;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(d.name)+'</p>'
         +'<p style="font-size:.75rem;color:#475569">'+d.ready_replicas+"/"+d.replicas+' replicas</p></div>'
@@ -1552,7 +1614,7 @@ function filterPolicies(){
   if(!q){renderPolicies(allPolicies);return;}
   renderPolicies(allPolicies.filter(function(p){
     var tgt=(p.target&&p.target.name)||"";
-    return p.name.toLowerCase().includes(q)||tgt.toLowerCase().includes(q)||(p.mode||"").toLowerCase().includes(q)||(p.scope||"").toLowerCase().includes(q);
+    return p.name.toLowerCase().includes(q)||tgt.toLowerCase().includes(q)||(p.mode||"").toLowerCase().includes(q)||(p.scope||"").toLowerCase().includes(q)||(p.enforcer||"").toLowerCase().includes(q);
   }));
 }
 
@@ -1562,6 +1624,7 @@ function renderPolicies(pols){
   updateBatchBar();
   if(!pols.length){show("pol-empty");return;}
   hide("pol-empty");
+  var admin=isAdmin();
   pols.forEach(function(p){
     var rdy=p.status==="Ready";
     var isPending=p.status==="Pending";
@@ -1580,11 +1643,11 @@ function renderPolicies(pols){
     var enfs=(p.enforcer||"").split("|").filter(Boolean);
     var enfBadges=enfs.length?enfs.map(function(e){return'<span class="badge badge-blue" style="margin-right:2px">'+esc(e)+'</span>';}).join(""):'<span class="badge badge-gray">&#8212;</span>';
     var chkAttrs='data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'"';
-    var chk='<input type="checkbox" class="pol-chk" '+chkAttrs+' onchange="updateBatchBar()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer">';
-    var editBtn='<button onclick="loadPolicyForEdit(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>';
+    var chk=admin?'<input type="checkbox" class="pol-chk" '+chkAttrs+' onchange="updateBatchBar()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer">':"";
+    var editBtn=admin?'<button onclick="loadPolicyForEdit(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>':"";
     var viewBtn='<button onclick="openDetailModal(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px">View</button>';
     var exportBtn='<button onclick="exportPolicy(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Export YAML">&#11123;</button>';
-    var delBtn='<button onclick="openDelModal(this)" '+chkAttrs+' class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Del</button>';
+    var delBtn=admin?'<button onclick="openDelModal(this)" '+chkAttrs+' class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Del</button>':"";
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
     tr.onmouseover=function(){tr.style.background="#243552";};
@@ -1619,6 +1682,8 @@ async function loadDashboard(){
   $("dash-modes").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading…</div>';
   $("dash-enforcers").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading…</div>';
   $("dash-activity").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading…</div>';
+  $("dash-agents").innerHTML='<div class="text-xs py-3 text-center" style="color:#475569">Loading…</div>';
+  $("dash-enforcement").innerHTML='<div class="text-xs py-3 text-center" style="color:#475569">Loading…</div>';
   var namespace=ns();
   try{
     var [r1,r2,r3,r4]=await Promise.allSettled([
@@ -1661,6 +1726,8 @@ async function loadDashboard(){
     var upd=$("dash-updated");
     if(upd)upd.textContent="Updated "+new Date().toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   }catch(err){console.error("Dashboard error:",err);}
+  loadAgentHealth();
+  loadEnforcementEvents();
 }
 
 function renderBarChart(containerId,counts,colorMap){
@@ -1705,6 +1772,96 @@ function renderDashActivity(events){
   }).join("")+'<div style="font-size:.7rem;color:#475569;padding-top:.5rem;text-align:right"><a href="#" onclick="switchTab(\'logs\');return false" style="color:#3b82f6;text-decoration:none">View all logs →</a></div>';
 }
 
+// ── Agent Health ──
+async function loadAgentHealth(){
+  var el=$("dash-agents");var sum=$("dash-agents-summary");
+  if(!el)return;
+  try{
+    var r=await api("/api/agent-health"),d=await r.json();
+    if(!r.ok){el.innerHTML='<div class="text-xs" style="color:#f87171">'+esc(d.error||"Error")+'</div>';return;}
+    var agents=d.agents||[];
+    if(sum)sum.innerHTML=(d.unhealthy>0
+      ?'<span style="color:#f87171">'+d.unhealthy+' DOWN</span> / '+d.total+' total'
+      :'<span style="color:#4ade80">All '+d.total+' healthy</span>');
+    if(!agents.length){el.innerHTML='<div class="text-xs py-3 text-center" style="color:#475569">No agents found in varmor namespace.</div>';return;}
+    el.innerHTML='<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr style="border-bottom:1px solid #1e293b">'
+      +'<th class="th" style="font-size:.7rem">Pod</th><th class="th" style="font-size:.7rem">Node</th>'
+      +'<th class="th" style="font-size:.7rem">Status</th><th class="th" style="font-size:.7rem">Restarts</th>'
+      +'</tr></thead><tbody>'
+      +agents.map(function(a){
+        var ok=a.ready&&a.phase==="Running";
+        var badge=ok
+          ?'<span class="badge badge-green" style="font-size:.6rem">Ready</span>'
+          :'<span class="badge badge-red" style="font-size:.6rem">'+esc(a.phase)+'</span>';
+        var nodeWarning=!ok?'<span title="Node unprotected!" style="color:#f87171;margin-left:.25rem">&#9888;</span>':'';
+        return '<tr style="border-bottom:1px solid #0f172a">'
+          +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#94a3b8">'+esc(a.name)+'</td>'
+          +'<td class="td" style="font-size:.7rem;color:#cbd5e1">'+esc(a.node)+nodeWarning+'</td>'
+          +'<td class="td">'+badge+'</td>'
+          +'<td class="td" style="font-size:.7rem;color:'+(a.restarts>0?"#fb923c":"#64748b")+'">'+a.restarts+'</td>'
+          +'</tr>';
+      }).join("")
+      +'</tbody></table></div>';
+  }catch(e){if(el)el.innerHTML='<div class="text-xs" style="color:#f87171">'+esc(e.message)+'</div>';}
+}
+
+// ── Enforcement Events ──
+async function loadEnforcementEvents(){
+  var el=$("dash-enforcement");if(!el)return;
+  el.innerHTML='<div class="text-xs py-3 text-center" style="color:#475569">Loading…</div>';
+  var f=($("enf-filter")||{}).value||"all";
+  try{
+    var r=await api("/api/enforcement-events?limit=50&enforcer="+encodeURIComponent(f)),d=await r.json();
+    if(!r.ok){el.innerHTML='<div class="text-xs" style="color:#f87171">'+esc(d.error||"Error")+'</div>';return;}
+    if(d.warn&&!d.events.length){
+      el.innerHTML='<div class="text-xs py-3" style="color:#94a3b8">'+esc(d.warn)+'</div>';return;
+    }
+    var evs=d.events||[];
+    if(!evs.length){el.innerHTML='<div class="text-xs py-3 text-center" style="color:#4ade80">No enforcement events found (all quiet).</div>';return;}
+    el.innerHTML='<div style="font-size:.7rem;color:#64748b;margin-bottom:.5rem">'+evs.length+' events (most recent first)</div>'
+      +'<div style="max-height:14rem;overflow-y:auto">'
+      +evs.map(function(ev){
+        var isSeccomp=ev.type==="seccomp";
+        var typeColor=isSeccomp?"#f472b6":"#60a5fa";
+        var typeLabel=isSeccomp?"SECCOMP":"APPARMOR";
+        var isBlocked=isSeccomp?(ev.action==="SCMP_ACT_ERRNO"||ev.action==="SCMP_ACT_KILL"):(ev.action==="DENIED"||ev.action==="AUDIT");
+        var actionColor=isBlocked?"#f87171":(ev.action==="SCMP_ACT_LOG"?"#fbbf24":"#64748b");
+        var actionLabel=isBlocked?(isSeccomp?"BLOCKED":"DENIED"):(ev.action==="SCMP_ACT_LOG"?"LOGGED":"ALLOWED");
+        var detail=isSeccomp
+          ?('<span style="color:#cbd5e1">'+esc(ev.syscall||"")+'</span>'
+            +' <span style="color:'+actionColor+';font-weight:600">'+actionLabel+'</span>')
+          :('<span style="color:#94a3b8">'+esc(ev.operation||"")+'</span>'
+            +' <span style="color:'+actionColor+';font-weight:600">'+actionLabel+'</span>'
+            +(ev.name?' <span style="color:#64748b">'+esc(ev.name)+'</span>':''));
+        var ts=ev.ts?new Date(ev.ts).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
+        return '<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid #0f172a">'
+          +'<span style="font-family:monospace;color:#475569;min-width:4rem;font-size:.65rem">'+esc(ts)+'</span>'
+          +'<span style="font-weight:700;color:'+typeColor+';min-width:5.5rem;font-size:.65rem">'+typeLabel+'</span>'
+          +'<span style="color:#94a3b8;min-width:5rem;font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(ev.comm||"")+'</span>'
+          +'<span style="flex:1;font-size:.7rem">'+detail+'</span>'
+          +'</div>';
+      }).join("")
+      +'</div>';
+  }catch(e){if(el)el.innerHTML='<div class="text-xs" style="color:#f87171">'+esc(e.message)+'</div>';}
+}
+
+// ── Apply Model as Policy ──
+async function applyModel(name,namespace){
+  if(!isAdmin()){alert("Viewer role cannot apply behavior models.");return;}
+  if(!confirm('Apply model "'+name+'" as DefenseInDepth policy?\nThis changes the originating BehaviorModeling policy to DefenseInDepth mode.'))return;
+  try{
+    var r=await api("/api/namespaces/"+encodeURIComponent(namespace)+"/models/"+encodeURIComponent(name)+"/apply",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({mode:"DefenseInDepth"})
+    });
+    var d=await r.json();
+    if(!r.ok){alert("Error: "+(d.error||r.status));return;}
+    alert('Policy "'+d.policy+'" updated: '+d.old_mode+' -> '+d.new_mode);
+    loadProfileModels();
+    loadPolicies();
+  }catch(e){alert("Error: "+e.message);}
+}
+
 // ── Batch select / delete ──
 function getCheckedPolicies(){
   return Array.from(document.querySelectorAll(".pol-chk:checked")).map(function(el){
@@ -1714,6 +1871,12 @@ function getCheckedPolicies(){
 function updateBatchBar(){
   var items=getCheckedPolicies();
   var bar=$("batch-bar"),cnt=$("batch-count"),all=$("chk-all");
+  if(!isAdmin()){
+    if(bar) hide("batch-bar");
+    if(all){all.checked=false;all.indeterminate=false;all.disabled=true;}
+    return;
+  }
+  if(all) all.disabled=false;
   if(items.length>0){show("batch-bar");cnt.textContent=items.length+" selected";}
   else{hide("batch-bar");}
   if(all){
@@ -1723,6 +1886,7 @@ function updateBatchBar(){
   }
 }
 function toggleSelectAll(){
+  if(!isAdmin()) return;
   var checked=$("chk-all").checked;
   document.querySelectorAll(".pol-chk").forEach(function(el){el.checked=checked;});
   updateBatchBar();
@@ -1733,12 +1897,14 @@ function clearSelection(){
   updateBatchBar();
 }
 function confirmBatchDelete(){
+  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
   var items=getCheckedPolicies();
   if(!items.length) return;
   if(!confirm("Delete "+items.length+" selected polic"+(items.length===1?"y":"ies")+"? This cannot be undone.")) return;
   doBatchDelete(items);
 }
 async function doBatchDelete(items){
+  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
   var errs=[];
   for(var i=0;i<items.length;i++){
     var p=items[i];
@@ -1862,6 +2028,9 @@ function renderProfileModels(models){
     var phaseColors={Completed:"badge-green",Ready:"badge-green",Modeling:"badge-purple",Unknown:"badge-gray"};
     var phBadge='<span class="badge '+(phaseColors[m.phase]||"badge-gray")+'">'+esc(m.phase)+'</span>';
     var cr=m.created_at?new Date(m.created_at).toLocaleDateString("vi-VN"):"&#8212;";
+    var applyBtn=(isAdmin()&&m.phase==="Completed")
+      ?'<button onclick="applyModel(\''+esc(m.name)+'\',\''+esc(m.namespace)+'\')" class="btn btn-sm ml-1" style="background:#166534;color:#86efac;border:1px solid #166534" title="Apply as DefenseInDepth policy">Apply Armor</button>'
+      :'<button disabled class="btn btn-ghost btn-sm ml-1" style="opacity:.4" title="'+(m.phase==="Completed"?"Admin required":"Modeling not yet complete")+'">Apply Armor</button>';
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
     tr.onmouseover=function(){tr.style.background="#243552";};
@@ -1869,8 +2038,9 @@ function renderProfileModels(models){
     tr.innerHTML='<td class="td" style="font-family:monospace;color:#4ade80;font-size:.8rem">'+esc(m.name)+'</td>'
       +'<td class="td">'+phBadge+'</td>'
       +'<td class="td" style="color:#475569;font-size:.75rem">'+cr+'</td>'
-      +'<td class="td th-r">'
+      +'<td class="td th-r" style="white-space:nowrap">'
         +'<button onclick="openModelModal(this)" data-name="'+esc(m.name)+'" data-ns="'+esc(m.namespace)+'" class="btn btn-ghost btn-sm">View</button>'
+        +applyBtn
       +'</td>';
     $("models-body").appendChild(tr);
   });
@@ -1881,6 +2051,7 @@ $("form-create").addEventListener("submit",async function(e){
   e.preventDefault();
   var msgEl=$("create-msg"),progEl=$("create-progress");
   hideEl(msgEl);
+  if(!isAdmin()){showMsg(msgEl,"error","Viewer role cannot change policies.");return;}
   var name=$("inp-pname").value.trim();
   var scope=document.querySelector('input[name="scope"]:checked').value;
   var kind=$("sel-kind").value;
@@ -1904,6 +2075,8 @@ $("form-create").addEventListener("submit",async function(e){
 
   var enforcers=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
   if(!enforcers.length){showMsg(msgEl,"error","Select at least one enforcer.");return;}
+  if(mode==="BehaviorModeling"&&enforcers.includes("NetworkProxy")){showMsg(msgEl,"error","BehaviorModeling does not support NetworkProxy enforcer.");return;}
+  if(mode==="DefenseInDepth"&&enforcers.includes("BPF")){showMsg(msgEl,"error","DefenseInDepth does not support BPF enforcer.");return;}
   var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
   var banned=$("ta-banned").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var attackTargets=$("ta-attack-targets").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
@@ -1941,12 +2114,15 @@ $("form-create").addEventListener("submit",async function(e){
   var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var npMitmMutStr=($("ta-np-mitm-mutations").value||"").trim();
   var npMitmMut=null;
+  var npEgressStr=($("ta-np-egress").value||"").trim();
+  var npEgress=null;
   if(npMitmMutStr){try{npMitmMut=JSON.parse(npMitmMutStr);}catch(e){showMsg(msgEl,"error","NP MITM mutations: invalid JSON — "+e.message);return;}}
+  if(npEgressStr){try{npEgress=JSON.parse(npEgressStr);}catch(e){showMsg(msgEl,"error","NetworkProxy Egress: invalid JSON - "+e.message);return;}}
   var npProxyUid=$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
   var npProxyPort=$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
   var npProxyAdminPort=$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
 
-  if(mode==="EnhanceProtect"&&!rules.length&&!banned.length&&!bpfFileRules.length&&!bpfProcRules.length&&!seccompSyscalls.length){
+  if(mode==="EnhanceProtect"&&!rules.length&&!banned.length&&!bpfFileRules.length&&!bpfProcRules.length&&!bpfMountRules.length&&!bpfPtraceRule&&!bpfNetwork&&!seccompSyscalls.length&&!npEgress){
     showMsg(msgEl,"error","EnhanceProtect requires at least one rule, banned file, or raw rule.");return;
   }
 
@@ -1968,7 +2144,7 @@ $("form-create").addEventListener("submit",async function(e){
     did_seccomp_type:didScType,did_seccomp_custom:didScCustom,
     did_seccomp_syscalls:didScSyscalls,did_seccomp_action:didScAction,
     did_allow_violations:didAllowViol,did_np_egress:didNpEgress,
-    np_mitm_domains:npMitmDomains,np_mitm_mutations:npMitmMut,
+    np_mitm_domains:npMitmDomains,np_mitm_mutations:npMitmMut,np_egress:npEgress,
     np_proxy_uid:npProxyUid,np_proxy_port:npProxyPort,np_proxy_admin_port:npProxyAdminPort
   };
 
@@ -2034,12 +2210,14 @@ function updateRuleCounts(){
 
 // ── Delete modal ──
 function openDelModal(el){
+  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
   pendingDel={name:el.dataset.name,ns:el.dataset.ns,scope:el.dataset.scope||"namespace"};
   $("del-pname").textContent=(pendingDel.scope==="cluster"?"[cluster] ":"")+pendingDel.name;
   show("modal-del");
 }
 function closeDelModal(){pendingDel={name:null,ns:null,scope:null};hide("modal-del");}
 $("btn-del-confirm").addEventListener("click",async function(){
+  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
   var name=pendingDel.name,namespace=pendingDel.ns,scope=pendingDel.scope;
   if(!name) return;
   closeDelModal();
@@ -2056,6 +2234,7 @@ $("modal-del").addEventListener("click",function(e){if(e.target===$("modal-del")
 
 // ── Protect modal ──
 function openProtectModal(el){
+  if(!isAdmin()){alert("Viewer role cannot restart workloads.");return;}
   var name=el.dataset.name,namespace=el.dataset.ns,already=el.dataset.already==="1";
   pendingProtect={name:name,ns:namespace};
   $("protect-dname").textContent=name;
@@ -2067,6 +2246,7 @@ function openProtectModal(el){
 }
 function closeProtectModal(){pendingProtect={name:null,ns:null};hide("modal-protect");}
 $("btn-protect-confirm").addEventListener("click",async function(){
+  if(!isAdmin()){alert("Viewer role cannot restart workloads.");return;}
   var name=pendingProtect.name,namespace=pendingProtect.ns;if(!name||!namespace) return;
   var btn=$("btn-protect-confirm");btn.disabled=true;
   var msgEl=$("protect-msg");hideEl(msgEl);
@@ -2116,8 +2296,6 @@ function closeModelModal(){hide("modal-model");}
 $("modal-model").addEventListener("click",function(e){if(e.target===$("modal-model"))closeModelModal();});
 
 // ── User management ──
-var CURRENT_ROLE="viewer";
-
 async function loadUsers(){
   setLoading("users",true);hide("users-err");$("users-body").innerHTML="";
   try{

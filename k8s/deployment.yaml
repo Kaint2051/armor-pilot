@@ -17,17 +17,10 @@ spec:
     spec:
       serviceAccountName: varmor-console-sa
 
-      # Run as non-root
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
-        runAsGroup: 999
-        fsGroup: 999
-
       containers:
         - name: varmor-console
-          image: your-registry/varmor-console:latest   # <-- replace with your image
-          imagePullPolicy: Always
+          image: varmor-console:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 5000
@@ -45,6 +38,15 @@ spec:
                 secretKeyRef:
                   name: varmor-console-secret
                   key: ADMIN_PASS
+            - name: APPARMOR_LOG_PATH
+              value: /var/log-host/kern.log
+
+          volumeMounts:
+            - name: kern-log
+              mountPath: /var/log-host
+              readOnly: true
+            - name: sqlite-data
+              mountPath: /app/data
 
           # Harden the container
           securityContext:
@@ -74,6 +76,16 @@ spec:
               port: 5000
             initialDelaySeconds: 5
             periodSeconds: 10
+
+      volumes:
+        - name: kern-log
+          hostPath:
+            path: /var/log
+            type: Directory
+        - name: sqlite-data
+          hostPath:
+            path: /var/lib/varmor-console
+            type: DirectoryOrCreate
 
 ---
 apiVersion: v1

@@ -1,18 +1,20 @@
 import datetime
 import json
 import logging
+import os
 import re
 
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
 
 from ..audit import audit_logger
-from ..auth import get_current_user, require_auth
+from ..auth import get_current_user, require_admin, require_auth
 from ..k8s_client import (
     VARMOR_GROUP,
     VARMOR_PLURAL,
     VARMOR_VERSION,
     apps_v1,
+    core_v1,
     custom_objects,
 )
 
@@ -57,10 +59,30 @@ VALID_SCMP_ACTIONS = frozenset(["SCMP_ACT_KILL", "SCMP_ACT_ERRNO", "SCMP_ACT_LOG
 VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
 
 
+def _k8s_error_msg(exc) -> str:
+    """Extract the most informative error message from a K8s ApiException."""
+    try:
+        body = json.loads(exc.body) if exc.body else {}
+        msg = body.get("message", "")
+        if msg:
+            return f"Kubernetes API error {exc.status}: {msg}"
+    except Exception:
+        pass
+    return f"Kubernetes API error {exc.status}: {exc.reason}"
+
+
 def _sanitize_name(raw: str) -> str:
     name = re.sub(r"[_\s]+", "-", raw.strip().lower())
     name = re.sub(r"[^a-z0-9\-]", "", name)
     return name.strip("-")
+
+
+def _bounded_int_arg(name: str, default: int, maximum: int) -> int:
+    try:
+        value = int(request.args.get(name, default))
+    except (ValueError, TypeError):
+        value = default
+    return max(1, min(value, maximum))
 
 
 def _parse_policy_item(item: dict, scope: str = "namespace", ns_fallback: str = "") -> dict:
@@ -68,15 +90,22 @@ def _parse_policy_item(item: dict, scope: str = "namespace", ns_fallback: str = 
     spec = item.get("spec", {})
     conditions = item.get("status", {}).get("conditions", [])
     status = "Pending"
+    status_reason = ""
+    status_message = ""
     for cond in conditions:
-        if cond.get("type") == "Ready" and cond.get("status") == "True":
-            status = "Ready"
+        if cond.get("type") == "Ready":
+            if cond.get("status") == "True":
+                status = "Ready"
+            else:
+                status = cond.get("reason", "Pending") or "Pending"
+                status_message = cond.get("message", "") or ""
             break
     return {
         "name": meta.get("name", ""),
         "namespace": meta.get("namespace", ns_fallback),
         "created_at": meta.get("creationTimestamp", ""),
         "status": status,
+        "status_message": status_message,
         "mode": spec.get("policy", {}).get("mode", "Unknown"),
         "enforcer": spec.get("policy", {}).get("enforcer", ""),
         "target": spec.get("target", {}),
@@ -96,7 +125,7 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
                             bpf_network, bpf_ptrace, bpf_mounts,
                             seccomp_syscalls, seccomp_action, enforcers,
                             audit_violations, allow_violations,
-                            attack_targets) -> dict:
+                            attack_targets, network_proxy_egress) -> dict:
     hardening = [r for r in rules if r in HARDENING_RULES]
     attack = [r for r in rules if r in ATTACK_RULES]
     vuln = [r for r in rules if r in VULN_RULES]
@@ -135,11 +164,14 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
         if mounts:
             bpf_obj["mounts"] = mounts
         if bpf_obj:
-            ep["bpfRawRules"] = [bpf_obj]
+            ep["bpfRawRules"] = bpf_obj
 
     if "Seccomp" in enforcers and seccomp_syscalls:
         action = seccomp_action if seccomp_action in VALID_SCMP_ACTIONS else "SCMP_ACT_ERRNO"
         ep["syscallRawRules"] = [{"names": seccomp_syscalls, "action": action}]
+
+    if "NetworkProxy" in enforcers and network_proxy_egress and isinstance(network_proxy_egress, dict):
+        ep["networkProxyRawRules"] = {"egress": network_proxy_egress}
 
     return ep
 
@@ -223,7 +255,13 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     seccomp_syscalls: list = [s.strip() for s in body.get("seccomp_syscalls") or [] if str(s).strip()]
     seccomp_action: str = body.get("seccomp_action") or "SCMP_ACT_ERRNO"
     attack_targets: list = [t.strip() for t in body.get("attack_targets") or [] if str(t).strip()]
-    modeling_duration: int = int(body.get("modeling_duration") or 3600)
+    network_proxy_egress = body.get("np_egress")
+    try:
+        modeling_duration: int = int(body.get("modeling_duration") or 3600)
+    except (ValueError, TypeError):
+        return None, "modeling_duration must be an integer number of seconds"
+    if modeling_duration <= 0:
+        return None, "modeling_duration must be greater than 0"
     update_existing = bool(body.get("update_existing_workloads", False))
     audit_violations = bool(body.get("audit_violations", False))
     allow_violations = bool(body.get("allow_violations", False))
@@ -232,6 +270,10 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
         return None, f"Invalid mode '{mode}'"
     if target_kind not in VALID_KINDS:
         return None, f"Invalid target_kind '{target_kind}'"
+    if mode == "BehaviorModeling" and "NetworkProxy" in enforcers:
+        return None, "BehaviorModeling mode is not supported with NetworkProxy enforcer"
+    if mode == "DefenseInDepth" and "BPF" in enforcers:
+        return None, "DefenseInDepth mode does not support BPF enforcer"
 
     target_selector = None
     if target_selector_raw and target_selector_raw.get("matchLabels"):
@@ -259,6 +301,7 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
             bpf_network, bpf_ptrace, bpf_mounts,
             seccomp_syscalls, seccomp_action, enforcers,
             audit_violations, allow_violations, attack_targets,
+            network_proxy_egress,
         )
         if not ep:
             return None, "EnhanceProtect policy must have at least one rule, banned file, or raw rule"
@@ -274,8 +317,9 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
 
     elif mode == "DefenseInDepth":
         did = _build_defense_in_depth(body)
-        if did:
-            spec_policy["defenseInDepth"] = did
+        if not did:
+            return None, "DefenseInDepth policy must configure at least one profile or NetworkProxy rule"
+        spec_policy["defenseInDepth"] = did
 
     spec: dict = {
         "updateExistingWorkloads": update_existing,
@@ -312,7 +356,7 @@ def list_deployments(namespace: str):
         result = apps_v1().list_namespaced_deployment(namespace=namespace)
     except ApiException as exc:
         logger.error("K8s error listing deployments in %s: %s", namespace, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error listing deployments in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -356,6 +400,8 @@ def list_workloads(namespace: str):
             items = api.list_namespaced_stateful_set(namespace=namespace).items
         elif kind == "DaemonSet":
             items = api.list_namespaced_daemon_set(namespace=namespace).items
+        elif kind == "Pod":
+            items = core_v1().list_namespaced_pod(namespace=namespace).items
         else:
             items = []
 
@@ -363,7 +409,7 @@ def list_workloads(namespace: str):
         for item in items:
             meta_labels = item.metadata.labels or {}
             pod_labels = {}
-            if (hasattr(item, "spec") and hasattr(item.spec, "template")
+            if (kind != "Pod" and hasattr(item, "spec") and hasattr(item.spec, "template")
                     and item.spec.template and item.spec.template.metadata):
                 pod_labels = item.spec.template.metadata.labels or {}
             varmor_on = (
@@ -371,20 +417,30 @@ def list_workloads(namespace: str):
                 or pod_labels.get("sandbox.varmor.org/enable") == "true"
             )
             status = item.status if hasattr(item, "status") else None
-            ready = (getattr(status, "ready_replicas", None)
-                     or getattr(status, "number_ready", None) or 0) if status else 0
+            if kind == "Pod":
+                ready_cond = next(
+                    (c for c in (getattr(status, "conditions", None) or []) if getattr(c, "type", "") == "Ready"),
+                    None,
+                )
+                phase = getattr(status, "phase", "") if status else ""
+                ready = 1 if ((ready_cond and getattr(ready_cond, "status", "") == "True") or phase == "Running") else 0
+                replicas = 1
+            else:
+                ready = (getattr(status, "ready_replicas", None)
+                         or getattr(status, "number_ready", None) or 0) if status else 0
+                replicas = getattr(item.spec, "replicas", None) or 0
             workloads.append({
                 "name": item.metadata.name,
                 "namespace": item.metadata.namespace,
                 "kind": kind,
-                "replicas": getattr(item.spec, "replicas", None) or 0,
+                "replicas": replicas,
                 "ready_replicas": ready,
                 "varmor_enabled": varmor_on,
             })
         return jsonify({"workloads": workloads})
     except ApiException as exc:
         logger.error("K8s error listing %s in %s: %s", kind, namespace, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error listing %s in %s", kind, namespace)
         return jsonify({"error": str(exc)}), 500
@@ -404,7 +460,7 @@ def list_policies(namespace: str):
         )
     except ApiException as exc:
         logger.error("K8s error listing policies in %s: %s", namespace, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error listing policies in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -424,14 +480,14 @@ def get_policy(namespace: str, name: str):
         return jsonify(item)
     except ApiException as exc:
         logger.error("K8s error getting policy %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error getting policy %s/%s", namespace, name)
         return jsonify({"error": str(exc)}), 500
 
 
 @api_bp.route("/namespaces/<namespace>/policies/<name>", methods=["PUT"])
-@require_auth
+@require_admin
 def update_policy(namespace: str, name: str):
     user = get_current_user()
     body = request.get_json(silent=True)
@@ -446,7 +502,7 @@ def update_policy(namespace: str, name: str):
     except ApiException as exc:
         if exc.status == 404:
             return jsonify({"error": f"Policy '{name}' not found"}), 404
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
 
     resource_version = existing.get("metadata", {}).get("resourceVersion", "")
     manifest, err = _build_manifest_from_body(body, "namespace", name, namespace)
@@ -464,7 +520,7 @@ def update_policy(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, "UPDATE", name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error updating policy %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         audit_logger.log(user, "UPDATE", name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error updating policy %s/%s", namespace, name)
@@ -472,7 +528,7 @@ def update_policy(namespace: str, name: str):
 
 
 @api_bp.route("/namespaces/<namespace>/policies/<name>", methods=["DELETE"])
-@require_auth
+@require_admin
 def delete_policy(namespace: str, name: str):
     user = get_current_user()
     try:
@@ -485,7 +541,7 @@ def delete_policy(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, "DELETE", name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error deleting policy %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         audit_logger.log(user, "DELETE", name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error deleting policy %s/%s", namespace, name)
@@ -505,7 +561,7 @@ def list_cluster_policies():
         )
     except ApiException as exc:
         logger.error("K8s error listing cluster policies: %s", exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error listing cluster policies")
         return jsonify({"error": str(exc)}), 500
@@ -525,14 +581,14 @@ def get_cluster_policy(name: str):
         return jsonify(item)
     except ApiException as exc:
         logger.error("K8s error getting cluster policy %s: %s", name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error getting cluster policy %s", name)
         return jsonify({"error": str(exc)}), 500
 
 
 @api_bp.route("/cluster-policies/<name>", methods=["PUT"])
-@require_auth
+@require_admin
 def update_cluster_policy(name: str):
     user = get_current_user()
     body = request.get_json(silent=True)
@@ -547,7 +603,7 @@ def update_cluster_policy(name: str):
     except ApiException as exc:
         if exc.status == 404:
             return jsonify({"error": f"Cluster policy '{name}' not found"}), 404
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
 
     resource_version = existing.get("metadata", {}).get("resourceVersion", "")
     manifest, err = _build_manifest_from_body(body, "cluster", name, "")
@@ -565,7 +621,7 @@ def update_cluster_policy(name: str):
     except ApiException as exc:
         audit_logger.log(user, "UPDATE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error updating cluster policy %s: %s", name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         audit_logger.log(user, "UPDATE", name, "cluster", "FAILURE", str(exc))
         logger.exception("Unexpected error updating cluster policy %s", name)
@@ -573,7 +629,7 @@ def update_cluster_policy(name: str):
 
 
 @api_bp.route("/cluster-policies/<name>", methods=["DELETE"])
-@require_auth
+@require_admin
 def delete_cluster_policy(name: str):
     user = get_current_user()
     try:
@@ -586,7 +642,7 @@ def delete_cluster_policy(name: str):
     except ApiException as exc:
         audit_logger.log(user, "DELETE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error deleting cluster policy %s: %s", name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         audit_logger.log(user, "DELETE", name, "cluster", "FAILURE", str(exc))
         logger.exception("Unexpected error deleting cluster policy %s", name)
@@ -598,7 +654,7 @@ def delete_cluster_policy(name: str):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/policies", methods=["POST"])
-@require_auth
+@require_admin
 def create_policy():
     user = get_current_user()
     body = request.get_json(silent=True)
@@ -633,7 +689,7 @@ def create_policy():
         except ApiException as exc:
             audit_logger.log(user, "CREATE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
             logger.error("K8s error creating cluster policy %s: %s", name, exc)
-            return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+            return jsonify({"error": _k8s_error_msg(exc)}), exc.status
         except Exception as exc:
             audit_logger.log(user, "CREATE", name, "cluster", "FAILURE", str(exc))
             logger.exception("Unexpected error creating cluster policy %s", name)
@@ -653,11 +709,119 @@ def create_policy():
         except ApiException as exc:
             audit_logger.log(user, "CREATE", name, namespace, "FAILURE", exc.reason or str(exc.status))
             logger.error("K8s error creating policy %s/%s: %s", namespace, name, exc)
-            return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+            return jsonify({"error": _k8s_error_msg(exc)}), exc.status
         except Exception as exc:
             audit_logger.log(user, "CREATE", name, namespace, "FAILURE", str(exc))
             logger.exception("Unexpected error creating policy %s/%s", namespace, name)
             return jsonify({"error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# User management (SQLite-backed)
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/me", methods=["GET"])
+@require_auth
+def get_me():
+    from ..auth import get_current_role
+    username = get_current_user()
+    return jsonify({"username": username, "role": get_current_role()})
+
+
+@api_bp.route("/users", methods=["GET"])
+@require_auth
+def list_users_endpoint():
+    from ..auth import get_current_role
+    if get_current_role() != "admin":
+        return jsonify({"error": "Admin role required"}), 403
+    from ..db import list_users
+    return jsonify({"users": list_users()})
+
+
+@api_bp.route("/users", methods=["POST"])
+@require_auth
+def create_user_endpoint():
+    from ..auth import get_current_role
+    if get_current_role() != "admin":
+        return jsonify({"error": "Admin role required"}), 403
+    body = request.get_json(silent=True) or {}
+    username = (body.get("username") or "").strip()
+    password = body.get("password") or ""
+    role = body.get("role", "viewer")
+    if not username or not password:
+        return jsonify({"error": "username and password are required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if role not in ("admin", "viewer"):
+        return jsonify({"error": "role must be 'admin' or 'viewer'"}), 400
+    try:
+        from ..db import create_user
+        create_user(username, password, role)
+    except Exception as exc:
+        if "UNIQUE" in str(exc):
+            return jsonify({"error": f"Username '{username}' already exists"}), 409
+        return jsonify({"error": str(exc)}), 500
+    audit_logger.log(get_current_user(), "CREATE_USER", username, "system", "SUCCESS", f"role={role}")
+    return jsonify({"ok": True}), 201
+
+
+@api_bp.route("/users/<username>", methods=["DELETE"])
+@require_auth
+def delete_user_endpoint(username: str):
+    from ..auth import get_current_role
+    if get_current_role() != "admin":
+        return jsonify({"error": "Admin role required"}), 403
+    if username == get_current_user():
+        return jsonify({"error": "Cannot delete your own account"}), 400
+    from ..db import delete_user, get_user
+    if not get_user(username):
+        return jsonify({"error": "User not found"}), 404
+    delete_user(username)
+    audit_logger.log(get_current_user(), "DELETE_USER", username, "system", "SUCCESS", "")
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/users/<username>/password", methods=["PUT"])
+@require_auth
+def change_user_password(username: str):
+    from ..auth import get_current_role
+    current = get_current_user()
+    role = get_current_role()
+    if current != username and role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(silent=True) or {}
+    new_password = body.get("new_password") or ""
+    if len(new_password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    # Changing own password requires current password verification
+    if current == username:
+        from ..db import get_user, verify_password
+        user = get_user(username)
+        cur_pass = body.get("current_password") or ""
+        if not cur_pass or not user or not verify_password(cur_pass, user["password_hash"]):
+            return jsonify({"error": "Current password is incorrect"}), 403
+    from ..db import update_user_password
+    update_user_password(username, new_password)
+    audit_logger.log(current, "CHANGE_PASSWORD", username, "system", "SUCCESS", "")
+    return jsonify({"ok": True, "message": "Password changed successfully"})
+
+
+@api_bp.route("/users/<username>/role", methods=["PUT"])
+@require_auth
+def change_user_role(username: str):
+    from ..auth import get_current_role
+    if get_current_role() != "admin":
+        return jsonify({"error": "Admin role required"}), 403
+    if username == get_current_user():
+        return jsonify({"error": "Cannot change your own role"}), 400
+    body = request.get_json(silent=True) or {}
+    role = body.get("role")
+    if role not in ("admin", "viewer"):
+        return jsonify({"error": "role must be 'admin' or 'viewer'"}), 400
+    from ..db import update_user_role
+    update_user_role(username, role)
+    audit_logger.log(get_current_user(), "UPDATE_ROLE", username, "system", "SUCCESS", f"role={role}")
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------------
@@ -667,8 +831,46 @@ def create_policy():
 @api_bp.route("/audit-logs", methods=["GET"])
 @require_auth
 def get_audit_logs():
-    limit = min(int(request.args.get("limit", 100)), 500)
+    limit = _bounded_int_arg("limit", 100, 500)
     return jsonify({"events": audit_logger.get_events()[:limit]})
+
+
+# ---------------------------------------------------------------------------
+# AppArmor kernel events – read from kern.log
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/apparmor-events", methods=["GET"])
+@require_auth
+def get_apparmor_events():
+    log_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
+    limit = _bounded_int_arg("limit", 200, 1000)
+    warn = None
+    try:
+        with open(log_path, "r", errors="replace") as f:
+            all_lines = f.readlines()
+    except FileNotFoundError:
+        return jsonify({
+            "events": [],
+            "warn": (
+                f"Log file not found: {log_path}. "
+                "Mount the host kern.log via a hostPath volume in the console deployment, "
+                "or set the APPARMOR_LOG_PATH env var."
+            ),
+        })
+    except PermissionError:
+        return jsonify({"events": [], "warn": f"Permission denied reading {log_path}."}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    aa_lines = [
+        ln.rstrip() for ln in reversed(all_lines)
+        if "apparmor=" in ln.lower()
+    ][:limit]
+
+    if not aa_lines:
+        warn = f"No AppArmor events found in {log_path}."
+
+    return jsonify({"events": aa_lines, "log_path": log_path, **({"warn": warn} if warn else {})})
 
 
 # ---------------------------------------------------------------------------
@@ -685,7 +887,7 @@ def list_profile_models(namespace: str):
         )
     except ApiException as exc:
         logger.error("K8s error listing profile models in %s: %s", namespace, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error listing profile models in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -705,6 +907,14 @@ def list_profile_models(namespace: str):
                 break
         if phase == "Unknown" and status_obj.get("phase"):
             phase = status_obj["phase"]
+        # Fallback: vArmor uses completedNumber/desiredNumber/ready instead of conditions
+        if phase == "Unknown":
+            desired = status_obj.get("desiredNumber", 0)
+            completed = status_obj.get("completedNumber", 0)
+            if status_obj.get("ready") and desired > 0 and completed >= desired:
+                phase = "Completed"
+            elif completed and completed > 0:
+                phase = "Modeling"
         models.append({
             "name": meta.get("name", ""),
             "namespace": meta.get("namespace", namespace),
@@ -725,7 +935,7 @@ def get_profile_model(namespace: str, name: str):
         return jsonify(item)
     except ApiException as exc:
         logger.error("K8s error getting profile model %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         logger.exception("Unexpected error getting profile model %s/%s", namespace, name)
         return jsonify({"error": str(exc)}), 500
@@ -736,7 +946,7 @@ def get_profile_model(namespace: str, name: str):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/namespaces/<namespace>/deployments/<name>/protect", methods=["PUT"])
-@require_auth
+@require_admin
 def set_deployment_protection(namespace: str, name: str):
     user = get_current_user()
     body = request.get_json(silent=True) or {}
@@ -757,8 +967,285 @@ def set_deployment_protection(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, action, name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error protecting deployment %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": f"Kubernetes API error {exc.status}: {exc.reason}"}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
     except Exception as exc:
         audit_logger.log(user, action, name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error protecting deployment %s/%s", namespace, name)
         return jsonify({"error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Agent Health — per-node varmor-agent pod status
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/agent-health", methods=["GET"])
+@require_auth
+def agent_health():
+    try:
+        pods = core_v1().list_namespaced_pod(
+            namespace="varmor",
+            label_selector="app.kubernetes.io/component=varmor-agent",
+        )
+    except ApiException as exc:
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error fetching agent health")
+        return jsonify({"error": str(exc)}), 500
+
+    agents = []
+    for pod in pods.items:
+        cs = pod.status.container_statuses or []
+        ready = all(c.ready for c in cs) if cs else pod.status.phase == "Running"
+        restarts = sum(c.restart_count for c in cs)
+        started_at = pod.status.start_time.isoformat() if pod.status.start_time else None
+        agents.append({
+            "name": pod.metadata.name,
+            "node": pod.spec.node_name or "unknown",
+            "phase": pod.status.phase or "Unknown",
+            "ready": ready,
+            "restarts": restarts,
+            "started_at": started_at,
+        })
+
+    healthy = sum(1 for a in agents if a["ready"])
+    return jsonify({
+        "agents": agents,
+        "total": len(agents),
+        "healthy": healthy,
+        "unhealthy": len(agents) - healthy,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Enforcement Events — Seccomp blocks + AppArmor denies from kern.log
+# ---------------------------------------------------------------------------
+
+_SYSCALL_NAMES: dict[int, str] = {
+    0: "read", 1: "write", 2: "open", 3: "close", 4: "stat", 5: "fstat",
+    9: "mmap", 11: "munmap", 21: "access", 39: "getpid", 56: "clone",
+    59: "execve", 60: "exit", 62: "kill", 87: "unlink", 101: "ptrace",
+    105: "setuid", 113: "setreuid", 117: "setresuid", 132: "utime",
+    154: "sched_setscheduler", 157: "prctl", 165: "mount", 166: "umount2",
+    172: "iopl", 173: "ioperm", 175: "init_module", 176: "delete_module",
+    186: "gettid", 213: "epoll_create", 246: "kexec_load", 261: "timer_create",
+    268: "tgkill", 269: "faccessat", 272: "unshare", 273: "set_robust_list",
+    279: "move_pages", 281: "epoll_pwait", 286: "inotify_init1",
+    293: "pipe2", 298: "perf_event_open", 302: "prlimit64",
+    305: "clock_adjtime", 310: "process_vm_readv", 311: "process_vm_writev",
+    313: "finit_module", 317: "seccomp", 318: "getrandom",
+    322: "execveat", 332: "statx",
+}
+
+
+def _parse_seccomp_line(line: str) -> dict | None:
+    fields: dict[str, str] = {}
+    for m in re.finditer(r'(\w+)=("([^"]*)"|\S+)', line):
+        key = m.group(1)
+        fields[key] = m.group(3) if m.group(3) is not None else m.group(2)
+
+    if "syscall" not in fields:
+        return None
+
+    try:
+        nr = int(fields["syscall"])
+    except ValueError:
+        return None
+
+    syscall_name = _SYSCALL_NAMES.get(nr, f"nr={nr}")
+
+    code_raw = fields.get("code", "")
+    try:
+        code_int = int(code_raw, 16)
+        if (code_int & 0xFFFF0000) == 0x00050000:
+            action = "SCMP_ACT_ERRNO"       # blocked
+        elif code_int == 0x7FFC0000:
+            action = "SCMP_ACT_LOG"         # allowed + logged (BehaviorModeling)
+        elif code_int == 0x7FFF0000:
+            action = "SCMP_ACT_ALLOW"       # allowed silently
+        elif code_int == 0x7FF00000:
+            action = "SCMP_ACT_TRACE"
+        elif code_int == 0x80000000:
+            action = "SCMP_ACT_KILL"
+        elif code_int == 0:
+            action = "SCMP_ACT_KILL_THREAD"
+        else:
+            action = f"code={code_raw}"
+    except (ValueError, TypeError):
+        action = code_raw or "unknown"
+
+    ts_m = re.search(r'audit\((\d+\.\d+)', line)
+    ts = None
+    if ts_m:
+        try:
+            ts = datetime.datetime.fromtimestamp(float(ts_m.group(1))).isoformat()
+        except Exception:
+            pass
+
+    return {
+        "type": "seccomp",
+        "ts": ts,
+        "comm": fields.get("comm", ""),
+        "pid": fields.get("pid", ""),
+        "syscall": syscall_name,
+        "syscall_nr": nr,
+        "action": action,
+    }
+
+
+def _parse_apparmor_line(line: str) -> dict | None:
+    fields: dict[str, str] = {}
+    for m in re.finditer(r'(\w+)=("([^"]*)"|\S+)', line):
+        key = m.group(1)
+        fields[key] = m.group(3) if m.group(3) is not None else m.group(2)
+
+    ts_m = re.search(r'audit\((\d+\.\d+)', line)
+    ts = None
+    if ts_m:
+        try:
+            ts = datetime.datetime.fromtimestamp(float(ts_m.group(1))).isoformat()
+        except Exception:
+            pass
+
+    return {
+        "type": "apparmor",
+        "ts": ts,
+        "profile": fields.get("profile", ""),
+        "comm": fields.get("comm", ""),
+        "name": fields.get("name", ""),
+        "operation": fields.get("operation", ""),
+        "action": (fields.get("apparmor") or "DENIED").upper(),
+    }
+
+
+@api_bp.route("/enforcement-events", methods=["GET"])
+@require_auth
+def get_enforcement_events():
+    log_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
+    limit = _bounded_int_arg("limit", 200, 1000)
+    enforcer_filter = request.args.get("enforcer", "all")
+
+    try:
+        with open(log_path, "r", errors="replace") as f:
+            all_lines = f.readlines()
+    except FileNotFoundError:
+        return jsonify({
+            "events": [],
+            "warn": f"Log file not found: {log_path}. Mount host kern.log via hostPath volume.",
+        })
+    except PermissionError:
+        return jsonify({"events": [], "warn": f"Permission denied: {log_path}."}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    events = []
+    for raw in reversed(all_lines):
+        line = raw.rstrip()
+        if len(events) >= limit:
+            break
+        if ("type=1326" in line or ("SECCOMP" in line and "syscall=" in line)):
+            if enforcer_filter in ("all", "seccomp"):
+                evt = _parse_seccomp_line(line)
+                if evt:
+                    events.append(evt)
+        elif "apparmor=" in line.lower():
+            if enforcer_filter in ("all", "apparmor"):
+                evt = _parse_apparmor_line(line)
+                if evt:
+                    events.append(evt)
+
+    return jsonify({"events": events, "total": len(events), "log_path": log_path})
+
+
+# ---------------------------------------------------------------------------
+# Apply Model as Policy - transition BehaviorModeling policy to DefenseInDepth
+# ---------------------------------------------------------------------------
+
+VARMOR_CLUSTER_PLURAL_APPLY = "varmorclusterpolicies"
+
+
+@api_bp.route("/namespaces/<namespace>/models/<name>/apply", methods=["POST"])
+@require_admin
+def apply_model_as_policy(namespace: str, name: str):
+    user = get_current_user()
+    body = request.get_json(silent=True) or {}
+    new_mode = body.get("mode", "DefenseInDepth")
+    if new_mode != "DefenseInDepth":
+        return jsonify({"error": "ArmorProfileModel can only be applied as DefenseInDepth"}), 400
+
+    # Fetch the ArmorProfileModel to find its owning policy
+    try:
+        model = custom_objects().get_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL, name=name,
+        )
+    except ApiException as exc:
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+
+    # Resolve policy name from ownerReference, then strip varmor-<ns>- prefix
+    policy_name = None
+    for owner in model.get("metadata", {}).get("ownerReferences", []):
+        if "Policy" in owner.get("kind", ""):
+            policy_name = owner["name"]
+            break
+    if not policy_name:
+        # Model name format: varmor-<namespace>-<policy-name>
+        prefix = f"varmor-{namespace}-"
+        policy_name = name[len(prefix):] if name.startswith(prefix) else name
+
+    # Fetch the policy
+    is_cluster = False
+    try:
+        policy = custom_objects().get_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=VARMOR_PLURAL, name=policy_name,
+        )
+    except ApiException:
+        try:
+            policy = custom_objects().get_cluster_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                plural=VARMOR_CLUSTER_PLURAL_APPLY, name=policy_name,
+            )
+            is_cluster = True
+        except ApiException as exc2:
+            return jsonify({"error": f"Policy '{policy_name}' not found: {_k8s_error_msg(exc2)}"}), 404
+
+    policy_spec = policy.setdefault("spec", {}).setdefault("policy", {})
+    old_mode = policy_spec.get("mode", "BehaviorModeling")
+    enforcer = policy_spec.get("enforcer", "")
+    enforcer_lower = enforcer.lower()
+
+    if "bpf" in enforcer_lower:
+        return jsonify({"error": "DefenseInDepth from a behavior model supports AppArmor and/or Seccomp, not BPF"}), 400
+
+    did: dict = {}
+    if "apparmor" in enforcer_lower:
+        did["appArmor"] = {"profileType": "BehaviorModel"}
+    if "seccomp" in enforcer_lower:
+        did["seccomp"] = {"profileType": "BehaviorModel"}
+    if not did:
+        return jsonify({"error": "Behavior model policy must use AppArmor and/or Seccomp enforcer"}), 400
+    if "allow_violations" in body:
+        did["allowViolations"] = bool(body.get("allow_violations"))
+
+    policy_spec["mode"] = "DefenseInDepth"
+    policy_spec["defenseInDepth"] = did
+    policy_spec.pop("modelingOptions", None)
+    policy_spec.pop("enhanceProtect", None)
+
+    try:
+        if is_cluster:
+            custom_objects().replace_cluster_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                plural=VARMOR_CLUSTER_PLURAL_APPLY, name=policy_name, body=policy,
+            )
+        else:
+            custom_objects().replace_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=namespace, plural=VARMOR_PLURAL, name=policy_name, body=policy,
+            )
+        audit_logger.log(user, "APPLY_MODEL", policy_name, namespace, "SUCCESS",
+                         f"mode {old_mode} -> {new_mode}, model={name}")
+        return jsonify({"ok": True, "policy": policy_name, "old_mode": old_mode, "new_mode": new_mode})
+    except ApiException as exc:
+        audit_logger.log(user, "APPLY_MODEL", policy_name, namespace, "FAILURE", str(exc.status))
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
