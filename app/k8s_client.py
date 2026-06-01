@@ -33,3 +33,8 @@ def apps_v1() -> client.AppsV1Api:
 def custom_objects() -> client.CustomObjectsApi:
     _ensure_configured()
     return client.CustomObjectsApi()
+
+
+def core_v1() -> client.CoreV1Api:
+    _ensure_configured()
+    return client.CoreV1Api()
