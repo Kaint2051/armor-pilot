@@ -183,7 +183,30 @@
         <div class="card" style="padding:1.25rem">
           <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Total Workloads</div>
           <div id="dash-workloads" class="text-3xl font-bold mb-1" style="color:#94a3b8">—</div>
-          <div class="text-xs" style="color:#64748b">Deployments found</div>
+          <div class="text-xs" style="color:#64748b">All target kinds</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Workload Ready</div>
+          <div id="dash-workload-ready" class="text-2xl font-bold mb-1" style="color:#4ade80">â€”</div>
+          <div id="dash-replica-ready" class="text-xs" style="color:#64748b"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Agent Health</div>
+          <div id="dash-agent-health" class="text-2xl font-bold mb-1" style="color:#4ade80">â€”</div>
+          <div id="dash-agent-restarts" class="text-xs" style="color:#64748b"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Enforcement Events</div>
+          <div id="dash-events-total" class="text-2xl font-bold mb-1" style="color:#f87171">â€”</div>
+          <div id="dash-events-breakdown" class="text-xs" style="color:#64748b"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Behavior Models</div>
+          <div id="dash-model-total" class="text-2xl font-bold mb-1" style="color:#a78bfa">â€”</div>
+          <div id="dash-model-breakdown" class="text-xs" style="color:#64748b"></div>
         </div>
       </div>
 
@@ -202,6 +225,25 @@
             Policies by Enforcer
           </h3>
           <div id="dash-enforcers"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+        </div>
+      </div>
+
+      <div id="dash-errors" class="hidden card" style="border-color:#7f1d1d;background:#1f0b0b"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card">
+          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#22d3ee" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>
+            Workloads by Kind
+          </h3>
+          <div id="dash-workload-kinds"><div class="text-xs py-4 text-center" style="color:#475569">Loadingâ€¦</div></div>
+        </div>
+        <div class="card">
+          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4h8l-1 1v5l4.5 6.5A2 2 0 0117.85 20H6.15a2 2 0 01-1.65-3.5L9 10V5L8 4z"/></svg>
+            Model Storage / Phase
+          </h3>
+          <div id="dash-models-summary"><div class="text-xs py-4 text-center" style="color:#475569">Loadingâ€¦</div></div>
         </div>
       </div>
 
@@ -331,6 +373,8 @@
             <div id="sec-tgt-selector" class="hidden mb-4">
               <label class="form-label">Label Selector <span style="color:#f87171">*</span> <span style="color:#475569;font-size:.75rem;font-weight:400">(matchLabels — key=value, one per line)</span></label>
               <textarea id="ta-selector" rows="3" placeholder="app=nginx&#10;env=production" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              <label class="form-label mt-3">Match Expressions <span style="color:#475569;font-size:.75rem;font-weight:400">(optional JSON array)</span></label>
+              <textarea id="ta-selector-expr" rows="2" placeholder='[{"key":"tier","operator":"In","values":["frontend","api"]}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
               <p class="mt-1 text-xs" style="color:#64748b">Mutually exclusive with target name. Selects all matching workloads in namespace.</p>
             </div>
 
@@ -363,6 +407,7 @@
                   <label class="cb-row"><input type="checkbox" name="enforcer" value="BPF" onchange="onEnforcerChange()"><span>BPF</span></label>
                   <label class="cb-row"><input type="checkbox" name="enforcer" value="NetworkProxy" onchange="onEnforcerChange()"><span>NetworkProxy</span></label>
                 </div>
+                <label class="cb-row mt-3"><input type="checkbox" id="chk-privileged"><span style="color:#94a3b8">Privileged workload baseline <span class="dim">(build AppArmor/BPF from AlwaysAllow; Seccomp profile is skipped by vArmor)</span></span></label>
               </div>
 
               <!-- Built-in rules -->
@@ -451,6 +496,11 @@
                 </div>
               </div>
 
+              <div class="mb-4">
+                <label class="form-label">Disable Specific Capabilities <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, one per line)</span></label>
+                <textarea id="ta-dynamic-caps" rows="2" placeholder="NET_RAW&#10;MKNOD" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              </div>
+
               <!-- Attack targets -->
               <div class="mb-4">
                 <label class="form-label">Attack Protection Targets <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor only — restrict attack rules to specific executables, one per line)</span></label>
@@ -462,6 +512,11 @@
               <div class="mb-4">
                 <label class="form-label">Banned File Paths <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor deny — one per line)</span></label>
                 <textarea id="ta-banned" rows="3" placeholder="/etc/shadow&#10;/proc/sysrq-trigger&#10;/sys/kernel/debug" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">AppArmor Raw Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, one rule per line or JSON array with rules/targets)</span></label>
+                <textarea id="ta-apparmor-raw" rows="3" placeholder="deny /var/run/docker.sock rw,&#10;deny network packet raw," class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
               </div>
 
               <!-- BPF raw rules (shown when BPF checked) -->
@@ -557,6 +612,10 @@
                     <label class="form-label">Blocked Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
                     <textarea id="ta-seccomp" rows="5" placeholder="execve&#10;fork&#10;clone&#10;unshare" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
                   </div>
+                  <div>
+                    <label class="form-label">Full LinuxSyscall JSON <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, overrides simple syscall list)</span></label>
+                    <textarea id="ta-seccomp-raw" rows="4" placeholder='[{"names":["clone"],"action":"SCMP_ACT_ERRNO","args":[{"index":0,"value":268435456,"op":"SCMP_CMP_MASKED_EQ"}]}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  </div>
                 </div>
               </div>
 
@@ -579,8 +638,8 @@
                   <textarea id="ta-np-mitm-domains" rows="3" placeholder="example.com&#10;*.internal.corp" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
                 </div>
                 <div>
-                  <label class="form-label">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON array of {header, value, operation})</span></label>
-                  <textarea id="ta-np-mitm-mutations" rows="3" placeholder='[{"header":"X-Forwarded-For","value":"","operation":"Remove"}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  <label class="form-label">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON array of {domain, headers})</span></label>
+                  <textarea id="ta-np-mitm-mutations" rows="3" placeholder='[{"domain":"example.com","headers":[{"name":"Authorization","secretRef":{"name":"api-token","key":"token"}}]}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
                 </div>
                 <div>
                   <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(networkProxyRawRules.egress JSON object)</span></label>
@@ -598,6 +657,15 @@
                   <div>
                     <label class="form-label">Admin Port</label>
                     <input id="inp-np-proxy-admin-port" type="number" min="1" max="65535" placeholder="15000" class="form-input"/>
+                  </div>
+                </div>
+                <div>
+                  <label class="form-label">Proxy Resources <span style="color:#475569;font-size:.75rem;font-weight:400">(optional requests/limits)</span></label>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <input id="inp-np-req-cpu" class="form-input" placeholder="request cpu, e.g. 100m"/>
+                    <input id="inp-np-req-mem" class="form-input" placeholder="request memory, e.g. 128Mi"/>
+                    <input id="inp-np-limit-cpu" class="form-input" placeholder="limit cpu, e.g. 1000m"/>
+                    <input id="inp-np-limit-mem" class="form-input" placeholder="limit memory, e.g. 512Mi"/>
                   </div>
                 </div>
               </div>
@@ -660,6 +728,10 @@
                   <div>
                     <label class="form-label">Allowed Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
                     <textarea id="ta-did-sc-syscalls" rows="4" placeholder="read&#10;write&#10;open&#10;close" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Full LinuxSyscall JSON <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, overrides simple syscall list)</span></label>
+                    <textarea id="ta-did-sc-raw" rows="4" placeholder='[{"names":["read","write"],"action":"SCMP_ACT_ALLOW"}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
                   </div>
                   <div>
                     <label class="form-label">Action for listed syscalls</label>
@@ -785,7 +857,7 @@
               <table class="w-full text-sm">
                 <thead>
                   <tr style="border-bottom:1px solid #1e293b">
-                    <th class="th">Name</th><th class="th">Phase</th><th class="th">Created</th><th class="th th-r">Actions</th>
+                    <th class="th">Name</th><th class="th">Phase</th><th class="th">Storage</th><th class="th">Created</th><th class="th th-r">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="models-body"></tbody>
@@ -1281,6 +1353,37 @@ function collectBpfRules(containerId){
 }
 
 // ── BPF mount / ptrace / network helpers ──
+function parseJsonArrayInput(raw,label,msgEl){
+  var text=(raw||"").trim();
+  if(!text) return [];
+  var parsed;
+  try{parsed=JSON.parse(text);}catch(e){showMsg(msgEl,"error",label+": invalid JSON - "+e.message);return null;}
+  if(!Array.isArray(parsed)){showMsg(msgEl,"error",label+": expected a JSON array.");return null;}
+  return parsed;
+}
+
+function collectRawRuleInput(id,label,msgEl){
+  var text=($(id).value||"").trim();
+  if(!text) return [];
+  if(text[0]==="[") return parseJsonArrayInput(text,label,msgEl);
+  return text.split("\n").map(function(l){return l.trim();}).filter(Boolean).map(function(rule){return {rules:rule};});
+}
+
+function collectNpResources(){
+  var resources={requests:{},limits:{}};
+  var reqCpu=$("inp-np-req-cpu").value.trim();
+  var reqMem=$("inp-np-req-mem").value.trim();
+  var limitCpu=$("inp-np-limit-cpu").value.trim();
+  var limitMem=$("inp-np-limit-mem").value.trim();
+  if(reqCpu) resources.requests.cpu=reqCpu;
+  if(reqMem) resources.requests.memory=reqMem;
+  if(limitCpu) resources.limits.cpu=limitCpu;
+  if(limitMem) resources.limits.memory=limitMem;
+  if(!Object.keys(resources.requests).length) delete resources.requests;
+  if(!Object.keys(resources.limits).length) delete resources.limits;
+  return Object.keys(resources).length?resources:null;
+}
+
 function addMountRow(sp,ft,flags,qual){
   var div=document.createElement("div");
   div.className="mount-row";
@@ -1381,6 +1484,12 @@ function parseSpecIntoForm(crd,scope,name){
   $("bpf-mounts").innerHTML="";
   $("chk-ptrace-enable").checked=false;hide("sec-ptrace-rule");
   $("ta-bpf-network").value="";
+  $("ta-selector-expr").value="";
+  $("ta-dynamic-caps").value="";
+  $("ta-apparmor-raw").value="";
+  $("ta-seccomp-raw").value="";
+  $("ta-did-sc-raw").value="";
+  $("chk-privileged").checked=false;
   document.querySelectorAll('input[name="rule"]').forEach(function(c){c.checked=false;});
   document.querySelectorAll('input[name="enforcer"]').forEach(function(c){c.checked=false;});
 
@@ -1400,11 +1509,13 @@ function parseSpecIntoForm(crd,scope,name){
   $("sel-kind").value=target.kind||"Deployment";
 
   // Target by name vs selector
-  if(target.selector&&target.selector.matchLabels){
+  if(target.selector&&(target.selector.matchLabels||target.selector.matchExpressions)){
     document.querySelector('input[name="tgt-mode"][value="selector"]').checked=true;
     onTargetModeChange();
-    var lines=Object.entries(target.selector.matchLabels).map(function(kv){return kv[0]+"="+kv[1];});
+    var lines=Object.entries(target.selector.matchLabels||{}).map(function(kv){return kv[0]+"="+kv[1];});
     $("ta-selector").value=lines.join("\n");
+    if(target.selector.matchExpressions)
+      try{$("ta-selector-expr").value=JSON.stringify(target.selector.matchExpressions,null,2);}catch(e){}
   } else {
     document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
     onTargetModeChange();
@@ -1427,21 +1538,33 @@ function parseSpecIntoForm(crd,scope,name){
   (ep.hardeningRules||[]).forEach(function(r){allRules.push(r);});
   (ep.vulMitigationRules||[]).forEach(function(r){allRules.push(r);});
   (ep.attackProtectionRules||[]).forEach(function(g){(g.rules||[]).forEach(function(r){allRules.push(r);});});
+  var dynamicCaps=[];
   allRules.forEach(function(r){
     var el=document.querySelector('input[name="rule"][value="'+r+'"]');
     if(el) el.checked=true;
+    else if(/^disable-cap-/.test(r)) dynamicCaps.push(r.replace(/^disable-cap-/,"").toUpperCase().replace(/-/g,"_"));
   });
+  $("ta-dynamic-caps").value=dynamicCaps.join("\n");
   updateRuleCounts();
 
   // Banned files (appArmorRawRules)
-  var bannedLines=(ep.appArmorRawRules||[]).map(function(r){
-    return (r.rules||"").replace(/^deny\s+/,"").replace(/\s+\S+,\s*$/,"").trim();
-  }).filter(Boolean);
+  var bannedLines=[],aaRawEntries=[];
+  (ep.appArmorRawRules||[]).forEach(function(r){
+    var rule=(r.rules||"").trim();
+    var m=rule.match(/^deny\s+(.+?)\s+rwmlk,\s*$/);
+    if(m&&!(r.targets&&r.targets.length)) bannedLines.push(m[1]);
+    else if(rule) aaRawEntries.push(r);
+  });
   $("ta-banned").value=bannedLines.join("\n");
+  $("ta-apparmor-raw").value=aaRawEntries.map(function(r){
+    if(r.targets&&r.targets.length) return JSON.stringify(r);
+    return r.rules||"";
+  }).join("\n");
 
   // Audit/allow violations
   $("chk-audit-viol").checked=!!ep.auditViolations;
   $("chk-allow-viol").checked=!!ep.allowViolations;
+  $("chk-privileged").checked=!!ep.privileged;
 
   // Attack protection targets
   var atk=(ep.attackProtectionRules||[])[0];
@@ -1470,10 +1593,13 @@ function parseSpecIntoForm(crd,scope,name){
   }
 
   // Seccomp raw rules
-  var sr=(ep.syscallRawRules||[])[0];
-  if(sr){
+  var seccompRules=ep.syscallRawRules||[];
+  var sr=seccompRules[0];
+  if(seccompRules.length===1&&sr&&!sr.args&&!sr.errnoRet&&!sr.includes&&!sr.excludes){
     $("ta-seccomp").value=(sr.names||[]).join("\n");
     if(sr.action) $("sel-seccomp-action").value=sr.action;
+  }else if(seccompRules.length){
+    try{$("ta-seccomp-raw").value=JSON.stringify(seccompRules,null,2);}catch(e){}
   }
 
   // BehaviorModeling duration (CRD stores seconds, form shows minutes)
@@ -1497,10 +1623,13 @@ function parseSpecIntoForm(crd,scope,name){
       if(scRadio){scRadio.checked=true;onDidScTypeChange();}
     }
     if(didSc.customProfile) $("ta-did-sc-custom").value=didSc.customProfile;
-    var didScSr=(didSc.syscallRawRules||[])[0];
-    if(didScSr){
+    var didScRules=didSc.syscallRawRules||[];
+    var didScSr=didScRules[0];
+    if(didScRules.length===1&&didScSr&&!didScSr.args&&!didScSr.errnoRet&&!didScSr.includes&&!didScSr.excludes){
       $("ta-did-sc-syscalls").value=(didScSr.names||[]).join("\n");
       if(didScSr.action) $("sel-did-sc-action").value=didScSr.action;
+    }else if(didScRules.length){
+      try{$("ta-did-sc-raw").value=JSON.stringify(didScRules,null,2);}catch(e){}
     }
     if(did.networkProxy&&did.networkProxy.egress)
       try{$("ta-did-np-egress").value=JSON.stringify(did.networkProxy.egress,null,2);}catch(e){}
@@ -1519,6 +1648,15 @@ function parseSpecIntoForm(crd,scope,name){
   if(npCfg.proxyUID!=null) $("inp-np-proxy-uid").value=npCfg.proxyUID;
   if(npCfg.proxyPort!=null) $("inp-np-proxy-port").value=npCfg.proxyPort;
   if(npCfg.proxyAdminPort!=null) $("inp-np-proxy-admin-port").value=npCfg.proxyAdminPort;
+  var npRes=npCfg.resources||{};
+  if(npRes.requests){
+    if(npRes.requests.cpu) $("inp-np-req-cpu").value=npRes.requests.cpu;
+    if(npRes.requests.memory) $("inp-np-req-mem").value=npRes.requests.memory;
+  }
+  if(npRes.limits){
+    if(npRes.limits.cpu) $("inp-np-limit-cpu").value=npRes.limits.cpu;
+    if(npRes.limits.memory) $("inp-np-limit-mem").value=npRes.limits.memory;
+  }
 }
 
 function cancelEdit(){
@@ -1538,11 +1676,14 @@ function cancelEdit(){
   $("ta-attack-targets").value="";
   $("ta-bpf-network").value="";
   $("chk-ptrace-enable").checked=false;hide("sec-ptrace-rule");
+  $("ta-dynamic-caps").value="";$("ta-apparmor-raw").value="";$("ta-seccomp-raw").value="";$("chk-privileged").checked=false;
   $("ta-did-aa-raw").value="";$("ta-did-aa-custom").value="";hide("did-aa-custom-sec");
-  $("ta-did-sc-syscalls").value="";$("ta-did-sc-custom").value="";hide("did-sc-custom-sec");
+  $("ta-did-sc-syscalls").value="";$("ta-did-sc-custom").value="";$("ta-did-sc-raw").value="";hide("did-sc-custom-sec");
   $("ta-did-np-egress").value="";
   $("ta-np-mitm-domains").value="";$("ta-np-mitm-mutations").value="";$("ta-np-egress").value="";
   $("inp-np-proxy-uid").value="";$("inp-np-proxy-port").value="";$("inp-np-proxy-admin-port").value="";
+  $("inp-np-req-cpu").value="";$("inp-np-req-mem").value="";$("inp-np-limit-cpu").value="";$("inp-np-limit-mem").value="";
+  $("ta-selector-expr").value="";
   document.querySelector('input[name="scope"][value="namespace"]').checked=true;
   document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
   onTargetModeChange();
@@ -1675,7 +1816,7 @@ function modeColor(m){
 }
 
 // ── Dashboard ──
-async function loadDashboard(){
+async function loadDashboardLegacy(){
   ["dash-ns","dash-cluster","dash-ready","dash-notready","dash-protected","dash-workloads"].forEach(function(id){
     var el=$(id);if(el)el.textContent="…";
   });
@@ -1728,6 +1869,104 @@ async function loadDashboard(){
   }catch(err){console.error("Dashboard error:",err);}
   loadAgentHealth();
   loadEnforcementEvents();
+}
+
+async function loadDashboard(){
+  ["dash-ns","dash-cluster","dash-ready","dash-notready","dash-protected","dash-workloads",
+   "dash-workload-ready","dash-agent-health","dash-events-total","dash-model-total"].forEach(function(id){
+    var el=$(id);if(el)el.textContent="...";
+  });
+  $("dash-modes").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading...</div>';
+  $("dash-enforcers").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading...</div>';
+  $("dash-workload-kinds").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading...</div>';
+  $("dash-models-summary").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading...</div>';
+  $("dash-activity").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading...</div>';
+  $("dash-agents").innerHTML='<div class="text-xs py-3 text-center" style="color:#475569">Loading...</div>';
+  $("dash-enforcement").innerHTML='<div class="text-xs py-3 text-center" style="color:#475569">Loading...</div>';
+  var namespace=ns();
+  try{
+    var res=await api("/api/dashboard-summary?namespace="+encodeURIComponent(namespace));
+    var data=await res.json();
+    if(!res.ok){throw new Error(data.error||"Dashboard summary failed");}
+    var pol=data.policies||{},wl=data.workloads||{},agents=data.agents||{},events=data.enforcement||{},models=data.models||{};
+    $("dash-ns").textContent=pol.namespace||0;
+    $("dash-cluster").textContent=pol.cluster||0;
+    $("dash-ready").textContent=pol.ready||0;
+    $("dash-notready").textContent=pol.not_ready||0;
+    $("dash-protected").textContent=wl.protected||0;
+    $("dash-workloads").textContent=wl.total||0;
+    $("dash-workload-ready").textContent=(wl.ready||0)+"/"+(wl.total||0);
+    $("dash-replica-ready").textContent=(wl.ready_replicas||0)+"/"+(wl.desired_replicas||0)+" replicas ready";
+    $("dash-agent-health").textContent=(agents.healthy||0)+"/"+(agents.total||0);
+    $("dash-agent-restarts").textContent=(agents.restarts||0)+" restarts observed";
+    $("dash-events-total").textContent=events.total||0;
+    $("dash-events-breakdown").textContent=(events.apparmor||0)+" AppArmor / "+(events.seccomp||0)+" Seccomp";
+    $("dash-model-total").textContent=models.total||0;
+    $("dash-model-breakdown").textContent=formatCounts(models.by_phase||{});
+    renderBarChart("dash-modes",pol.by_mode||{},{
+      EnhanceProtect:"#3b82f6",AlwaysAllow:"#f59e0b",RuntimeDefault:"#64748b",
+      BehaviorModeling:"#a78bfa",DefenseInDepth:"#34d399",Unknown:"#475569"
+    });
+    renderBarChart("dash-enforcers",pol.by_enforcer||{},{
+      AppArmor:"#60a5fa",BPF:"#34d399",Seccomp:"#f472b6",NetworkProxy:"#fb923c"
+    });
+    renderWorkloadKinds(wl.by_kind||{});
+    renderModelSummary(models);
+    renderDashboardErrors(data.errors||[],events.warn);
+    renderDashActivity((data.activity||[]).slice(0,8));
+    var upd=$("dash-updated");
+    if(upd)upd.textContent="Updated "+new Date().toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }catch(err){
+    console.error("Dashboard error:",err);
+    renderDashboardErrors([{section:"dashboard",error:err.message}],null);
+  }
+  loadAgentHealth();
+  loadEnforcementEvents();
+}
+
+function formatCounts(counts){
+  var entries=Object.entries(counts||{}).filter(function(kv){return kv[1];});
+  if(!entries.length) return "No data";
+  return entries.map(function(kv){return kv[0]+": "+kv[1];}).join(" / ");
+}
+
+function renderWorkloadKinds(byKind){
+  var el=$("dash-workload-kinds");if(!el)return;
+  var entries=Object.entries(byKind||{});
+  if(!entries.length){el.innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">No workload data</div>';return;}
+  el.innerHTML=entries.map(function(kv){
+    var kind=kv[0],s=kv[1]||{};
+    var total=s.total||0,ready=s.ready||0,protectedCount=s.protected||0;
+    var pct=total?Math.round(ready/total*100):0;
+    return '<div style="display:grid;grid-template-columns:7rem 1fr 8rem;gap:.75rem;align-items:center;margin-bottom:.625rem">'
+      +'<span style="color:#cbd5e1;font-size:.75rem">'+esc(kind)+'</span>'
+      +'<div style="height:7px;background:#0f172a;border-radius:9999px;overflow:hidden"><div style="height:7px;background:#22d3ee;width:'+pct+'%;border-radius:9999px"></div></div>'
+      +'<span style="color:#94a3b8;font-size:.7rem;text-align:right">'+ready+'/'+total+' ready, '+protectedCount+' protected</span>'
+      +'</div>';
+  }).join("");
+}
+
+function renderModelSummary(models){
+  var el=$("dash-models-summary");if(!el)return;
+  var phase=models.by_phase||{},storage=models.by_storage||{};
+  var rows=[
+    ["Phase",formatCounts(phase)],
+    ["Storage",formatCounts(storage)]
+  ];
+  el.innerHTML=rows.map(function(r){
+    return '<div style="display:flex;justify-content:space-between;border-bottom:1px solid #1e293b;padding:.45rem 0;font-size:.75rem">'
+      +'<span style="color:#64748b">'+esc(r[0])+'</span><span style="color:#cbd5e1">'+esc(r[1])+'</span></div>';
+  }).join("");
+}
+
+function renderDashboardErrors(errors,eventWarn){
+  var el=$("dash-errors");if(!el)return;
+  var all=(errors||[]).slice();
+  if(eventWarn) all.push({section:"enforcement",error:eventWarn});
+  if(!all.length){hide("dash-errors");el.innerHTML="";return;}
+  show("dash-errors");
+  el.innerHTML='<div class="text-sm font-semibold mb-2" style="color:#fca5a5">Dashboard warnings</div>'
+    +all.map(function(e){return '<div class="text-xs" style="color:#fca5a5;margin:.25rem 0"><b>'+esc(e.section||"section")+'</b>: '+esc(e.error||"unknown")+'</div>';}).join("");
 }
 
 function renderBarChart(containerId,counts,colorMap){
@@ -2037,6 +2276,7 @@ function renderProfileModels(models){
     tr.onmouseout=function(){tr.style.background="";};
     tr.innerHTML='<td class="td" style="font-family:monospace;color:#4ade80;font-size:.8rem">'+esc(m.name)+'</td>'
       +'<td class="td">'+phBadge+'</td>'
+      +'<td class="td" style="color:#94a3b8;font-size:.75rem">'+esc(m.storage_type||"")+'</td>'
       +'<td class="td" style="color:#475569;font-size:.75rem">'+cr+'</td>'
       +'<td class="td th-r" style="white-space:nowrap">'
         +'<button onclick="openModelModal(this)" data-name="'+esc(m.name)+'" data-ns="'+esc(m.namespace)+'" class="btn btn-ghost btn-sm">View</button>'
@@ -2066,8 +2306,15 @@ $("form-create").addEventListener("submit",async function(e){
     var selectorLines=$("ta-selector").value.split("\n").filter(Boolean);
     var matchLabels={};
     selectorLines.forEach(function(l){var p=l.split("=");if(p.length===2) matchLabels[p[0].trim()]=p[1].trim();});
-    if(!Object.keys(matchLabels).length){showMsg(msgEl,"error","Label selector requires at least one key=value pair.");return;}
-    targetSelector={matchLabels:matchLabels};
+    targetSelector={};
+    if(Object.keys(matchLabels).length) targetSelector.matchLabels=matchLabels;
+    var exprRaw=($("ta-selector-expr").value||"").trim();
+    if(exprRaw){
+      var expr=parseJsonArrayInput(exprRaw,"Match Expressions",msgEl);
+      if(expr===null) return;
+      targetSelector.matchExpressions=expr;
+    }
+    if(!targetSelector.matchLabels&&!targetSelector.matchExpressions){showMsg(msgEl,"error","Label selector requires matchLabels or matchExpressions.");return;}
   } else {
     targetDeployment=$("sel-target").value;
     if(!targetDeployment){showMsg(msgEl,"error","Please select a target workload.");return;}
@@ -2078,7 +2325,10 @@ $("form-create").addEventListener("submit",async function(e){
   if(mode==="BehaviorModeling"&&enforcers.includes("NetworkProxy")){showMsg(msgEl,"error","BehaviorModeling does not support NetworkProxy enforcer.");return;}
   if(mode==="DefenseInDepth"&&enforcers.includes("BPF")){showMsg(msgEl,"error","DefenseInDepth does not support BPF enforcer.");return;}
   var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
+  var capabilityRules=$("ta-dynamic-caps").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var banned=$("ta-banned").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var apparmorRaw=collectRawRuleInput("ta-apparmor-raw","AppArmor Raw Rules",msgEl);
+  if(apparmorRaw===null) return;
   var attackTargets=$("ta-attack-targets").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var bpfFileRules=collectBpfRules("bpf-files");
   var bpfProcRules=collectBpfRules("bpf-procs");
@@ -2089,11 +2339,14 @@ $("form-create").addEventListener("submit",async function(e){
   if(bpfNetworkStr){try{bpfNetwork=JSON.parse(bpfNetworkStr);}catch(e){showMsg(msgEl,"error","BPF Network Rules: invalid JSON — "+e.message);return;}}
   var seccompSyscalls=$("ta-seccomp").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var seccompAction=$("sel-seccomp-action").value;
+  var seccompRaw=parseJsonArrayInput($("ta-seccomp-raw").value,"Seccomp LinuxSyscall JSON",msgEl);
+  if(seccompRaw===null) return;
   var containers=$("inp-containers").value.split(",").map(function(c){return c.trim();}).filter(Boolean);
   var durationMins=parseInt($("inp-duration").value)||60;
   var updateExisting=$("chk-update-existing").checked;
   var auditViol=$("chk-audit-viol").checked;
   var allowViol=$("chk-allow-viol").checked;
+  var privileged=$("chk-privileged").checked;
 
   // DefenseInDepth fields
   var didAaTypeEl=document.querySelector('input[name="did-aa-type"]:checked');
@@ -2104,6 +2357,8 @@ $("form-create").addEventListener("submit",async function(e){
   var didScType=didScTypeEl?didScTypeEl.value:"";
   var didScCustom=$("ta-did-sc-custom").value.trim();
   var didScSyscalls=$("ta-did-sc-syscalls").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var didScRaw=parseJsonArrayInput($("ta-did-sc-raw").value,"DID Seccomp LinuxSyscall JSON",msgEl);
+  if(didScRaw===null) return;
   var didScAction=$("sel-did-sc-action").value;
   var didAllowViol=$("did-allow-viol").checked;
   var didNpEgressStr=($("ta-did-np-egress").value||"").trim();
@@ -2121,8 +2376,9 @@ $("form-create").addEventListener("submit",async function(e){
   var npProxyUid=$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
   var npProxyPort=$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
   var npProxyAdminPort=$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
+  var npResources=collectNpResources();
 
-  if(mode==="EnhanceProtect"&&!rules.length&&!banned.length&&!bpfFileRules.length&&!bpfProcRules.length&&!bpfMountRules.length&&!bpfPtraceRule&&!bpfNetwork&&!seccompSyscalls.length&&!npEgress){
+  if(mode==="EnhanceProtect"&&!rules.length&&!capabilityRules.length&&!banned.length&&!apparmorRaw.length&&!bpfFileRules.length&&!bpfProcRules.length&&!bpfMountRules.length&&!bpfPtraceRule&&!bpfNetwork&&!seccompSyscalls.length&&!seccompRaw.length&&!npEgress){
     showMsg(msgEl,"error","EnhanceProtect requires at least one rule, banned file, or raw rule.");return;
   }
 
@@ -2134,18 +2390,20 @@ $("form-create").addEventListener("submit",async function(e){
     name:name,namespace:namespace,scope:scope,target_kind:kind,
     target_deployment:targetDeployment,target_selector:targetSelector,
     target_containers:containers,mode:mode,enforcers:enforcers,
-    rules:rules,banned_files:banned,attack_targets:attackTargets,
+    rules:rules,capability_rules:capabilityRules,banned_files:banned,
+    apparmor_raw_rules:apparmorRaw,attack_targets:attackTargets,privileged:privileged,
     bpf_file_rules:bpfFileRules,bpf_process_rules:bpfProcRules,
     bpf_mounts:bpfMountRules,bpf_ptrace:bpfPtraceRule,bpf_network:bpfNetwork,
-    seccomp_syscalls:seccompSyscalls,seccomp_action:seccompAction,
+    seccomp_syscalls:seccompSyscalls,seccomp_action:seccompAction,seccomp_raw_rules:seccompRaw,
     modeling_duration:durationMins*60,
     update_existing_workloads:updateExisting,audit_violations:auditViol,allow_violations:allowViol,
     did_apparmor_type:didAaType,did_apparmor_custom:didAaCustom,did_apparmor_raw_rules:didAaRaw,
     did_seccomp_type:didScType,did_seccomp_custom:didScCustom,
-    did_seccomp_syscalls:didScSyscalls,did_seccomp_action:didScAction,
+    did_seccomp_syscalls:didScSyscalls,did_seccomp_action:didScAction,did_seccomp_raw_rules:didScRaw,
     did_allow_violations:didAllowViol,did_np_egress:didNpEgress,
     np_mitm_domains:npMitmDomains,np_mitm_mutations:npMitmMut,np_egress:npEgress,
-    np_proxy_uid:npProxyUid,np_proxy_port:npProxyPort,np_proxy_admin_port:npProxyAdminPort
+    np_proxy_uid:npProxyUid,np_proxy_port:npProxyPort,np_proxy_admin_port:npProxyAdminPort,
+    np_resources:npResources
   };
 
   try{
