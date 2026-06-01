@@ -1,3 +1,4 @@
+import collections
 import datetime
 import json
 import logging
@@ -57,6 +58,101 @@ VALID_MODES = frozenset(["AlwaysAllow", "RuntimeDefault", "EnhanceProtect", "Beh
 VALID_KINDS = frozenset(["Deployment", "StatefulSet", "DaemonSet", "Pod"])
 VALID_SCMP_ACTIONS = frozenset(["SCMP_ACT_KILL", "SCMP_ACT_ERRNO", "SCMP_ACT_LOG", "SCMP_ACT_ALLOW"])
 VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
+VALID_LABEL_SELECTOR_OPERATORS = frozenset(["In", "NotIn", "Exists", "DoesNotExist"])
+
+
+def _clean_str_list(values) -> list[str]:
+    return [str(v).strip() for v in (values or []) if str(v).strip()]
+
+
+def _normalize_capability_rule(raw: str) -> str:
+    cap = str(raw or "").strip().lower()
+    if not cap:
+        return ""
+    if cap.startswith("disable-cap-"):
+        cap = cap[len("disable-cap-"):]
+    cap = re.sub(r"^cap[_-]", "", cap)
+    cap = cap.replace("_", "-")
+    if not re.fullmatch(r"[a-z0-9-]+", cap):
+        return ""
+    return f"disable-cap-{cap}"
+
+
+def _is_hardening_rule(rule: str) -> bool:
+    return rule in HARDENING_RULES or bool(re.fullmatch(r"disable-cap-[a-z0-9-]+", rule or ""))
+
+
+def _normalize_selector(raw: dict) -> tuple[dict | None, str | None]:
+    if not raw:
+        return None, None
+    if not isinstance(raw, dict):
+        return None, "target_selector must be an object"
+    selector: dict = {}
+    labels = raw.get("matchLabels") or {}
+    if labels:
+        if not isinstance(labels, dict):
+            return None, "target_selector.matchLabels must be an object"
+        clean_labels = {str(k).strip(): str(v).strip() for k, v in labels.items() if str(k).strip() and str(v).strip()}
+        if clean_labels:
+            selector["matchLabels"] = clean_labels
+
+    expressions = raw.get("matchExpressions") or []
+    if expressions:
+        if not isinstance(expressions, list):
+            return None, "target_selector.matchExpressions must be an array"
+        clean_exprs = []
+        for expr in expressions:
+            if not isinstance(expr, dict):
+                return None, "Each matchExpression must be an object"
+            key = str(expr.get("key") or "").strip()
+            op = str(expr.get("operator") or "").strip()
+            values = _clean_str_list(expr.get("values") or [])
+            if not key or op not in VALID_LABEL_SELECTOR_OPERATORS:
+                return None, "Each matchExpression requires key and operator In, NotIn, Exists, or DoesNotExist"
+            item = {"key": key, "operator": op}
+            if values:
+                item["values"] = values
+            clean_exprs.append(item)
+        if clean_exprs:
+            selector["matchExpressions"] = clean_exprs
+
+    return selector or None, None
+
+
+def _normalize_apparmor_raw_rules(raw_rules, banned_files=None) -> list[dict]:
+    result = [{"rules": f"deny {p.strip()} rwmlk,"} for p in (banned_files or []) if str(p).strip()]
+    for item in raw_rules or []:
+        if isinstance(item, dict):
+            rules = str(item.get("rules") or "").strip()
+            if not rules:
+                continue
+            entry = {"rules": rules}
+            targets = _clean_str_list(item.get("targets") or [])
+            if targets:
+                entry["targets"] = targets
+            result.append(entry)
+        else:
+            rules = str(item or "").strip()
+            if rules:
+                result.append({"rules": rules})
+    return result
+
+
+def _normalize_syscall_raw_rules(raw_rules) -> tuple[list[dict], str | None]:
+    normalized = []
+    for item in raw_rules or []:
+        if not isinstance(item, dict):
+            return [], "Each syscall raw rule must be an object"
+        names = _clean_str_list(item.get("names") or [])
+        action = str(item.get("action") or "").strip()
+        if not names or action not in VALID_SCMP_ACTIONS:
+            return [], "Each syscall raw rule requires names and a valid Seccomp action"
+        entry = {"names": names, "action": action}
+        for optional_key in ("args", "errnoRet", "comment", "includes", "excludes"):
+            if optional_key in item:
+                entry[optional_key] = item[optional_key]
+        normalized.append(entry)
+    return normalized, None
 
 
 def _k8s_error_msg(exc) -> str:
@@ -125,11 +221,13 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
                             bpf_network, bpf_ptrace, bpf_mounts,
                             seccomp_syscalls, seccomp_action, enforcers,
                             audit_violations, allow_violations,
-                            attack_targets, network_proxy_egress) -> dict:
-    hardening = [r for r in rules if r in HARDENING_RULES]
+                            attack_targets, network_proxy_egress,
+                            apparmor_raw_rules, seccomp_raw_rules,
+                            privileged) -> dict:
+    hardening = [r for r in rules if _is_hardening_rule(r)]
     attack = [r for r in rules if r in ATTACK_RULES]
     vuln = [r for r in rules if r in VULN_RULES]
-    apparmor_raw = [{"rules": f"deny {p.strip()} rwmlk,"} for p in banned_files if p.strip()]
+    apparmor_raw = _normalize_apparmor_raw_rules(apparmor_raw_rules, banned_files)
 
     ep: dict = {}
     if hardening:
@@ -147,6 +245,8 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
         ep["auditViolations"] = True
     if allow_violations:
         ep["allowViolations"] = True
+    if privileged:
+        ep["privileged"] = True
 
     if "BPF" in enforcers:
         bpf_obj: dict = {}
@@ -166,9 +266,12 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
         if bpf_obj:
             ep["bpfRawRules"] = bpf_obj
 
-    if "Seccomp" in enforcers and seccomp_syscalls:
-        action = seccomp_action if seccomp_action in VALID_SCMP_ACTIONS else "SCMP_ACT_ERRNO"
-        ep["syscallRawRules"] = [{"names": seccomp_syscalls, "action": action}]
+    if "Seccomp" in enforcers:
+        if seccomp_raw_rules:
+            ep["syscallRawRules"] = seccomp_raw_rules
+        elif seccomp_syscalls:
+            action = seccomp_action if seccomp_action in VALID_SCMP_ACTIONS else "SCMP_ACT_ERRNO"
+            ep["syscallRawRules"] = [{"names": seccomp_syscalls, "action": action}]
 
     if "NetworkProxy" in enforcers and network_proxy_egress and isinstance(network_proxy_egress, dict):
         ep["networkProxyRawRules"] = {"egress": network_proxy_egress}
@@ -188,9 +291,9 @@ def _build_defense_in_depth(body: dict) -> dict:
         aa_custom = (body.get("did_apparmor_custom") or "").strip()
         if aa_type == "Custom" and aa_custom:
             aa["customProfile"] = aa_custom
-        aa_raw = [l.strip() for l in (body.get("did_apparmor_raw_rules") or []) if str(l).strip()]
+        aa_raw = _normalize_apparmor_raw_rules(body.get("did_apparmor_raw_rules") or [])
         if aa_raw:
-            aa["appArmorRawRules"] = [{"rules": r} for r in aa_raw]
+            aa["appArmorRawRules"] = aa_raw
         did["appArmor"] = aa
 
     sc_type = (body.get("did_seccomp_type") or "").strip()
@@ -199,8 +302,14 @@ def _build_defense_in_depth(body: dict) -> dict:
         sc_custom = (body.get("did_seccomp_custom") or "").strip()
         if sc_type == "Custom" and sc_custom:
             sc["customProfile"] = sc_custom
-        sc_syscalls = [s.strip() for s in (body.get("did_seccomp_syscalls") or []) if str(s).strip()]
-        if sc_syscalls:
+        sc_raw_rules = body.get("did_seccomp_raw_rules") or []
+        normalized_sc_raw, sc_raw_err = _normalize_syscall_raw_rules(sc_raw_rules)
+        if sc_raw_err:
+            raise ValueError(sc_raw_err)
+        sc_syscalls = _clean_str_list(body.get("did_seccomp_syscalls") or [])
+        if normalized_sc_raw:
+            sc["syscallRawRules"] = normalized_sc_raw
+        elif sc_syscalls:
             action = body.get("did_seccomp_action") or "SCMP_ACT_ERRNO"
             if action not in VALID_SCMP_ACTIONS:
                 action = "SCMP_ACT_ERRNO"
@@ -234,6 +343,18 @@ def _build_network_proxy_config(body: dict) -> dict:
             except (ValueError, TypeError):
                 pass
 
+    resources = body.get("np_resources")
+    if resources and isinstance(resources, dict):
+        clean_resources = {}
+        for key in ("requests", "limits"):
+            values = resources.get(key)
+            if isinstance(values, dict):
+                clean_values = {str(k): str(v) for k, v in values.items() if str(k) and str(v)}
+                if clean_values:
+                    clean_resources[key] = clean_values
+        if clean_resources:
+            cfg["resources"] = clean_resources
+
     return cfg
 
 
@@ -245,17 +366,29 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     target_containers: list = [c.strip() for c in body.get("target_containers") or [] if str(c).strip()]
     mode = (body.get("mode") or "EnhanceProtect").strip()
     enforcers: list = body.get("enforcers") or ["AppArmor"]
-    rules: list = body.get("rules") or []
+    rules: list = _clean_str_list(body.get("rules") or [])
+    capability_rules = []
+    for raw_cap in body.get("capability_rules") or []:
+        cap_rule = _normalize_capability_rule(raw_cap)
+        if not cap_rule:
+            return None, f"Invalid capability rule '{raw_cap}'"
+        capability_rules.append(cap_rule)
+    rules = list(dict.fromkeys(rules + capability_rules))
     banned_files: list = body.get("banned_files") or []
+    apparmor_raw_rules: list = body.get("apparmor_raw_rules") or []
     bpf_file_rules: list = body.get("bpf_file_rules") or []
     bpf_process_rules: list = body.get("bpf_process_rules") or []
     bpf_network = body.get("bpf_network")
     bpf_ptrace = body.get("bpf_ptrace")
     bpf_mounts: list = body.get("bpf_mounts") or []
-    seccomp_syscalls: list = [s.strip() for s in body.get("seccomp_syscalls") or [] if str(s).strip()]
+    seccomp_syscalls: list = _clean_str_list(body.get("seccomp_syscalls") or [])
     seccomp_action: str = body.get("seccomp_action") or "SCMP_ACT_ERRNO"
-    attack_targets: list = [t.strip() for t in body.get("attack_targets") or [] if str(t).strip()]
+    seccomp_raw_rules, seccomp_raw_err = _normalize_syscall_raw_rules(body.get("seccomp_raw_rules") or [])
+    if seccomp_raw_err:
+        return None, seccomp_raw_err
+    attack_targets: list = _clean_str_list(body.get("attack_targets") or [])
     network_proxy_egress = body.get("np_egress")
+    privileged = bool(body.get("privileged", False))
     try:
         modeling_duration: int = int(body.get("modeling_duration") or 3600)
     except (ValueError, TypeError):
@@ -275,11 +408,9 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     if mode == "DefenseInDepth" and "BPF" in enforcers:
         return None, "DefenseInDepth mode does not support BPF enforcer"
 
-    target_selector = None
-    if target_selector_raw and target_selector_raw.get("matchLabels"):
-        labels = {k: v for k, v in target_selector_raw["matchLabels"].items() if k and v}
-        if labels:
-            target_selector = {"matchLabels": labels}
+    target_selector, selector_err = _normalize_selector(target_selector_raw)
+    if selector_err:
+        return None, selector_err
 
     if not target_name and not target_selector:
         return None, "Provide 'target_deployment' (name) or 'target_selector' (label selector)"
@@ -301,7 +432,8 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
             bpf_network, bpf_ptrace, bpf_mounts,
             seccomp_syscalls, seccomp_action, enforcers,
             audit_violations, allow_violations, attack_targets,
-            network_proxy_egress,
+            network_proxy_egress, apparmor_raw_rules, seccomp_raw_rules,
+            privileged,
         )
         if not ep:
             return None, "EnhanceProtect policy must have at least one rule, banned file, or raw rule"
@@ -316,7 +448,10 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
         spec_policy["modelingOptions"] = {"duration": modeling_duration}
 
     elif mode == "DefenseInDepth":
-        did = _build_defense_in_depth(body)
+        try:
+            did = _build_defense_in_depth(body)
+        except ValueError as exc:
+            return None, str(exc)
         if not did:
             return None, "DefenseInDepth policy must configure at least one profile or NetworkProxy rule"
         spec_policy["defenseInDepth"] = did
@@ -920,6 +1055,10 @@ def list_profile_models(namespace: str):
             "namespace": meta.get("namespace", namespace),
             "created_at": meta.get("creationTimestamp", ""),
             "phase": phase,
+            "storage_type": item.get("storageType", ""),
+            "desired": status_obj.get("desiredNumber", 0),
+            "completed": status_obj.get("completedNumber", 0),
+            "ready": bool(status_obj.get("ready", False)),
         })
     return jsonify({"models": models})
 
@@ -978,19 +1117,14 @@ def set_deployment_protection(namespace: str, name: str):
 # Agent Health — per-node varmor-agent pod status
 # ---------------------------------------------------------------------------
 
-@api_bp.route("/agent-health", methods=["GET"])
-@require_auth
-def agent_health():
-    try:
-        pods = core_v1().list_namespaced_pod(
-            namespace="varmor",
-            label_selector="app.kubernetes.io/component=varmor-agent",
-        )
-    except ApiException as exc:
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
-    except Exception as exc:
-        logger.exception("Unexpected error fetching agent health")
-        return jsonify({"error": str(exc)}), 500
+def _collect_agent_health() -> dict:
+    pods = core_v1().list_namespaced_pod(
+        namespace="varmor",
+        label_selector="app.kubernetes.io/component=varmor-agent",
+    )
+    if not pods.items:
+        pods = core_v1().list_namespaced_pod(namespace="varmor")
+        pods.items = [p for p in pods.items if "agent" in (p.metadata.name or "")]
 
     agents = []
     for pod in pods.items:
@@ -1008,12 +1142,25 @@ def agent_health():
         })
 
     healthy = sum(1 for a in agents if a["ready"])
-    return jsonify({
+    return {
         "agents": agents,
         "total": len(agents),
         "healthy": healthy,
         "unhealthy": len(agents) - healthy,
-    })
+        "restarts": sum(a["restarts"] for a in agents),
+    }
+
+
+@api_bp.route("/agent-health", methods=["GET"])
+@require_auth
+def agent_health():
+    try:
+        return jsonify(_collect_agent_health())
+    except ApiException as exc:
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error fetching agent health")
+        return jsonify({"error": str(exc)}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -1154,6 +1301,221 @@ def get_enforcement_events():
                     events.append(evt)
 
     return jsonify({"events": events, "total": len(events), "log_path": log_path})
+
+
+def _policy_dashboard_summary(namespace: str) -> dict:
+    ns_raw = custom_objects().list_namespaced_custom_object(
+        group=VARMOR_GROUP, version=VARMOR_VERSION,
+        namespace=namespace, plural=VARMOR_PLURAL,
+    )
+    cluster_raw = custom_objects().list_cluster_custom_object(
+        group=VARMOR_GROUP, version=VARMOR_VERSION, plural=VARMOR_CLUSTER_PLURAL,
+    )
+    ns_policies = [_parse_policy_item(i, "namespace", namespace) for i in ns_raw.get("items", [])]
+    cluster_policies = [_parse_policy_item(i, "cluster") for i in cluster_raw.get("items", [])]
+    all_policies = ns_policies + cluster_policies
+    by_mode = collections.Counter(p.get("mode") or "Unknown" for p in all_policies)
+    by_enforcer: collections.Counter[str] = collections.Counter()
+    for policy in all_policies:
+        for enforcer in (policy.get("enforcer") or "AppArmor").split("|"):
+            if enforcer:
+                by_enforcer[enforcer] += 1
+    ready = sum(1 for p in all_policies if p.get("status") == "Ready")
+    return {
+        "namespace": len(ns_policies),
+        "cluster": len(cluster_policies),
+        "total": len(all_policies),
+        "ready": ready,
+        "not_ready": len(all_policies) - ready,
+        "by_mode": dict(by_mode),
+        "by_enforcer": dict(by_enforcer),
+        "not_ready_items": [p for p in all_policies if p.get("status") != "Ready"][:8],
+    }
+
+
+def _workload_labels(item, kind: str) -> tuple[dict, dict]:
+    meta_labels = item.metadata.labels or {}
+    pod_labels = {}
+    if kind != "Pod" and getattr(item, "spec", None) and getattr(item.spec, "template", None):
+        if item.spec.template and item.spec.template.metadata:
+            pod_labels = item.spec.template.metadata.labels or {}
+    return meta_labels, pod_labels
+
+
+def _workload_ready_counts(item, kind: str) -> tuple[int, int, bool]:
+    status = getattr(item, "status", None)
+    if kind == "DaemonSet":
+        desired = getattr(status, "desired_number_scheduled", 0) or 0
+        ready = getattr(status, "number_ready", 0) or 0
+    elif kind == "Pod":
+        desired = 1
+        ready_cond = next(
+            (c for c in (getattr(status, "conditions", None) or []) if getattr(c, "type", "") == "Ready"),
+            None,
+        )
+        phase = getattr(status, "phase", "") if status else ""
+        ready = 1 if ready_cond and getattr(ready_cond, "status", "") == "True" and phase == "Running" else 0
+    else:
+        desired = getattr(item.spec, "replicas", None) or 0
+        ready = getattr(status, "ready_replicas", None) or 0
+    return desired, ready, desired > 0 and ready >= desired
+
+
+def _workload_dashboard_summary(namespace: str) -> dict:
+    api = apps_v1()
+    sources = {
+        "Deployment": api.list_namespaced_deployment(namespace=namespace).items,
+        "StatefulSet": api.list_namespaced_stateful_set(namespace=namespace).items,
+        "DaemonSet": api.list_namespaced_daemon_set(namespace=namespace).items,
+        "Pod": core_v1().list_namespaced_pod(namespace=namespace).items,
+    }
+    by_kind = {}
+    total = ready_workloads = protected = desired_total = ready_total = 0
+    not_ready_items = []
+    for kind, items in sources.items():
+        stats = {"total": len(items), "ready": 0, "protected": 0, "desired": 0, "ready_replicas": 0}
+        for item in items:
+            desired, ready, is_ready = _workload_ready_counts(item, kind)
+            meta_labels, pod_labels = _workload_labels(item, kind)
+            is_protected = (
+                meta_labels.get("sandbox.varmor.org/enable") == "true"
+                or pod_labels.get("sandbox.varmor.org/enable") == "true"
+            )
+            stats["desired"] += desired
+            stats["ready_replicas"] += ready
+            if is_ready:
+                stats["ready"] += 1
+            else:
+                not_ready_items.append({
+                    "kind": kind,
+                    "name": item.metadata.name,
+                    "ready": ready,
+                    "desired": desired,
+                })
+            if is_protected:
+                stats["protected"] += 1
+        by_kind[kind] = stats
+        total += stats["total"]
+        ready_workloads += stats["ready"]
+        protected += stats["protected"]
+        desired_total += stats["desired"]
+        ready_total += stats["ready_replicas"]
+    return {
+        "total": total,
+        "ready": ready_workloads,
+        "not_ready": total - ready_workloads,
+        "protected": protected,
+        "desired_replicas": desired_total,
+        "ready_replicas": ready_total,
+        "by_kind": by_kind,
+        "not_ready_items": not_ready_items[:8],
+    }
+
+
+def _profile_model_phase(item: dict) -> str:
+    status_obj = item.get("status", {})
+    for cond in status_obj.get("conditions", []):
+        if cond.get("type") == "Completed" and cond.get("status") == "True":
+            return "Completed"
+        if cond.get("type") == "Ready" and cond.get("status") == "True":
+            return "Ready"
+    if status_obj.get("phase"):
+        return status_obj["phase"]
+    desired = status_obj.get("desiredNumber", 0)
+    completed = status_obj.get("completedNumber", 0)
+    if status_obj.get("ready") and desired > 0 and completed >= desired:
+        return "Completed"
+    if completed and completed > 0:
+        return "Modeling"
+    return "Unknown"
+
+
+def _model_dashboard_summary(namespace: str) -> dict:
+    raw = custom_objects().list_namespaced_custom_object(
+        group=VARMOR_GROUP, version=VARMOR_VERSION,
+        namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL,
+    )
+    by_phase = collections.Counter()
+    by_storage = collections.Counter()
+    total = 0
+    for item in raw.get("items", []):
+        total += 1
+        by_phase[_profile_model_phase(item)] += 1
+        by_storage[item.get("storageType") or "Unknown"] += 1
+    return {"total": total, "by_phase": dict(by_phase), "by_storage": dict(by_storage)}
+
+
+def _enforcement_dashboard_summary() -> dict:
+    log_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
+    result = {
+        "total": 0,
+        "apparmor": 0,
+        "seccomp": 0,
+        "blocked": 0,
+        "logged": 0,
+        "warn": None,
+        "log_path": log_path,
+    }
+    try:
+        with open(log_path, "r", errors="replace") as f:
+            lines = collections.deque(f, maxlen=3000)
+    except FileNotFoundError:
+        result["warn"] = f"Log file not found: {log_path}"
+        return result
+    except PermissionError:
+        result["warn"] = f"Permission denied reading {log_path}"
+        return result
+
+    for raw in lines:
+        line = raw.rstrip()
+        if "type=1326" in line or ("SECCOMP" in line and "syscall=" in line):
+            evt = _parse_seccomp_line(line)
+            if not evt:
+                continue
+            result["total"] += 1
+            result["seccomp"] += 1
+            if evt.get("action") in ("SCMP_ACT_ERRNO", "SCMP_ACT_KILL", "SCMP_ACT_KILL_THREAD"):
+                result["blocked"] += 1
+            elif evt.get("action") == "SCMP_ACT_LOG":
+                result["logged"] += 1
+        elif "apparmor=" in line.lower():
+            evt = _parse_apparmor_line(line)
+            if not evt:
+                continue
+            result["total"] += 1
+            result["apparmor"] += 1
+            if evt.get("action") in ("DENIED", "AUDIT"):
+                result["blocked"] += 1
+    return result
+
+
+@api_bp.route("/dashboard-summary", methods=["GET"])
+@require_auth
+def dashboard_summary():
+    namespace = (request.args.get("namespace") or "default").strip() or "default"
+    errors = []
+
+    def collect(name: str, fallback, fn):
+        try:
+            return fn()
+        except ApiException as exc:
+            errors.append({"section": name, "error": _k8s_error_msg(exc)})
+        except Exception as exc:
+            logger.exception("Dashboard section %s failed", name)
+            errors.append({"section": name, "error": str(exc)})
+        return fallback
+
+    return jsonify({
+        "namespace": namespace,
+        "policies": collect("policies", {}, lambda: _policy_dashboard_summary(namespace)),
+        "workloads": collect("workloads", {}, lambda: _workload_dashboard_summary(namespace)),
+        "models": collect("models", {}, lambda: _model_dashboard_summary(namespace)),
+        "agents": collect("agents", {}, _collect_agent_health),
+        "enforcement": collect("enforcement", {}, _enforcement_dashboard_summary),
+        "activity": audit_logger.get_events()[:10],
+        "errors": errors,
+        "generated_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    })
 
 
 # ---------------------------------------------------------------------------
