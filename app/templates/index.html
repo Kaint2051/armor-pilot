@@ -210,42 +210,39 @@
         </div>
       </div>
 
-      <!-- Charts row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card">
-          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+      <!-- Compact charts -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
             <svg class="w-4 h-4" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
             Policies by Mode
           </h3>
           <div id="dash-modes"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
         </div>
-        <div class="card">
-          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
             <svg class="w-4 h-4" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
             Policies by Enforcer
           </h3>
           <div id="dash-enforcers"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
         </div>
-      </div>
-
-      <div id="dash-errors" class="hidden card" style="border-color:#7f1d1d;background:#1f0b0b"></div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card">
-          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
             <svg class="w-4 h-4" style="color:#22d3ee" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>
             Workloads by Kind
           </h3>
           <div id="dash-workload-kinds"><div class="text-xs py-4 text-center" style="color:#475569">Loadingâ€¦</div></div>
         </div>
-        <div class="card">
-          <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:#94a3b8">
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
             <svg class="w-4 h-4" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4h8l-1 1v5l4.5 6.5A2 2 0 0117.85 20H6.15a2 2 0 01-1.65-3.5L9 10V5L8 4z"/></svg>
             Model Storage / Phase
           </h3>
           <div id="dash-models-summary"><div class="text-xs py-4 text-center" style="color:#475569">Loadingâ€¦</div></div>
         </div>
       </div>
+
+      <div id="dash-errors" class="hidden card" style="border-color:#7f1d1d;background:#1f0b0b"></div>
 
       <!-- Recent Activity -->
       <div class="card">
@@ -1903,11 +1900,11 @@ async function loadDashboard(){
     $("dash-events-breakdown").textContent=(events.apparmor||0)+" AppArmor / "+(events.seccomp||0)+" Seccomp";
     $("dash-model-total").textContent=models.total||0;
     $("dash-model-breakdown").textContent=formatCounts(models.by_phase||{});
-    renderBarChart("dash-modes",pol.by_mode||{},{
+    renderCompactStackedChart("dash-modes",pol.by_mode||{},{
       EnhanceProtect:"#3b82f6",AlwaysAllow:"#f59e0b",RuntimeDefault:"#64748b",
       BehaviorModeling:"#a78bfa",DefenseInDepth:"#34d399",Unknown:"#475569"
     });
-    renderBarChart("dash-enforcers",pol.by_enforcer||{},{
+    renderCompactStackedChart("dash-enforcers",pol.by_enforcer||{},{
       AppArmor:"#60a5fa",BPF:"#34d399",Seccomp:"#f472b6",NetworkProxy:"#fb923c"
     });
     renderWorkloadKinds(wl.by_kind||{});
@@ -1932,31 +1929,30 @@ function formatCounts(counts){
 
 function renderWorkloadKinds(byKind){
   var el=$("dash-workload-kinds");if(!el)return;
-  var entries=Object.entries(byKind||{});
-  if(!entries.length){el.innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">No workload data</div>';return;}
-  el.innerHTML=entries.map(function(kv){
-    var kind=kv[0],s=kv[1]||{};
-    var total=s.total||0,ready=s.ready||0,protectedCount=s.protected||0;
-    var pct=total?Math.round(ready/total*100):0;
-    return '<div style="display:grid;grid-template-columns:7rem 1fr 8rem;gap:.75rem;align-items:center;margin-bottom:.625rem">'
-      +'<span style="color:#cbd5e1;font-size:.75rem">'+esc(kind)+'</span>'
-      +'<div style="height:7px;background:#0f172a;border-radius:9999px;overflow:hidden"><div style="height:7px;background:#22d3ee;width:'+pct+'%;border-radius:9999px"></div></div>'
-      +'<span style="color:#94a3b8;font-size:.7rem;text-align:right">'+ready+'/'+total+' ready, '+protectedCount+' protected</span>'
-      +'</div>';
-  }).join("");
+  var counts={};
+  Object.entries(byKind||{}).forEach(function(kv){counts[kv[0]]=(kv[1]&&kv[1].total)||0;});
+  renderCompactStackedChart("dash-workload-kinds",counts,{
+    Deployment:"#22d3ee",StatefulSet:"#60a5fa",DaemonSet:"#34d399",Pod:"#fbbf24"
+  },function(label,count){
+    var s=(byKind||{})[label]||{};
+    return count+" total, "+(s.ready||0)+" ready";
+  });
 }
 
 function renderModelSummary(models){
   var el=$("dash-models-summary");if(!el)return;
   var phase=models.by_phase||{},storage=models.by_storage||{};
-  var rows=[
-    ["Phase",formatCounts(phase)],
-    ["Storage",formatCounts(storage)]
-  ];
-  el.innerHTML=rows.map(function(r){
-    return '<div style="display:flex;justify-content:space-between;border-bottom:1px solid #1e293b;padding:.45rem 0;font-size:.75rem">'
-      +'<span style="color:#64748b">'+esc(r[0])+'</span><span style="color:#cbd5e1">'+esc(r[1])+'</span></div>';
-  }).join("");
+  var phaseHtml=compactMiniStackedChartHtml(phase,{
+    Completed:"#34d399",Ready:"#22d3ee",Modeling:"#a78bfa",Unknown:"#64748b"
+  });
+  var storageHtml=compactMiniStackedChartHtml(storage,{
+    CRDInternal:"#60a5fa",LocalDisk:"#fbbf24",Unknown:"#64748b"
+  });
+  el.innerHTML='<div style="margin-bottom:.6rem">'
+    +'<div style="font-size:.65rem;color:#64748b;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.06em">Phase</div>'
+    +phaseHtml+'</div>'
+    +'<div><div style="font-size:.65rem;color:#64748b;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.06em">Storage</div>'
+    +storageHtml+'</div>';
 }
 
 function renderDashboardErrors(errors,eventWarn){
@@ -1967,6 +1963,61 @@ function renderDashboardErrors(errors,eventWarn){
   show("dash-errors");
   el.innerHTML='<div class="text-sm font-semibold mb-2" style="color:#fca5a5">Dashboard warnings</div>'
     +all.map(function(e){return '<div class="text-xs" style="color:#fca5a5;margin:.25rem 0"><b>'+esc(e.section||"section")+'</b>: '+esc(e.error||"unknown")+'</div>';}).join("");
+}
+
+function compactStackedChartHtml(counts,colorMap,labelFormatter){
+  var entries=Object.entries(counts||{}).filter(function(kv){return Number(kv[1])>0;})
+    .sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length){return '<div class="text-xs py-3 text-center" style="color:#475569">No data</div>';}
+  var total=entries.reduce(function(sum,kv){return sum+Number(kv[1]||0);},0);
+  var segments=entries.map(function(kv){
+    var label=kv[0],count=Number(kv[1]||0);
+    var pct=total?Math.max(4,Math.round(count/total*100)):0;
+    return '<div title="'+esc(label)+': '+count+'" style="height:100%;width:'+pct+'%;background:'+(colorMap[label]||"#64748b")+'"></div>';
+  }).join("");
+  var legend=entries.slice(0,5).map(function(kv){
+    var label=kv[0],count=Number(kv[1]||0);
+    var text=labelFormatter?labelFormatter(label,count):(count+"");
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;min-width:0">'
+      +'<span style="display:flex;align-items:center;gap:.35rem;min-width:0;color:#cbd5e1">'
+      +'<span style="width:.45rem;height:.45rem;border-radius:999px;background:'+(colorMap[label]||"#64748b")+';flex-shrink:0"></span>'
+      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(label)+'</span></span>'
+      +'<span style="color:#94a3b8;font-weight:600;white-space:nowrap">'+esc(text)+'</span></div>';
+  }).join("");
+  if(entries.length>5){
+    legend+='<div style="font-size:.65rem;color:#64748b;text-align:right">+'+(entries.length-5)+' more</div>';
+  }
+  return '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:.75rem;margin-bottom:.5rem">'
+    +'<div style="font-size:1.65rem;line-height:1;font-weight:700;color:#e2e8f0">'+total+'</div>'
+    +'<div style="font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em">total</div>'
+    +'</div>'
+    +'<div style="height:.55rem;background:#0f172a;border-radius:999px;overflow:hidden;display:flex;margin-bottom:.55rem">'+segments+'</div>'
+    +'<div style="display:grid;gap:.28rem;font-size:.68rem">'+legend+'</div>';
+}
+
+function compactMiniStackedChartHtml(counts,colorMap){
+  var entries=Object.entries(counts||{}).filter(function(kv){return Number(kv[1])>0;})
+    .sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length){return '<div class="text-xs py-2 text-center" style="color:#475569">No data</div>';}
+  var total=entries.reduce(function(sum,kv){return sum+Number(kv[1]||0);},0);
+  var segments=entries.map(function(kv){
+    var label=kv[0],count=Number(kv[1]||0);
+    var pct=total?Math.max(4,Math.round(count/total*100)):0;
+    return '<div title="'+esc(label)+': '+count+'" style="height:100%;width:'+pct+'%;background:'+(colorMap[label]||"#64748b")+'"></div>';
+  }).join("");
+  var legend=entries.slice(0,3).map(function(kv){
+    var label=kv[0],count=Number(kv[1]||0);
+    return '<span style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.5rem;color:#94a3b8;white-space:nowrap">'
+      +'<span style="width:.4rem;height:.4rem;border-radius:999px;background:'+(colorMap[label]||"#64748b")+'"></span>'
+      +esc(label)+' <b style="color:#cbd5e1">'+count+'</b></span>';
+  }).join("");
+  return '<div style="height:.45rem;background:#0f172a;border-radius:999px;overflow:hidden;display:flex;margin-bottom:.35rem">'+segments+'</div>'
+    +'<div style="font-size:.65rem;line-height:1.5;overflow:hidden;text-overflow:ellipsis">'+legend+'</div>';
+}
+
+function renderCompactStackedChart(containerId,counts,colorMap,labelFormatter){
+  var el=$(containerId);if(!el)return;
+  el.innerHTML=compactStackedChartHtml(counts,colorMap,labelFormatter);
 }
 
 function renderBarChart(containerId,counts,colorMap){
