@@ -154,7 +154,61 @@
       </div>
 
       <!-- Stat cards -->
-      <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Policies</div>
+          <div class="flex items-end justify-between gap-3 mb-3">
+            <div id="dash-policy-total" class="text-3xl font-bold" style="color:#93c5fd">-</div>
+            <div class="text-xs text-right" style="color:#64748b">total policies</div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Namespace</span><b id="dash-policy-ns" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Cluster</span><b id="dash-policy-cluster" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Ready</span><b id="dash-policy-ready" style="color:#4ade80">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Not ready</span><b id="dash-policy-notready" style="color:#fb923c">-</b></div>
+          </div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Workloads</div>
+          <div class="flex items-end justify-between gap-3 mb-3">
+            <div id="dash-workload-coverage" class="text-3xl font-bold" style="color:#22d3ee">-</div>
+            <div class="text-xs text-right" style="color:#64748b">protected / total</div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Protected</span><b id="dash-workload-protected" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Total</span><b id="dash-workload-total" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Ready</span><b id="dash-workload-ready-compact" style="color:#4ade80">-</b></div>
+            <div id="dash-replica-ready-compact" class="text-right" style="color:#64748b"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Runtime</div>
+          <div class="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <div id="dash-agent-health-compact" class="text-2xl font-bold" style="color:#4ade80">-</div>
+              <div class="text-xs" style="color:#64748b">agents healthy</div>
+            </div>
+            <div>
+              <div id="dash-events-total-compact" class="text-2xl font-bold" style="color:#f87171">-</div>
+              <div class="text-xs" style="color:#64748b">events</div>
+            </div>
+          </div>
+          <div class="grid gap-2 text-xs">
+            <div id="dash-agent-restarts-compact" style="color:#64748b"></div>
+            <div id="dash-events-breakdown-compact" style="color:#64748b"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Behavior Models</div>
+          <div class="flex items-end justify-between gap-3 mb-3">
+            <div id="dash-model-total-compact" class="text-3xl font-bold" style="color:#a78bfa">-</div>
+            <div class="text-xs text-right" style="color:#64748b">model profiles</div>
+          </div>
+          <div id="dash-model-breakdown-compact" class="text-xs" style="color:#64748b"></div>
+        </div>
+      </div>
+
+      <div class="hidden">
         <div class="card" style="padding:1.25rem">
           <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">NS Policies</div>
           <div id="dash-ns" class="text-3xl font-bold mb-1" style="color:#93c5fd">—</div>
@@ -187,7 +241,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="hidden">
         <div class="card" style="padding:1rem">
           <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Workload Ready</div>
           <div id="dash-workload-ready" class="text-2xl font-bold mb-1" style="color:#4ade80">â€”</div>
@@ -1870,7 +1924,12 @@ async function loadDashboardLegacy(){
 
 async function loadDashboard(){
   ["dash-ns","dash-cluster","dash-ready","dash-notready","dash-protected","dash-workloads",
-   "dash-workload-ready","dash-agent-health","dash-events-total","dash-model-total"].forEach(function(id){
+   "dash-workload-ready","dash-agent-health","dash-events-total","dash-model-total",
+   "dash-policy-total","dash-policy-ns","dash-policy-cluster","dash-policy-ready","dash-policy-notready",
+   "dash-workload-coverage","dash-workload-protected","dash-workload-total","dash-workload-ready-compact",
+   "dash-replica-ready-compact","dash-agent-health-compact","dash-agent-restarts-compact",
+   "dash-events-total-compact","dash-events-breakdown-compact","dash-model-total-compact",
+   "dash-model-breakdown-compact"].forEach(function(id){
     var el=$(id);if(el)el.textContent="...";
   });
   $("dash-modes").innerHTML='<div class="text-xs py-4 text-center" style="color:#475569">Loading...</div>';
@@ -1900,6 +1959,22 @@ async function loadDashboard(){
     $("dash-events-breakdown").textContent=(events.apparmor||0)+" AppArmor / "+(events.seccomp||0)+" Seccomp";
     $("dash-model-total").textContent=models.total||0;
     $("dash-model-breakdown").textContent=formatCounts(models.by_phase||{});
+    setText("dash-policy-total",(pol.namespace||0)+(pol.cluster||0));
+    setText("dash-policy-ns",pol.namespace||0);
+    setText("dash-policy-cluster",pol.cluster||0);
+    setText("dash-policy-ready",pol.ready||0);
+    setText("dash-policy-notready",pol.not_ready||0);
+    setText("dash-workload-coverage",(wl.protected||0)+"/"+(wl.total||0));
+    setText("dash-workload-protected",wl.protected||0);
+    setText("dash-workload-total",wl.total||0);
+    setText("dash-workload-ready-compact",(wl.ready||0)+"/"+(wl.total||0));
+    setText("dash-replica-ready-compact",(wl.ready_replicas||0)+"/"+(wl.desired_replicas||0)+" replicas");
+    setText("dash-agent-health-compact",(agents.healthy||0)+"/"+(agents.total||0));
+    setText("dash-agent-restarts-compact",(agents.restarts||0)+" restarts");
+    setText("dash-events-total-compact",events.total||0);
+    setText("dash-events-breakdown-compact",(events.apparmor||0)+" AppArmor / "+(events.seccomp||0)+" Seccomp");
+    setText("dash-model-total-compact",models.total||0);
+    setText("dash-model-breakdown-compact",formatCounts(models.by_phase||{}));
     renderCompactStackedChart("dash-modes",pol.by_mode||{},{
       EnhanceProtect:"#3b82f6",AlwaysAllow:"#f59e0b",RuntimeDefault:"#64748b",
       BehaviorModeling:"#a78bfa",DefenseInDepth:"#34d399",Unknown:"#475569"
@@ -1925,6 +2000,11 @@ function formatCounts(counts){
   var entries=Object.entries(counts||{}).filter(function(kv){return kv[1];});
   if(!entries.length) return "No data";
   return entries.map(function(kv){return kv[0]+": "+kv[1];}).join(" / ");
+}
+
+function setText(id,value){
+  var el=$(id);
+  if(el) el.textContent=value;
 }
 
 function renderWorkloadKinds(byKind){
