@@ -1933,7 +1933,7 @@ function parseSpecIntoForm(crd,scope,name){
   (egress.httpRules||[]).forEach(function(r){
     var m=r.match||{};
     var hostsStr=(m.hosts||[]).join(", ");
-    var portsStr=(m.ports||[]).map(function(p){return p.port;}).join(",");
+    var portsStr=(m.ports||[]).map(function(p){return p.endPort?(p.port+"-"+p.endPort):p.port;}).join(",");
     addNpHttpRow((r.qualifiers||[])[0]||"allow",r.description||"",hostsStr,m.paths||[],m.methods||[],portsStr);
   });
   var npCfg=pol.networkProxyConfig||{};
@@ -3473,7 +3473,7 @@ function collectNpHeaders(){
     if(type==="secret"){
       var sn=row.querySelector(".np-h-secret-name").value.trim();
       var sk=row.querySelector(".np-h-secret-key").value.trim();
-      if(!sn) return; // skip rows with no secret name
+      if(!sn) throw new Error("header '"+name+"' on domain '"+domain+"': Secret type requires a secret name");
       if(!sk) throw new Error("header '"+name+"' on domain '"+domain+"': secretRef requires both name and key");
       header.secretRef={name:sn,key:sk};
     }else{
@@ -3517,15 +3517,24 @@ function _parsePorts(raw,errors){
   for(var i=0;i<items.length;i++){
     var p=items[i].trim();if(!p) continue;
     var parts=p.split("-");
-    var port=parseInt(parts[0]);
-    if(isNaN(port)||port<1||port>65535){
+    // Strict: each part must be digits only — rejects "80abc", "8090xxx"
+    if(!/^\d+$/.test(parts[0])){
+      if(errors) errors.push("invalid port '"+p+"': not a valid integer");
+      return [];
+    }
+    var port=parseInt(parts[0],10);
+    if(port<1||port>65535){
       if(errors) errors.push("invalid port '"+p+"' (must be 1-65535)");
       return [];
     }
     var entry={port:port};
     if(parts.length>1){
-      var endPort=parseInt(parts[1]);
-      if(isNaN(endPort)||endPort<1||endPort>65535){
+      if(!/^\d+$/.test(parts[1])){
+        if(errors) errors.push("invalid port range '"+p+"': endPort is not a valid integer");
+        return [];
+      }
+      var endPort=parseInt(parts[1],10);
+      if(endPort<1||endPort>65535){
         if(errors) errors.push("invalid port range '"+p+"': endPort must be 1-65535");
         return [];
       }

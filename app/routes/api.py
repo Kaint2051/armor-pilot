@@ -409,8 +409,9 @@ def _validate_np_egress(egress: dict) -> str | None:
             return f"egress.rules[{i}] must be an object"
         if not (rule.get("qualifiers") or []):
             return f"egress.rules[{i}].qualifiers is required"
-        if not (rule.get("ip") or rule.get("cidr")):
-            return f"egress.rules[{i}] must have 'ip' or 'cidr'"
+        # ip and cidr are both optional per CRD (port-only rules are valid)
+        if rule.get("ip") and rule.get("cidr"):
+            return f"egress.rules[{i}]: 'ip' and 'cidr' are mutually exclusive"
         for j, port_obj in enumerate(rule.get("ports") or []):
             err = _validate_port_obj(port_obj, f"egress.rules[{i}].ports[{j}]")
             if err:
@@ -420,10 +421,11 @@ def _validate_np_egress(egress: dict) -> str | None:
             return f"egress.httpRules[{i}] must be an object"
         if not (rule.get("qualifiers") or []):
             return f"egress.httpRules[{i}].qualifiers is required"
+        # match is required per CRD (no omitempty on Match field)
         match = rule.get("match")
-        if match is not None and not isinstance(match, dict):
-            return f"egress.httpRules[{i}].match must be an object"
-        for j, port_obj in enumerate((match or {}).get("ports") or []):
+        if not isinstance(match, dict):
+            return f"egress.httpRules[{i}].match is required and must be an object"
+        for j, port_obj in enumerate(match.get("ports") or []):
             err = _validate_port_obj(port_obj, f"egress.httpRules[{i}].match.ports[{j}]")
             if err:
                 return err
@@ -445,6 +447,9 @@ def _validate_np_header_mutations(mutations: list) -> str | None:
             has_secret = "secretRef" in h
             if not has_value and not has_secret:
                 return f"headerMutations[{i}].headers[{j}] must have 'value' or 'secretRef'"
+            if has_value and has_secret:
+                return (f"headerMutations[{i}].headers[{j}]: "
+                        "'value' and 'secretRef' are mutually exclusive")
             if has_secret:
                 sr = h.get("secretRef")
                 if not isinstance(sr, dict) or not sr.get("name") or not sr.get("key"):
