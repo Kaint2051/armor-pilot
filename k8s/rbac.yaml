@@ -18,6 +18,10 @@ rules:
     resources: ["pods", "namespaces"]
     verbs: ["get", "list", "watch"]
 
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create"]
+
   - apiGroups: ["crd.varmor.org"]
     resources: ["varmorpolicies", "varmorclusterpolicies", "armorprofilemodels", "armorprofiles"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

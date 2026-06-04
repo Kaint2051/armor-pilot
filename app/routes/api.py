@@ -24,6 +24,19 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 VARMOR_CLUSTER_PLURAL = "varmorclusterpolicies"
 ARMOR_PROFILE_MODEL_PLURAL = "armorprofilemodels"
+ARMOR_PROFILE_PLURAL = "armorprofiles"
+
+VALID_ENFORCER_COMBOS = frozenset([
+    frozenset(["AppArmor"]),
+    frozenset(["BPF"]),
+    frozenset(["Seccomp"]),
+    frozenset(["NetworkProxy"]),
+    frozenset(["AppArmor", "BPF"]),
+    frozenset(["AppArmor", "Seccomp"]),
+    frozenset(["BPF", "Seccomp"]),
+    frozenset(["BPF", "NetworkProxy"]),
+    frozenset(["AppArmor", "BPF", "Seccomp"]),
+])
 
 HARDENING_RULES = frozenset([
     "disallow-write-core-pattern", "disallow-mount-securityfs", "disallow-mount-procfs",
@@ -202,11 +215,33 @@ def _parse_policy_item(item: dict, scope: str = "namespace", ns_fallback: str = 
         "created_at": meta.get("creationTimestamp", ""),
         "status": status,
         "status_message": status_message,
+        "phase": item.get("status", {}).get("phase", ""),
         "mode": spec.get("policy", {}).get("mode", "Unknown"),
         "enforcer": spec.get("policy", {}).get("enforcer", ""),
         "target": spec.get("target", {}),
         "scope": scope,
     }
+
+
+def _patch_unconfined_annotations(namespace: str, kind: str, name: str, containers: list[str]) -> None:
+    """Patch pod template annotations for container-level unconfined override."""
+    if not name or not containers:
+        return
+    annotations = {
+        f"container.apparmor.security.beta.varmor.org/{c}": "unconfined"
+        for c in containers
+    }
+    patch = {"spec": {"template": {"metadata": {"annotations": annotations}}}}
+    try:
+        api = apps_v1()
+        if kind == "Deployment":
+            api.patch_namespaced_deployment(name=name, namespace=namespace, body=patch)
+        elif kind == "StatefulSet":
+            api.patch_namespaced_stateful_set(name=name, namespace=namespace, body=patch)
+        elif kind == "DaemonSet":
+            api.patch_namespaced_daemon_set(name=name, namespace=namespace, body=patch)
+    except Exception as exc:
+        logger.warning("Failed to patch unconfined annotations on %s/%s/%s: %s", kind, namespace, name, exc)
 
 
 def _build_file_rule(r: dict) -> dict:
@@ -221,7 +256,7 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
                             bpf_network, bpf_ptrace, bpf_mounts,
                             seccomp_syscalls, seccomp_action, enforcers,
                             audit_violations, allow_violations,
-                            attack_targets, network_proxy_egress,
+                            attack_protection_groups, network_proxy_egress,
                             apparmor_raw_rules, seccomp_raw_rules,
                             privileged) -> dict:
     hardening = [r for r in rules if _is_hardening_rule(r)]
@@ -233,10 +268,28 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
     if hardening:
         ep["hardeningRules"] = hardening
     if attack:
-        atk_entry: dict = {"rules": attack}
-        if attack_targets:
-            atk_entry["targets"] = attack_targets
-        ep["attackProtectionRules"] = [atk_entry]
+        if attack_protection_groups:
+            # Per-rule groups provided; track which rules are covered
+            covered = set()
+            valid_groups = []
+            for g in attack_protection_groups:
+                group_rules = [r for r in (g.get("rules") or []) if r in ATTACK_RULES]
+                if not group_rules:
+                    continue
+                entry: dict = {"rules": group_rules}
+                targets = _clean_str_list(g.get("targets") or [])
+                if targets:
+                    entry["targets"] = targets
+                valid_groups.append(entry)
+                covered.update(group_rules)
+            # Remaining attack rules (not in any group) → one default entry
+            ungrouped = [r for r in attack if r not in covered]
+            if ungrouped:
+                valid_groups.append({"rules": ungrouped})
+            if valid_groups:
+                ep["attackProtectionRules"] = valid_groups
+        else:
+            ep["attackProtectionRules"] = [{"rules": attack}]
     if vuln:
         ep["vulMitigationRules"] = vuln
     if apparmor_raw:
@@ -386,7 +439,9 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     seccomp_raw_rules, seccomp_raw_err = _normalize_syscall_raw_rules(body.get("seccomp_raw_rules") or [])
     if seccomp_raw_err:
         return None, seccomp_raw_err
-    attack_targets: list = _clean_str_list(body.get("attack_targets") or [])
+    # Per-rule attack protection groups [{rules:[...], targets:[...]}]
+    raw_groups = body.get("attack_protection_groups") or []
+    attack_protection_groups: list = raw_groups if isinstance(raw_groups, list) else []
     network_proxy_egress = body.get("np_egress")
     privileged = bool(body.get("privileged", False))
     try:
@@ -407,6 +462,13 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
         return None, "BehaviorModeling mode is not supported with NetworkProxy enforcer"
     if mode == "DefenseInDepth" and "BPF" in enforcers:
         return None, "DefenseInDepth mode does not support BPF enforcer"
+    enf_set = frozenset(enforcers)
+    if enf_set not in VALID_ENFORCER_COMBOS:
+        valid_strs = ["+".join(sorted(s)) for s in sorted(VALID_ENFORCER_COMBOS, key=len)]
+        return None, (
+            f"Unsupported enforcer combination '{'+'.join(sorted(enforcers))}'. "
+            f"Valid combinations: {', '.join(valid_strs)}"
+        )
 
     target_selector, selector_err = _normalize_selector(target_selector_raw)
     if selector_err:
@@ -431,7 +493,7 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
             rules, banned_files, bpf_file_rules, bpf_process_rules,
             bpf_network, bpf_ptrace, bpf_mounts,
             seccomp_syscalls, seccomp_action, enforcers,
-            audit_violations, allow_violations, attack_targets,
+            audit_violations, allow_violations, attack_protection_groups,
             network_proxy_egress, apparmor_raw_rules, seccomp_raw_rules,
             privileged,
         )
@@ -812,6 +874,8 @@ def create_policy():
     if err:
         return jsonify({"error": err}), 400
 
+    unconfined_containers: list = _clean_str_list(body.get("unconfined_containers") or [])
+
     if scope == "cluster":
         try:
             created = custom_objects().create_cluster_custom_object(
@@ -840,6 +904,11 @@ def create_policy():
             msg = f"Policy '{actual}' created successfully"
             if actual != raw_name:
                 msg += f" (name sanitized from '{raw_name}')"
+            # Apply container unconfined annotations if requested
+            if unconfined_containers:
+                target_kind = (body.get("target_kind") or "Deployment").strip()
+                target_name = (body.get("target_deployment") or "").strip()
+                _patch_unconfined_annotations(namespace, target_kind, target_name, unconfined_containers)
             return jsonify({"message": msg, "name": actual}), 201
         except ApiException as exc:
             audit_logger.log(user, "CREATE", name, namespace, "FAILURE", exc.reason or str(exc.status))
@@ -1611,3 +1680,395 @@ def apply_model_as_policy(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, "APPLY_MODEL", policy_name, namespace, "FAILURE", str(exc.status))
         return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+
+
+# ---------------------------------------------------------------------------
+# ArmorProfile – per-node status
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/namespaces/<namespace>/armor-profiles", methods=["GET"])
+@require_auth
+def list_armor_profiles(namespace: str):
+    try:
+        raw = custom_objects().list_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=ARMOR_PROFILE_PLURAL,
+        )
+    except ApiException as exc:
+        logger.error("K8s error listing armor profiles in %s: %s", namespace, exc)
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error listing armor profiles in %s", namespace)
+        return jsonify({"error": str(exc)}), 500
+
+    profiles = []
+    for item in raw.get("items", []):
+        meta = item.get("metadata", {})
+        status_obj = item.get("status", {})
+        desired = status_obj.get("desiredNumberLoaded", 0)
+        current = status_obj.get("currentNumberLoaded", 0)
+        node_conditions = []
+        for cond in status_obj.get("conditions", []):
+            node_conditions.append({
+                "nodeName": cond.get("nodeName", ""),
+                "type": cond.get("type", ""),
+                "status": cond.get("status", ""),
+                "reason": cond.get("reason", ""),
+                "message": cond.get("message", ""),
+                "lastTransitionTime": cond.get("lastTransitionTime", ""),
+            })
+        spec = item.get("spec", {})
+        profiles.append({
+            "name": meta.get("name", ""),
+            "namespace": meta.get("namespace", namespace),
+            "created_at": meta.get("creationTimestamp", ""),
+            "desired": desired,
+            "current": current,
+            "ready": desired > 0 and current >= desired,
+            "conditions": node_conditions,
+            "enforcer": spec.get("profile", {}).get("enforcer", ""),
+            "mode": spec.get("profile", {}).get("mode", ""),
+        })
+    return jsonify({"profiles": profiles})
+
+
+# ---------------------------------------------------------------------------
+# Violation Events – read /var/log/varmor/violations.log
+# ---------------------------------------------------------------------------
+
+_VIOL_LOG_PATH = os.environ.get("VARMOR_VIOLATION_LOG_PATH", "/var/log/varmor/violations.log")
+
+
+def _parse_violation_line(line: str) -> dict | None:
+    line = line.strip()
+    if not line:
+        return None
+    # Try JSON first
+    if line.startswith("{"):
+        try:
+            obj = json.loads(line)
+            return {
+                "ts": obj.get("time") or obj.get("ts") or obj.get("timestamp", ""),
+                "namespace": obj.get("namespace", ""),
+                "pod": obj.get("pod", ""),
+                "container": obj.get("container", ""),
+                "profile": obj.get("profile", ""),
+                "enforcer": obj.get("enforcer", ""),
+                "action": str(obj.get("action", "")).upper(),
+                "operation": obj.get("operation", ""),
+                "name": obj.get("name", ""),
+                "raw": line,
+            }
+        except Exception:
+            pass
+    # Logrus key=value format: time="..." level=info msg="violation" namespace="..."
+    fields: dict[str, str] = {}
+    for m in re.finditer(r'(\w+)=("([^"]*)"|\S+)', line):
+        key = m.group(1)
+        fields[key] = m.group(3) if m.group(3) is not None else m.group(2)
+    if "msg" not in fields and "action" not in fields:
+        return None
+    return {
+        "ts": fields.get("time", fields.get("ts", "")),
+        "namespace": fields.get("namespace", ""),
+        "pod": fields.get("pod", ""),
+        "container": fields.get("container", ""),
+        "profile": fields.get("profile", ""),
+        "enforcer": fields.get("enforcer", ""),
+        "action": fields.get("action", fields.get("apparmor", "")).upper(),
+        "operation": fields.get("operation", fields.get("op", "")),
+        "name": fields.get("name", fields.get("path", "")),
+        "raw": line,
+    }
+
+
+@api_bp.route("/violation-events", methods=["GET"])
+@require_auth
+def get_violation_events():
+    log_path = _VIOL_LOG_PATH
+    limit = _bounded_int_arg("limit", 200, 2000)
+    namespace_filter = request.args.get("namespace", "")
+    action_filter = request.args.get("action", "").upper()
+
+    try:
+        with open(log_path, "r", errors="replace") as f:
+            all_lines = f.readlines()
+    except FileNotFoundError:
+        return jsonify({
+            "events": [],
+            "warn": (
+                f"Violation log not found: {log_path}. "
+                "Mount the host /var/log/varmor directory via hostPath volume, "
+                "or set the VARMOR_VIOLATION_LOG_PATH env var."
+            ),
+        })
+    except PermissionError:
+        return jsonify({"events": [], "warn": f"Permission denied reading {log_path}."}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    events = []
+    for raw in reversed(all_lines):
+        if len(events) >= limit:
+            break
+        evt = _parse_violation_line(raw)
+        if not evt:
+            continue
+        if namespace_filter and evt.get("namespace") != namespace_filter:
+            continue
+        if action_filter and evt.get("action") != action_filter:
+            continue
+        events.append(evt)
+
+    return jsonify({"events": events, "total": len(events), "log_path": log_path})
+
+
+# ---------------------------------------------------------------------------
+# Secrets Management – for NetworkProxy headerMutations.secretRef
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/namespaces/<namespace>/secrets", methods=["GET"])
+@require_auth
+def list_secrets(namespace: str):
+    try:
+        result = core_v1().list_namespaced_secret(namespace=namespace)
+    except ApiException as exc:
+        logger.error("K8s error listing secrets in %s: %s", namespace, exc)
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error listing secrets in %s", namespace)
+        return jsonify({"error": str(exc)}), 500
+
+    secrets = []
+    for s in result.items:
+        secret_type = s.type or ""
+        # Only expose Opaque and kubernetes.io/tls types
+        if secret_type not in ("Opaque", "", "kubernetes.io/tls"):
+            continue
+        keys = list((s.data or {}).keys()) + list((s.string_data or {}).keys())
+        secrets.append({
+            "name": s.metadata.name,
+            "namespace": s.metadata.namespace,
+            "type": secret_type,
+            "keys": sorted(set(keys)),
+            "created_at": s.metadata.creation_timestamp.isoformat() if s.metadata.creation_timestamp else "",
+        })
+    return jsonify({"secrets": secrets})
+
+
+@api_bp.route("/namespaces/<namespace>/secrets", methods=["POST"])
+@require_admin
+def create_secret(namespace: str):
+    user = get_current_user()
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    data = body.get("data") or {}
+    if not name:
+        return jsonify({"error": "Secret name is required"}), 400
+    if not isinstance(data, dict) or not data:
+        return jsonify({"error": "data must be a non-empty object of key: value pairs"}), 400
+
+    import base64
+    string_data = {str(k).strip(): str(v) for k, v in data.items() if str(k).strip()}
+    manifest = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": name, "namespace": namespace},
+        "type": "Opaque",
+        "stringData": string_data,
+    }
+    try:
+        from kubernetes import client as k8s_client
+        core_v1().create_namespaced_secret(namespace=namespace, body=manifest)
+        audit_logger.log(user, "CREATE_SECRET", name, namespace, "SUCCESS")
+        return jsonify({"ok": True, "name": name}), 201
+    except ApiException as exc:
+        audit_logger.log(user, "CREATE_SECRET", name, namespace, "FAILURE", exc.reason or str(exc.status))
+        logger.error("K8s error creating secret %s/%s: %s", namespace, name, exc)
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error creating secret %s/%s", namespace, name)
+        return jsonify({"error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Policy Import – create policy from raw YAML / JSON
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/policies/import", methods=["POST"])
+@require_admin
+def import_policy():
+    import yaml as pyyaml
+    user = get_current_user()
+    body = request.get_json(silent=True) or {}
+    raw_yaml = (body.get("yaml") or "").strip()
+    if not raw_yaml:
+        return jsonify({"error": "yaml field is required"}), 400
+
+    try:
+        manifest = pyyaml.safe_load(raw_yaml)
+    except Exception as exc:
+        return jsonify({"error": f"YAML parse error: {exc}"}), 400
+
+    if not isinstance(manifest, dict):
+        return jsonify({"error": "YAML must be a single Kubernetes object"}), 400
+
+    kind = manifest.get("kind", "")
+    meta = manifest.get("metadata") or {}
+    name = meta.get("name", "")
+    namespace = meta.get("namespace", "default")
+
+    if not name:
+        return jsonify({"error": "metadata.name is required"}), 400
+    if kind not in ("VarmorPolicy", "VarmorClusterPolicy"):
+        return jsonify({"error": f"kind must be VarmorPolicy or VarmorClusterPolicy, got '{kind}'"}), 400
+
+    # Ensure correct apiVersion
+    manifest["apiVersion"] = f"{VARMOR_GROUP}/{VARMOR_VERSION}"
+
+    try:
+        if kind == "VarmorClusterPolicy":
+            created = custom_objects().create_cluster_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                plural=VARMOR_CLUSTER_PLURAL, body=manifest,
+            )
+            actual = created.get("metadata", {}).get("name", name)
+            audit_logger.log(user, "IMPORT", actual, "cluster", "SUCCESS")
+            return jsonify({"ok": True, "name": actual, "scope": "cluster"}), 201
+        else:
+            created = custom_objects().create_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=namespace, plural=VARMOR_PLURAL, body=manifest,
+            )
+            actual = created.get("metadata", {}).get("name", name)
+            audit_logger.log(user, "IMPORT", actual, namespace, "SUCCESS")
+            return jsonify({"ok": True, "name": actual, "scope": "namespace", "namespace": namespace}), 201
+    except ApiException as exc:
+        audit_logger.log(user, "IMPORT", name, namespace, "FAILURE", exc.reason or str(exc.status))
+        logger.error("K8s error importing policy %s: %s", name, exc)
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        audit_logger.log(user, "IMPORT", name, namespace, "FAILURE", str(exc))
+        logger.exception("Unexpected error importing policy %s", name)
+        return jsonify({"error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Policy Advisor – suggest built-in rules from ArmorProfileModel behavior data
+# ---------------------------------------------------------------------------
+
+def _advise_rules_from_model(dynamic: dict) -> list[dict]:
+    """Analyse DynamicResult and suggest vArmor built-in rules."""
+    suggestions: list[dict] = []
+
+    def _rule(rule_id: str, reason: str, category: str = "attack"):
+        suggestions.append({"rule": rule_id, "reason": reason, "category": category})
+
+    # ── AppArmor-captured data ──
+    aa = dynamic.get("appArmor") or {}
+
+    # Files accessed
+    for f in aa.get("files") or []:
+        path = (f.get("path") or "").lower()
+        if "/var/run/secrets/kubernetes.io" in path or "/run/secrets" in path:
+            _rule("mitigate-sa-leak", "Accessed Kubernetes ServiceAccount token path")
+        if path in ("/etc/passwd", "/etc/shadow"):
+            _rule("disable-access-passwd" if "passwd" in path else "disable-access-shadow",
+                  f"Read sensitive credential file {path}")
+        if "/.ssh/" in path or path.endswith(".ssh"):
+            _rule("disable-access-ssh-dir", "Accessed SSH directory")
+        if path in ("/proc/kallsyms", "/proc/sys/kernel/core_pattern"):
+            _rule("disallow-access-kallsyms" if "kallsyms" in path else "disallow-write-core-pattern",
+                  f"Accessed kernel internal path {path}", "hardening")
+        if "/sys/fs/cgroup" in path:
+            _rule("disallow-mount-cgroupfs", "Accessed cgroupfs hierarchy", "hardening")
+        if path.startswith("/etc/") and ("write" in str(f.get("permissions", "")) or "w" in str(f.get("permissions", ""))):
+            _rule("disable-write-etc", "Wrote to /etc directory")
+
+    # Executions
+    for e in aa.get("executions") or []:
+        exe = (e.get("path") or e if isinstance(e, str) else "").lower()
+        if any(sh in exe for sh in ("/bin/sh", "/bin/bash", "/bin/dash", "/usr/bin/sh", "/usr/bin/bash")):
+            _rule("disable-shell", f"Executed shell binary: {exe}")
+        if "wget" in exe:
+            _rule("disable-wget", f"Executed wget: {exe}")
+        if "curl" in exe:
+            _rule("disable-curl", f"Executed curl: {exe}")
+        if "busybox" in exe:
+            _rule("disable-busybox", f"Executed busybox: {exe}")
+        if "chmod" in exe:
+            _rule("disable-chmod", f"Executed chmod: {exe}")
+        if any(s in exe for s in ("/bin/su", "/usr/bin/sudo", "/usr/bin/su")):
+            _rule("disable-su-sudo", f"Executed su/sudo: {exe}")
+
+    # Capabilities
+    for cap in aa.get("capabilities") or []:
+        cap_name = cap.get("capability") or cap if isinstance(cap, str) else ""
+        if cap_name.upper() in ("ALL", "SYS_ADMIN", "NET_ADMIN", "SYS_MODULE"):
+            _rule(f"disable-cap-{cap_name.lower()}", f"Used elevated capability: {cap_name}", "hardening")
+
+    # Network connections
+    for net in aa.get("networks") or []:
+        addr = str(net.get("remoteAddr") or net.get("addr") or "")
+        if addr.startswith("169.254.169.254") or addr.startswith("100.96.0.96") or addr.startswith("100.100.100.200"):
+            _rule("block-access-to-metadata-service", f"Connected to cloud metadata service: {addr}")
+
+    # ── BPF-captured data ──
+    bpf = dynamic.get("bpf") or {}
+    for f in bpf.get("files") or []:
+        path = (f.get("pattern") or "").lower()
+        if "/var/run/secrets/kubernetes.io" in path:
+            _rule("mitigate-sa-leak", "BPF: Accessed ServiceAccount token path")
+        if "/var/run/docker.sock" in path or "/run/containerd" in path or "/run/crio" in path:
+            _rule("block-access-to-container-runtime", "BPF: Accessed container runtime socket")
+
+    for net in bpf.get("networks") or []:
+        cidr = str(net.get("cidr") or net.get("ip") or "")
+        if "169.254.169.254" in cidr or "100.96" in cidr or "100.100" in cidr:
+            _rule("block-access-to-metadata-service", f"BPF: Connected to cloud metadata: {cidr}")
+
+    # ── Seccomp-captured data ──
+    sc = dynamic.get("seccomp") or {}
+    syscalls = set(sc.get("syscalls") or [])
+    if "unshare" in syscalls or "clone" in syscalls:
+        _rule("disallow-abuse-user-ns", "Seccomp: Used namespace-related syscalls", "hardening")
+    if "init_module" in syscalls or "finit_module" in syscalls:
+        _rule("disallow-insmod", "Seccomp: Loaded kernel module", "hardening")
+    if "bpf" in syscalls:
+        _rule("disallow-load-bpf-prog", "Seccomp: Used BPF syscall", "hardening")
+    if "userfaultfd" in syscalls:
+        _rule("disallow-userfaultfd-creation", "Seccomp: Used userfaultfd syscall", "hardening")
+
+    # Deduplicate
+    seen_rules: set[str] = set()
+    deduped = []
+    for s in suggestions:
+        if s["rule"] not in seen_rules:
+            seen_rules.add(s["rule"])
+            deduped.append(s)
+    return deduped
+
+
+@api_bp.route("/namespaces/<namespace>/models/<name>/advise", methods=["GET"])
+@require_auth
+def advise_policy(namespace: str, name: str):
+    try:
+        model = custom_objects().get_namespaced_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION,
+            namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL, name=name,
+        )
+    except ApiException as exc:
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    data_field = model.get("data") or {}
+    dynamic = data_field.get("dynamicResult") or {}
+
+    suggestions = _advise_rules_from_model(dynamic)
+    return jsonify({
+        "model": name,
+        "namespace": namespace,
+        "suggestions": suggestions,
+        "total": len(suggestions),
+    })

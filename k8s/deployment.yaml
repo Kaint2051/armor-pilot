@@ -40,10 +40,15 @@ spec:
                   key: ADMIN_PASS
             - name: APPARMOR_LOG_PATH
               value: /var/log-host/kern.log
+            - name: VARMOR_VIOLATION_LOG_PATH
+              value: /var/log-varmor/violations.log
 
           volumeMounts:
             - name: kern-log
               mountPath: /var/log-host
+              readOnly: true
+            - name: varmor-log
+              mountPath: /var/log-varmor
               readOnly: true
             - name: sqlite-data
               mountPath: /app/data
@@ -82,6 +87,10 @@ spec:
           hostPath:
             path: /var/log
             type: Directory
+        - name: varmor-log
+          hostPath:
+            path: /var/log/varmor
+            type: DirectoryOrCreate
         - name: sqlite-data
           hostPath:
             path: /var/lib/varmor-console
