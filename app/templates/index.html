@@ -698,21 +698,63 @@
                 <span id="arr-grp-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
               </div>
               <div id="grp-np" class="hidden p-3 space-y-4">
+
+                <!-- MITM Domains -->
                 <div>
-                  <label class="form-label">MITM Domains <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                  <label class="form-label">MITM Domains <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line — domains where TLS is intercepted)</span></label>
                   <textarea id="ta-np-mitm-domains" rows="3" placeholder="example.com&#10;*.internal.corp" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
                 </div>
+
+                <!-- Header Mutations - structured builder -->
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                    <label class="form-label" style="margin:0">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON array of {domain, headers})</span></label>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="openSecretPickerModal()" title="Browse available Secrets">&#128273; Pick Secret</button>
+                    <label class="form-label" style="margin:0">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(inject HTTP headers when MITM is active)</span></label>
+                    <div class="flex items-center gap-2">
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="openSecretPickerForHeader()" title="Pick a K8s Secret key">&#128273; Secret</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHeaderRow()">+ Header</button>
+                    </div>
                   </div>
-                  <textarea id="ta-np-mitm-mutations" rows="3" placeholder='[{"domain":"example.com","headers":[{"name":"Authorization","secretRef":{"name":"api-token","key":"token"}}]}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 5rem 1fr auto;gap:.375rem;font-size:.65rem;color:#475569;margin-bottom:.2rem;padding:0 .1rem">
+                    <span>Domain</span><span>Header Name</span><span>Type</span><span>Value / Secret&#58;Key</span><span></span>
+                  </div>
+                  <div id="np-header-rows" class="space-y-1"></div>
+                  <p class="mt-1 text-xs" style="color:#475569">Domain must match a MITM domain above. Secret refs are resolved by the proxy at runtime.</p>
                 </div>
+
+                <!-- Default egress action -->
+                <div class="flex items-center gap-4">
+                  <label class="form-label" style="margin:0;white-space:nowrap">Default Egress Action</label>
+                  <select id="sel-np-default-action" class="form-input" style="max-width:17rem">
+                    <option value="">&#8212; not configured (pass-through) &#8212;</option>
+                    <option value="deny">deny &#8212; whitelist (block unless allowed)</option>
+                    <option value="allow">allow &#8212; blacklist (allow unless denied)</option>
+                  </select>
+                </div>
+
+                <!-- L4 Egress Rules -->
                 <div>
-                  <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(networkProxyRawRules.egress JSON object)</span></label>
-                  <textarea id="ta-np-egress" rows="5" placeholder='{"defaultAction":"deny","rules":[{"qualifiers":["allow"],"cidr":"10.0.0.0/8","ports":[{"port":443}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold" style="color:#94a3b8">L4 EGRESS RULES <span style="color:#475569;font-weight:400">(connection-level: IP/CIDR + ports)</span></span>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpL4Row()">+ L4 Rule</button>
+                  </div>
+                  <div style="display:grid;grid-template-columns:5.5rem 4.5rem 1fr 7rem 1fr auto;gap:.375rem;font-size:.65rem;color:#475569;margin-bottom:.2rem;padding:0 .1rem">
+                    <span>Qualifier</span><span>Type</span><span>IP / CIDR</span><span>Ports (80,443)</span><span>Description</span><span></span>
+                  </div>
+                  <div id="np-l4-rows" class="space-y-1"></div>
+                  <p class="mt-1 text-xs" style="color:#475569">Deny/allow by IP or CIDR at TCP connection level. Ports optional (empty = all).</p>
                 </div>
+
+                <!-- L7 HTTP Rules -->
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold" style="color:#94a3b8">L7 HTTP RULES <span style="color:#475569;font-weight:400">(request-level: host, path, method)</span></span>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHttpRow()">+ HTTP Rule</button>
+                  </div>
+                  <div id="np-http-rows" class="space-y-2"></div>
+                  <p class="mt-1 text-xs" style="color:#475569">Deny/allow by domain (SNI), path, and method. Path/method matching requires MITM for HTTPS.</p>
+                </div>
+
+                <!-- Proxy ports / resources -->
                 <div class="grid grid-cols-3 gap-3">
                   <div>
                     <label class="form-label">Proxy UID</label>
@@ -1876,15 +1918,37 @@ function parseSpecIntoForm(crd,scope,name){
     if(did.allowViolations) $("did-allow-viol").checked=true;
   }
 
-  // NetworkProxy MITM config
+  // NetworkProxy structured builders
+  $("np-header-rows").innerHTML="";$("np-l4-rows").innerHTML="";$("np-http-rows").innerHTML="";
+  if($("sel-np-default-action")) $("sel-np-default-action").value="";
   var npRaw=ep.networkProxyRawRules||{};
-  if(npRaw.egress)
-    try{$("ta-np-egress").value=JSON.stringify(npRaw.egress,null,2);}catch(e){}
+  var egress=npRaw.egress||{};
+  if(egress.defaultAction&&$("sel-np-default-action")) $("sel-np-default-action").value=egress.defaultAction;
+  (egress.rules||[]).forEach(function(r){
+    var at=r.ip?"ip":"cidr";
+    var addr=r.ip||r.cidr||"";
+    var portsStr=(r.ports||[]).map(function(p){return p.endPort?(p.port+"-"+p.endPort):p.port;}).join(",");
+    addNpL4Row((r.qualifiers||[])[0]||"allow",at,addr,portsStr,r.description||"");
+  });
+  (egress.httpRules||[]).forEach(function(r){
+    var m=r.match||{};
+    var hostsStr=(m.hosts||[]).join(", ");
+    var portsStr=(m.ports||[]).map(function(p){return p.port;}).join(",");
+    addNpHttpRow((r.qualifiers||[])[0]||"allow",r.description||"",hostsStr,m.paths||[],m.methods||[],portsStr);
+  });
   var npCfg=pol.networkProxyConfig||{};
   var mitm=npCfg.mitm||{};
   if(mitm.domains&&mitm.domains.length) $("ta-np-mitm-domains").value=mitm.domains.join("\n");
-  if(mitm.headerMutations)
-    try{$("ta-np-mitm-mutations").value=JSON.stringify(mitm.headerMutations,null,2);}catch(e){}
+  (mitm.headerMutations||[]).forEach(function(dm){
+    var domain=dm.domain||"";
+    (dm.headers||[]).forEach(function(h){
+      if(h.secretRef){
+        addNpHeaderRow(domain,h.name||"","secret",h.secretRef.name||"",h.secretRef.key||"");
+      }else{
+        addNpHeaderRow(domain,h.name||"","literal",h.value||"","");
+      }
+    });
+  });
   if(npCfg.proxyUID!=null) $("inp-np-proxy-uid").value=npCfg.proxyUID;
   if(npCfg.proxyPort!=null) $("inp-np-proxy-port").value=npCfg.proxyPort;
   if(npCfg.proxyAdminPort!=null) $("inp-np-proxy-admin-port").value=npCfg.proxyAdminPort;
@@ -1921,7 +1985,9 @@ function cancelEdit(){
   $("ta-did-aa-raw").value="";$("ta-did-aa-custom").value="";hide("did-aa-custom-sec");
   $("ta-did-sc-syscalls").value="";$("ta-did-sc-custom").value="";$("ta-did-sc-raw").value="";hide("did-sc-custom-sec");
   $("ta-did-np-egress").value="";
-  $("ta-np-mitm-domains").value="";$("ta-np-mitm-mutations").value="";$("ta-np-egress").value="";
+  $("ta-np-mitm-domains").value="";
+  $("np-header-rows").innerHTML="";$("np-l4-rows").innerHTML="";$("np-http-rows").innerHTML="";
+  if($("sel-np-default-action")) $("sel-np-default-action").value="";
   $("inp-np-proxy-uid").value="";$("inp-np-proxy-port").value="";$("inp-np-proxy-admin-port").value="";
   $("inp-np-req-cpu").value="";$("inp-np-req-mem").value="";$("inp-np-limit-cpu").value="";$("inp-np-limit-mem").value="";
   $("ta-selector-expr").value="";
@@ -2699,12 +2765,8 @@ $("form-create").addEventListener("submit",async function(e){
 
   // NetworkProxy MITM config fields
   var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var npMitmMutStr=($("ta-np-mitm-mutations").value||"").trim();
-  var npMitmMut=null;
-  var npEgressStr=($("ta-np-egress").value||"").trim();
-  var npEgress=null;
-  if(npMitmMutStr){try{npMitmMut=JSON.parse(npMitmMutStr);}catch(e){showMsg(msgEl,"error","NP MITM mutations: invalid JSON — "+e.message);return;}}
-  if(npEgressStr){try{npEgress=JSON.parse(npEgressStr);}catch(e){showMsg(msgEl,"error","NetworkProxy Egress: invalid JSON - "+e.message);return;}}
+  var npMitmMut=collectNpHeaders();
+  var npEgress=collectNpEgress();
   var npProxyUid=$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
   var npProxyPort=$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
   var npProxyAdminPort=$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
@@ -3199,18 +3261,6 @@ async function loadSecretsForPicker(){
   }catch(err){setLoading("secret-picker",false);showEl($("secret-picker-err"),err.message);}
 }
 
-function insertSecretRef(secretName,key){
-  var ta=$("ta-np-mitm-mutations");
-  var existing=(ta.value||"").trim();
-  var snippet='{"name":"Authorization","secretRef":{"name":"'+secretName+'","key":"'+key+'"}}';
-  if(!existing){
-    ta.value='[{"domain":"","headers":['+snippet+']}]';
-  } else {
-    ta.value=existing+" // secretRef: "+secretName+"/"+key;
-  }
-  closeSecretPickerModal();
-}
-
 function openCreateSecretModal(){hide("modal-secret-picker");show("modal-create-secret");}
 function closeCreateSecretModal(){hide("modal-create-secret");show("modal-secret-picker");}
 $("modal-create-secret").addEventListener("click",function(e){if(e.target===$("modal-create-secret"))closeCreateSecretModal();});
@@ -3372,6 +3422,221 @@ async function openModelModal(el){
     renderModelStructured(data);
     show("model-detail-structured");
   }catch(err){hide("model-detail-loading");showEl($("model-detail-err"),err.message);}
+}
+
+// ── NetworkProxy Structured Builders ──
+
+// Header Mutations builder
+function addNpHeaderRow(domain,headerName,valueType,val1,val2){
+  var div=document.createElement("div");
+  div.className="np-header-row";
+  div.style.cssText="display:grid;grid-template-columns:1fr 1fr 5rem 1fr auto;gap:.375rem;align-items:center";
+  var type=valueType||"literal";
+  div.innerHTML='<input type="text" class="form-input np-h-domain" value="'+esc(domain||'')+'" placeholder="example.com" style="font-family:monospace;font-size:.78rem"/>'
+    +'<input type="text" class="form-input np-h-name" value="'+esc(headerName||'')+'" placeholder="Authorization" style="font-family:monospace;font-size:.78rem"/>'
+    +'<select class="form-input np-h-type" style="font-size:.75rem;padding:.25rem .4rem" onchange="onNpHeaderTypeChange(this)">'
+    +  '<option value="literal"'+(type==="literal"?" selected":"")+'>Value</option>'
+    +  '<option value="secret"'+(type==="secret"?" selected":"")+'>Secret</option>'
+    +'</select>'
+    +'<div class="np-h-value-wrap" style="min-width:0">'
+    +  '<input type="text" class="form-input np-h-val" value="'+esc(type==="literal"?val1||"":"")+'" placeholder="Bearer token…" style="font-family:monospace;font-size:.78rem;'+(type==="secret"?"display:none":"")+'">'
+    +  '<div class="np-h-secret-wrap" style="display:'+(type==="secret"?"grid":"none")+';grid-template-columns:1fr 1fr;gap:.25rem">'
+    +    '<input type="text" class="form-input np-h-secret-name" value="'+esc(type==="secret"?val1||"":"")+'" placeholder="secret-name" style="font-family:monospace;font-size:.75rem">'
+    +    '<input type="text" class="form-input np-h-secret-key" value="'+esc(type==="secret"?val2||"":"")+'" placeholder="key" style="font-family:monospace;font-size:.75rem">'
+    +  '</div>'
+    +'</div>'
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.closest(\'.np-header-row\').remove()">&#10005;</button>';
+  $("np-header-rows").appendChild(div);
+}
+
+function onNpHeaderTypeChange(sel){
+  var row=sel.closest(".np-header-row");
+  var type=sel.value;
+  row.querySelector(".np-h-val").style.display=type==="literal"?"":"none";
+  row.querySelector(".np-h-secret-wrap").style.display=type==="secret"?"grid":"none";
+}
+
+function collectNpHeaders(){
+  var byDomain={};
+  document.querySelectorAll(".np-header-row").forEach(function(row){
+    var domain=row.querySelector(".np-h-domain").value.trim();
+    var name=row.querySelector(".np-h-name").value.trim();
+    var type=row.querySelector(".np-h-type").value;
+    if(!domain||!name) return;
+    var header={name:name};
+    if(type==="secret"){
+      var sn=row.querySelector(".np-h-secret-name").value.trim();
+      var sk=row.querySelector(".np-h-secret-key").value.trim();
+      if(sn) header.secretRef={name:sn,key:sk};
+    }else{
+      var val=row.querySelector(".np-h-val").value.trim();
+      if(val) header.value=val;
+    }
+    if(!byDomain[domain]) byDomain[domain]=[];
+    byDomain[domain].push(header);
+  });
+  var result=Object.keys(byDomain).map(function(d){return{domain:d,headers:byDomain[d]};});
+  return result.length?result:null;
+}
+
+// L4 Egress Rules builder
+function addNpL4Row(qualifier,addrType,addr,ports,description){
+  var div=document.createElement("div");
+  div.className="np-l4-row";
+  div.style.cssText="display:grid;grid-template-columns:5.5rem 4.5rem 1fr 7rem 1fr auto;gap:.375rem;align-items:center";
+  var q=qualifier||"allow";var at=addrType||"cidr";
+  div.innerHTML='<select class="form-input np-l4-q" style="font-size:.75rem;padding:.25rem .4rem">'
+    +'<option value="allow"'+(q==="allow"?" selected":"")+'>allow</option>'
+    +'<option value="deny"'+(q==="deny"?" selected":"")+'>deny</option>'
+    +'<option value="audit"'+(q==="audit"?" selected":"")+'>audit</option>'
+    +'</select>'
+    +'<select class="form-input np-l4-at" style="font-size:.75rem;padding:.25rem .4rem">'
+    +'<option value="cidr"'+(at==="cidr"?" selected":"")+'>CIDR</option>'
+    +'<option value="ip"'+(at==="ip"?" selected":"")+'>IP</option>'
+    +'</select>'
+    +'<input type="text" class="form-input np-l4-addr" value="'+esc(addr||'')+'" placeholder="10.0.0.0/8 or 1.2.3.4" style="font-family:monospace;font-size:.78rem"/>'
+    +'<input type="text" class="form-input np-l4-ports" value="'+esc(ports||'')+'" placeholder="80,443" style="font-size:.78rem"/>'
+    +'<input type="text" class="form-input np-l4-desc" value="'+esc(description||'')+'" placeholder="description" style="font-size:.78rem"/>'
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.closest(\'.np-l4-row\').remove()">&#10005;</button>';
+  $("np-l4-rows").appendChild(div);
+}
+
+function _parsePorts(raw){
+  if(!raw||!raw.trim()) return [];
+  return raw.split(",").map(function(p){
+    p=p.trim();if(!p)return null;
+    var parts=p.split("-");
+    var port=parseInt(parts[0]);if(isNaN(port))return null;
+    var entry={port:port};
+    if(parts[1]){var e=parseInt(parts[1]);if(!isNaN(e))entry.endPort=e;}
+    return entry;
+  }).filter(Boolean);
+}
+
+function collectNpL4Rules(){
+  var rules=[];
+  document.querySelectorAll(".np-l4-row").forEach(function(row){
+    var q=row.querySelector(".np-l4-q").value;
+    var at=row.querySelector(".np-l4-at").value;
+    var addr=row.querySelector(".np-l4-addr").value.trim();
+    if(!addr) return;
+    var rule={qualifiers:[q]};
+    if(at==="ip") rule.ip=addr; else rule.cidr=addr;
+    var ports=_parsePorts(row.querySelector(".np-l4-ports").value);
+    if(ports.length) rule.ports=ports;
+    var desc=row.querySelector(".np-l4-desc").value.trim();
+    if(desc) rule.description=desc;
+    rules.push(rule);
+  });
+  return rules;
+}
+
+// L7 HTTP Rules builder
+var _NP_HTTP_METHODS=["GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"];
+
+function addNpHttpRow(qualifier,description,hosts,paths,methods,ports){
+  var div=document.createElement("div");
+  div.className="np-http-row";
+  div.style.cssText="background:#0a1020;border:1px solid #1e2d45;border-radius:.5rem;padding:.625rem .75rem";
+  var q=qualifier||"allow";
+  var hostsVal=Array.isArray(hosts)?hosts.join(", "):(typeof hosts==="string"?hosts:"");
+  var portsVal=Array.isArray(ports)?ports.map(function(p){return p.port||p;}).join(","):(ports||"");
+  var desc=description||"";
+  var pathExact="",pathPrefix="",pathType="prefix";
+  if(Array.isArray(paths)&&paths.length){
+    var fp=paths[0];
+    if(fp.exact){pathExact=fp.exact;pathType="exact";}
+    else if(fp.prefix){pathPrefix=fp.prefix;pathType="prefix";}
+  }
+  var methodChecks=_NP_HTTP_METHODS.map(function(m){
+    var chk=Array.isArray(methods)&&methods.indexOf(m)>=0?"checked":"";
+    return '<label class="perm-check"><input type="checkbox" class="np-http-method" value="'+m+'" '+chk+'>'+m+'</label>';
+  }).join("");
+  div.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem">'
+    +'<div style="display:flex;align-items:center;gap:.5rem;flex:1">'
+    +'<select class="form-input np-http-q" style="font-size:.75rem;padding:.25rem .4rem;width:6rem">'
+    +'<option value="allow"'+(q==="allow"?" selected":"")+'>allow</option>'
+    +'<option value="deny"'+(q==="deny"?" selected":"")+'>deny</option>'
+    +'<option value="audit"'+(q==="audit"?" selected":"")+'>audit</option>'
+    +'</select>'
+    +'<input type="text" class="form-input np-http-desc" value="'+esc(desc)+'" placeholder="description (optional)" style="flex:1;font-size:.78rem"/>'
+    +'</div>'
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171;flex-shrink:0" onclick="this.closest(\'.np-http-row\').remove()">&#10005;</button></div>'
+    +'<div class="grid grid-cols-2 gap-2">'
+    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Hosts <span style="color:#475569">(wildcards: *.openai.com)</span></label>'
+    +'<input type="text" class="form-input np-http-hosts" value="'+esc(hostsVal)+'" placeholder="api.openai.com, *.internal" style="font-family:monospace;font-size:.78rem"/></div>'
+    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Ports <span style="color:#475569">(optional)</span></label>'
+    +'<input type="text" class="form-input np-http-ports" value="'+esc(portsVal)+'" placeholder="80,443" style="font-size:.78rem"/></div></div>'
+    +'<div class="grid grid-cols-2 gap-2 mt-2">'
+    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Path Match</label>'
+    +'<select class="form-input np-http-path-type" style="font-size:.75rem;padding:.25rem .4rem">'
+    +'<option value="prefix"'+(pathType==="prefix"?" selected":"")+'>Prefix</option>'
+    +'<option value="exact"'+(pathType==="exact"?" selected":"")+'>Exact</option>'
+    +'</select></div>'
+    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Path <span style="color:#475569">(MITM needed for HTTPS)</span></label>'
+    +'<input type="text" class="form-input np-http-path" value="'+esc(pathType==="exact"?pathExact:pathPrefix)+'" placeholder="/v1/chat/completions" style="font-family:monospace;font-size:.78rem"/></div></div>'
+    +'<div class="mt-2"><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Methods <span style="color:#475569">(unchecked = all)</span></label>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.5rem">'+methodChecks+'</div></div>';
+  $("np-http-rows").appendChild(div);
+}
+
+function collectNpHttpRules(){
+  var rules=[];
+  document.querySelectorAll(".np-http-row").forEach(function(row){
+    var q=row.querySelector(".np-http-q").value;
+    var desc=row.querySelector(".np-http-desc").value.trim();
+    var hostsRaw=row.querySelector(".np-http-hosts").value.trim();
+    var portsRaw=row.querySelector(".np-http-ports").value.trim();
+    var pathType=row.querySelector(".np-http-path-type").value;
+    var pathVal=row.querySelector(".np-http-path").value.trim();
+    var methods=Array.from(row.querySelectorAll(".np-http-method:checked")).map(function(c){return c.value;});
+    var hosts=hostsRaw?hostsRaw.split(",").map(function(h){return h.trim();}).filter(Boolean):[];
+    if(!hosts.length&&!pathVal&&!methods.length) return;
+    var match={};
+    if(hosts.length) match.hosts=hosts;
+    var ports=_parsePorts(portsRaw);
+    if(ports.length) match.ports=ports;
+    if(pathVal){var po={};po[pathType]=pathVal;match.paths=[po];}
+    if(methods.length) match.methods=methods;
+    var rule={qualifiers:[q],match:match};
+    if(desc) rule.description=desc;
+    rules.push(rule);
+  });
+  return rules;
+}
+
+function collectNpEgress(){
+  var da=$("sel-np-default-action")?$("sel-np-default-action").value:"";
+  var l4=collectNpL4Rules();
+  var l7=collectNpHttpRules();
+  if(!da&&!l4.length&&!l7.length) return null;
+  var egress={};
+  if(da) egress.defaultAction=da;
+  if(l4.length) egress.rules=l4;
+  if(l7.length) egress.httpRules=l7;
+  return egress;
+}
+
+// Secret picker for header builder
+var _secretPickerTarget=null;
+
+function openSecretPickerForHeader(){
+  _secretPickerTarget=null;
+  show("modal-secret-picker");
+  loadSecretsForPicker();
+}
+
+function insertSecretRef(secretName,key){
+  if(_secretPickerTarget){
+    _secretPickerTarget.querySelector(".np-h-type").value="secret";
+    onNpHeaderTypeChange(_secretPickerTarget.querySelector(".np-h-type"));
+    _secretPickerTarget.querySelector(".np-h-secret-name").value=secretName;
+    _secretPickerTarget.querySelector(".np-h-secret-key").value=key;
+    _secretPickerTarget=null;
+  }else{
+    addNpHeaderRow("","","secret",secretName,key);
+  }
+  closeSecretPickerModal();
 }
 
 // ── Restore attack groups when editing ──
