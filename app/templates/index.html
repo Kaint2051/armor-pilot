@@ -2765,8 +2765,9 @@ $("form-create").addEventListener("submit",async function(e){
 
   // NetworkProxy MITM config fields
   var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var npMitmMut=collectNpHeaders();
-  var npEgress=collectNpEgress();
+  var npMitmMut,npEgress;
+  try{npMitmMut=collectNpHeaders();}catch(ex){showMsg(msgEl,"error","NetworkProxy Header Mutations: "+ex.message);return;}
+  try{npEgress=collectNpEgress();}catch(ex){showMsg(msgEl,"error","NetworkProxy Egress: "+ex.message);return;}
   var npProxyUid=$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
   var npProxyPort=$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
   var npProxyAdminPort=$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
@@ -3458,19 +3459,27 @@ function onNpHeaderTypeChange(sel){
 
 function collectNpHeaders(){
   var byDomain={};
-  document.querySelectorAll(".np-header-row").forEach(function(row){
+  var mitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(d){return d.trim();}).filter(Boolean);
+  document.querySelectorAll(".np-header-row").forEach(function(row,idx){
     var domain=row.querySelector(".np-h-domain").value.trim();
     var name=row.querySelector(".np-h-name").value.trim();
     var type=row.querySelector(".np-h-type").value;
-    if(!domain||!name) return;
+    if(!domain||!name) return; // skip incomplete rows silently
+    // Warn (non-blocking) if domain not in MITM list
+    if(mitmDomains.length&&mitmDomains.indexOf(domain)<0){
+      console.warn("Header mutation domain '"+domain+"' is not listed in MITM Domains.");
+    }
     var header={name:name};
     if(type==="secret"){
       var sn=row.querySelector(".np-h-secret-name").value.trim();
       var sk=row.querySelector(".np-h-secret-key").value.trim();
-      if(sn) header.secretRef={name:sn,key:sk};
+      if(!sn) return; // skip rows with no secret name
+      if(!sk) throw new Error("header '"+name+"' on domain '"+domain+"': secretRef requires both name and key");
+      header.secretRef={name:sn,key:sk};
     }else{
       var val=row.querySelector(".np-h-val").value.trim();
-      if(val) header.value=val;
+      if(!val) return; // skip header with no value
+      header.value=val;
     }
     if(!byDomain[domain]) byDomain[domain]=[];
     byDomain[domain].push(header);
@@ -3501,33 +3510,54 @@ function addNpL4Row(qualifier,addrType,addr,ports,description){
   $("np-l4-rows").appendChild(div);
 }
 
-function _parsePorts(raw){
+function _parsePorts(raw,errors){
   if(!raw||!raw.trim()) return [];
-  return raw.split(",").map(function(p){
-    p=p.trim();if(!p)return null;
+  var result=[];
+  var items=raw.split(",");
+  for(var i=0;i<items.length;i++){
+    var p=items[i].trim();if(!p) continue;
     var parts=p.split("-");
-    var port=parseInt(parts[0]);if(isNaN(port))return null;
+    var port=parseInt(parts[0]);
+    if(isNaN(port)||port<1||port>65535){
+      if(errors) errors.push("invalid port '"+p+"' (must be 1-65535)");
+      return [];
+    }
     var entry={port:port};
-    if(parts[1]){var e=parseInt(parts[1]);if(!isNaN(e))entry.endPort=e;}
-    return entry;
-  }).filter(Boolean);
+    if(parts.length>1){
+      var endPort=parseInt(parts[1]);
+      if(isNaN(endPort)||endPort<1||endPort>65535){
+        if(errors) errors.push("invalid port range '"+p+"': endPort must be 1-65535");
+        return [];
+      }
+      if(endPort<port){
+        if(errors) errors.push("invalid port range '"+p+"': endPort ("+endPort+") must be >= port ("+port+")");
+        return [];
+      }
+      entry.endPort=endPort;
+    }
+    result.push(entry);
+  }
+  return result;
 }
 
 function collectNpL4Rules(){
-  var rules=[];
-  document.querySelectorAll(".np-l4-row").forEach(function(row){
+  var rules=[],errs=[];
+  document.querySelectorAll(".np-l4-row").forEach(function(row,idx){
     var q=row.querySelector(".np-l4-q").value;
     var at=row.querySelector(".np-l4-at").value;
     var addr=row.querySelector(".np-l4-addr").value.trim();
     if(!addr) return;
+    var portErrors=[];
+    var ports=_parsePorts(row.querySelector(".np-l4-ports").value,portErrors);
+    if(portErrors.length){portErrors.forEach(function(e){errs.push("L4 rule #"+(idx+1)+": "+e);});return;}
     var rule={qualifiers:[q]};
     if(at==="ip") rule.ip=addr; else rule.cidr=addr;
-    var ports=_parsePorts(row.querySelector(".np-l4-ports").value);
     if(ports.length) rule.ports=ports;
     var desc=row.querySelector(".np-l4-desc").value.trim();
     if(desc) rule.description=desc;
     rules.push(rule);
   });
+  if(errs.length) throw new Error(errs.join("; "));
   return rules;
 }
 
@@ -3542,11 +3572,15 @@ function addNpHttpRow(qualifier,description,hosts,paths,methods,ports){
   var hostsVal=Array.isArray(hosts)?hosts.join(", "):(typeof hosts==="string"?hosts:"");
   var portsVal=Array.isArray(ports)?ports.map(function(p){return p.port||p;}).join(","):(ports||"");
   var desc=description||"";
-  var pathExact="",pathPrefix="",pathType="prefix";
+  var pathsStr="";
   if(Array.isArray(paths)&&paths.length){
-    var fp=paths[0];
-    if(fp.exact){pathExact=fp.exact;pathType="exact";}
-    else if(fp.prefix){pathPrefix=fp.prefix;pathType="prefix";}
+    pathsStr=paths.map(function(p){
+      if(p.exact) return "exact:"+p.exact;
+      if(p.prefix) return "prefix:"+p.prefix;
+      return "";
+    }).filter(Boolean).join("\n");
+  }else if(typeof paths==="string"&&paths){
+    pathsStr=paths;
   }
   var methodChecks=_NP_HTTP_METHODS.map(function(m){
     var chk=Array.isArray(methods)&&methods.indexOf(m)>=0?"checked":"";
@@ -3567,51 +3601,62 @@ function addNpHttpRow(qualifier,description,hosts,paths,methods,ports){
     +'<input type="text" class="form-input np-http-hosts" value="'+esc(hostsVal)+'" placeholder="api.openai.com, *.internal" style="font-family:monospace;font-size:.78rem"/></div>'
     +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Ports <span style="color:#475569">(optional)</span></label>'
     +'<input type="text" class="form-input np-http-ports" value="'+esc(portsVal)+'" placeholder="80,443" style="font-size:.78rem"/></div></div>'
-    +'<div class="grid grid-cols-2 gap-2 mt-2">'
-    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Path Match</label>'
-    +'<select class="form-input np-http-path-type" style="font-size:.75rem;padding:.25rem .4rem">'
-    +'<option value="prefix"'+(pathType==="prefix"?" selected":"")+'>Prefix</option>'
-    +'<option value="exact"'+(pathType==="exact"?" selected":"")+'>Exact</option>'
-    +'</select></div>'
-    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Path <span style="color:#475569">(MITM needed for HTTPS)</span></label>'
-    +'<input type="text" class="form-input np-http-path" value="'+esc(pathType==="exact"?pathExact:pathPrefix)+'" placeholder="/v1/chat/completions" style="font-family:monospace;font-size:.78rem"/></div></div>'
+    +'<div class="mt-2"><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Paths <span style="color:#475569">(one per line — prefix:/v1 or exact:/api/v1 or just /v1. MITM required for HTTPS)</span></label>'
+    +'<textarea class="form-input np-http-paths" rows="2" placeholder="prefix:/v1/chat&#10;exact:/api/models" style="font-family:monospace;font-size:.75rem;resize:vertical">'+esc(pathsStr)+'</textarea></div>'
     +'<div class="mt-2"><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Methods <span style="color:#475569">(unchecked = all)</span></label>'
     +'<div style="display:flex;flex-wrap:wrap;gap:.5rem">'+methodChecks+'</div></div>';
   $("np-http-rows").appendChild(div);
 }
 
 function collectNpHttpRules(){
-  var rules=[];
-  document.querySelectorAll(".np-http-row").forEach(function(row){
+  var rules=[],errs=[];
+  document.querySelectorAll(".np-http-row").forEach(function(row,idx){
     var q=row.querySelector(".np-http-q").value;
     var desc=row.querySelector(".np-http-desc").value.trim();
     var hostsRaw=row.querySelector(".np-http-hosts").value.trim();
     var portsRaw=row.querySelector(".np-http-ports").value.trim();
-    var pathType=row.querySelector(".np-http-path-type").value;
-    var pathVal=row.querySelector(".np-http-path").value.trim();
+    var pathsRaw=(row.querySelector(".np-http-paths").value||"").trim();
     var methods=Array.from(row.querySelectorAll(".np-http-method:checked")).map(function(c){return c.value;});
     var hosts=hostsRaw?hostsRaw.split(",").map(function(h){return h.trim();}).filter(Boolean):[];
-    if(!hosts.length&&!pathVal&&!methods.length) return;
+    if(!hosts.length&&!pathsRaw&&!methods.length) return; // empty rule, skip
+    var portErrors=[];
+    var ports=_parsePorts(portsRaw,portErrors);
+    if(portErrors.length){portErrors.forEach(function(e){errs.push("HTTP rule #"+(idx+1)+": "+e);});return;}
+    // Parse paths: one per line, prefix:/x or exact:/x or /x (defaults to prefix)
+    var paths=[];
+    if(pathsRaw){
+      pathsRaw.split("\n").forEach(function(line){
+        line=line.trim();if(!line) return;
+        var po={};
+        if(line.indexOf("exact:")==0) po.exact=line.slice(6).trim();
+        else if(line.indexOf("prefix:")==0) po.prefix=line.slice(7).trim();
+        else po.prefix=line;
+        if(po.exact||po.prefix) paths.push(po);
+      });
+    }
     var match={};
     if(hosts.length) match.hosts=hosts;
-    var ports=_parsePorts(portsRaw);
     if(ports.length) match.ports=ports;
-    if(pathVal){var po={};po[pathType]=pathVal;match.paths=[po];}
+    if(paths.length) match.paths=paths;
     if(methods.length) match.methods=methods;
     var rule={qualifiers:[q],match:match};
     if(desc) rule.description=desc;
     rules.push(rule);
   });
+  if(errs.length) throw new Error(errs.join("; "));
   return rules;
 }
 
 function collectNpEgress(){
   var da=$("sel-np-default-action")?$("sel-np-default-action").value:"";
-  var l4=collectNpL4Rules();
-  var l7=collectNpHttpRules();
+  var l4=collectNpL4Rules();   // may throw
+  var l7=collectNpHttpRules(); // may throw
   if(!da&&!l4.length&&!l7.length) return null;
-  var egress={};
-  if(da) egress.defaultAction=da;
+  // CRD requires defaultAction when egress object is present
+  if(!da&&(l4.length||l7.length)){
+    throw new Error("defaultAction is required when L4 or L7 rules are configured — choose 'deny' (whitelist) or 'allow' (blacklist)");
+  }
+  var egress={defaultAction:da};
   if(l4.length) egress.rules=l4;
   if(l7.length) egress.httpRules=l7;
   return egress;

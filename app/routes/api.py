@@ -327,6 +327,9 @@ def _build_enhance_protect(rules, banned_files, bpf_file_rules, bpf_process_rule
             ep["syscallRawRules"] = [{"names": seccomp_syscalls, "action": action}]
 
     if "NetworkProxy" in enforcers and network_proxy_egress and isinstance(network_proxy_egress, dict):
+        err = _validate_np_egress(network_proxy_egress)
+        if err:
+            raise ValueError(f"NetworkProxy egress: {err}")
         ep["networkProxyRawRules"] = {"egress": network_proxy_egress}
 
     return ep
@@ -376,6 +379,80 @@ def _build_defense_in_depth(body: dict) -> dict:
     return did
 
 
+def _validate_port_obj(p: dict, path: str) -> str | None:
+    if not isinstance(p, dict):
+        return f"{path} must be an object"
+    port = p.get("port")
+    if not isinstance(port, int) or not (1 <= port <= 65535):
+        return f"{path}.port must be an integer in [1, 65535]"
+    end = p.get("endPort")
+    if end is not None:
+        if not isinstance(end, int) or not (1 <= end <= 65535):
+            return f"{path}.endPort must be an integer in [1, 65535]"
+        if end < port:
+            return f"{path}.endPort ({end}) must be >= port ({port})"
+    return None
+
+
+def _validate_np_egress(egress: dict) -> str | None:
+    if not isinstance(egress, dict):
+        return "egress must be an object"
+    default_action = egress.get("defaultAction", "")
+    rules = egress.get("rules") or []
+    http_rules = egress.get("httpRules") or []
+    if (rules or http_rules) and default_action not in ("allow", "deny"):
+        return "egress.defaultAction is required and must be 'allow' or 'deny' when rules/httpRules are present"
+    if default_action and default_action not in ("allow", "deny"):
+        return f"egress.defaultAction must be 'allow' or 'deny', got '{default_action}'"
+    for i, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            return f"egress.rules[{i}] must be an object"
+        if not (rule.get("qualifiers") or []):
+            return f"egress.rules[{i}].qualifiers is required"
+        if not (rule.get("ip") or rule.get("cidr")):
+            return f"egress.rules[{i}] must have 'ip' or 'cidr'"
+        for j, port_obj in enumerate(rule.get("ports") or []):
+            err = _validate_port_obj(port_obj, f"egress.rules[{i}].ports[{j}]")
+            if err:
+                return err
+    for i, rule in enumerate(http_rules):
+        if not isinstance(rule, dict):
+            return f"egress.httpRules[{i}] must be an object"
+        if not (rule.get("qualifiers") or []):
+            return f"egress.httpRules[{i}].qualifiers is required"
+        match = rule.get("match")
+        if match is not None and not isinstance(match, dict):
+            return f"egress.httpRules[{i}].match must be an object"
+        for j, port_obj in enumerate((match or {}).get("ports") or []):
+            err = _validate_port_obj(port_obj, f"egress.httpRules[{i}].match.ports[{j}]")
+            if err:
+                return err
+    return None
+
+
+def _validate_np_header_mutations(mutations: list) -> str | None:
+    for i, dm in enumerate(mutations):
+        if not isinstance(dm, dict):
+            return f"headerMutations[{i}] must be an object"
+        if not dm.get("domain"):
+            return f"headerMutations[{i}].domain is required"
+        for j, h in enumerate(dm.get("headers") or []):
+            if not isinstance(h, dict):
+                return f"headerMutations[{i}].headers[{j}] must be an object"
+            if not h.get("name"):
+                return f"headerMutations[{i}].headers[{j}].name is required"
+            has_value = "value" in h
+            has_secret = "secretRef" in h
+            if not has_value and not has_secret:
+                return f"headerMutations[{i}].headers[{j}] must have 'value' or 'secretRef'"
+            if has_secret:
+                sr = h.get("secretRef")
+                if not isinstance(sr, dict) or not sr.get("name") or not sr.get("key"):
+                    return (f"headerMutations[{i}].headers[{j}].secretRef "
+                            "must have both 'name' and 'key'")
+    return None
+
+
 def _build_network_proxy_config(body: dict) -> dict:
     cfg: dict = {}
 
@@ -384,6 +461,9 @@ def _build_network_proxy_config(body: dict) -> dict:
         mitm: dict = {"domains": domains}
         mutations = body.get("np_mitm_mutations")
         if mutations and isinstance(mutations, list):
+            err = _validate_np_header_mutations(mutations)
+            if err:
+                raise ValueError(f"NetworkProxy header mutations: {err}")
             mitm["headerMutations"] = mutations
         cfg["mitm"] = mitm
 
@@ -489,20 +569,26 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
     spec_policy: dict = {"enforcer": enforcer_str, "mode": mode}
 
     if mode == "EnhanceProtect":
-        ep = _build_enhance_protect(
-            rules, banned_files, bpf_file_rules, bpf_process_rules,
-            bpf_network, bpf_ptrace, bpf_mounts,
-            seccomp_syscalls, seccomp_action, enforcers,
-            audit_violations, allow_violations, attack_protection_groups,
-            network_proxy_egress, apparmor_raw_rules, seccomp_raw_rules,
-            privileged,
-        )
+        try:
+            ep = _build_enhance_protect(
+                rules, banned_files, bpf_file_rules, bpf_process_rules,
+                bpf_network, bpf_ptrace, bpf_mounts,
+                seccomp_syscalls, seccomp_action, enforcers,
+                audit_violations, allow_violations, attack_protection_groups,
+                network_proxy_egress, apparmor_raw_rules, seccomp_raw_rules,
+                privileged,
+            )
+        except ValueError as exc:
+            return None, str(exc)
         if not ep:
             return None, "EnhanceProtect policy must have at least one rule, banned file, or raw rule"
         spec_policy["enhanceProtect"] = ep
 
         if "NetworkProxy" in enforcers:
-            np_cfg = _build_network_proxy_config(body)
+            try:
+                np_cfg = _build_network_proxy_config(body)
+            except ValueError as exc:
+                return None, str(exc)
             if np_cfg:
                 spec_policy["networkProxyConfig"] = np_cfg
 
