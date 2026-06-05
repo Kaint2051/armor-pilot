@@ -3,12 +3,21 @@ import logging
 import os
 import secrets
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 DB_PATH = os.environ.get("DB_PATH", "/app/data/users.db")
+
+VALID_ROLES = frozenset(["admin", "operator", "viewer"])
+
+ROLE_DESCRIPTIONS = {
+    "admin":    "Full access: create, approve, reject, delete policies; manage users",
+    "operator": "Submit policies for review; cannot approve or apply directly",
+    "viewer":   "Read-only: view policies, logs, dashboard",
+}
 
 
 def _connect() -> sqlite3.Connection:
@@ -35,18 +44,58 @@ def get_db():
 def init_db() -> None:
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     with get_db() as conn:
+        # Users table — CHECK constraint uses Python-level validation for operator
         conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 username      TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 role          TEXT NOT NULL DEFAULT 'viewer'
-                                  CHECK(role IN ('admin','viewer')),
+                                  CHECK(role IN ('admin','operator','viewer')),
                 created_at    TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
                 last_login    TEXT
             )
         """)
-    # Seed default admin from env vars if table is empty
+        # Migrate existing DBs: add operator to CHECK via recreate if needed
+        try:
+            conn.execute("INSERT OR IGNORE INTO users(username,password_hash,role) VALUES('__probe__','x','operator')")
+            conn.execute("DELETE FROM users WHERE username='__probe__'")
+        except sqlite3.IntegrityError:
+            # Old schema without operator — recreate table
+            conn.execute("ALTER TABLE users RENAME TO users_old")
+            conn.execute("""
+                CREATE TABLE users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username      TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role          TEXT NOT NULL DEFAULT 'viewer'
+                                      CHECK(role IN ('admin','operator','viewer')),
+                    created_at    TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                    last_login    TEXT
+                )
+            """)
+            conn.execute("INSERT INTO users SELECT * FROM users_old")
+            conn.execute("DROP TABLE users_old")
+
+        # Policy review queue
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS policy_queue (
+                id           TEXT PRIMARY KEY,
+                name         TEXT NOT NULL,
+                namespace    TEXT NOT NULL,
+                scope        TEXT NOT NULL,
+                manifest     TEXT NOT NULL,
+                submitted_by TEXT NOT NULL,
+                submitted_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                status       TEXT NOT NULL DEFAULT 'pending'
+                                 CHECK(status IN ('pending','approved','rejected','cancelled')),
+                reviewed_by  TEXT,
+                reviewed_at  TEXT,
+                review_note  TEXT
+            )
+        """)
+
+    # Seed default admin
     with get_db() as conn:
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         if count == 0:
@@ -79,7 +128,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# CRUD
+# User CRUD
 # ---------------------------------------------------------------------------
 
 def get_user(username: str) -> dict | None:
@@ -99,6 +148,8 @@ def list_users() -> list[dict]:
 
 
 def create_user(username: str, password: str, role: str = "viewer") -> None:
+    if role not in VALID_ROLES:
+        raise ValueError(f"Invalid role '{role}'")
     with get_db() as conn:
         conn.execute(
             "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
@@ -115,6 +166,8 @@ def update_user_password(username: str, new_password: str) -> None:
 
 
 def update_user_role(username: str, role: str) -> None:
+    if role not in VALID_ROLES:
+        raise ValueError(f"Invalid role '{role}'")
     with get_db() as conn:
         conn.execute(
             "UPDATE users SET role=? WHERE username=?", (role, username)
@@ -137,3 +190,59 @@ def update_last_login(username: str) -> None:
 def get_user_role(username: str) -> str:
     user = get_user(username)
     return user["role"] if user else "viewer"
+
+
+# ---------------------------------------------------------------------------
+# Policy queue CRUD
+# ---------------------------------------------------------------------------
+
+def queue_policy(name: str, namespace: str, scope: str,
+                 manifest_json: str, submitted_by: str) -> str:
+    item_id = str(uuid.uuid4())
+    with get_db() as conn:
+        conn.execute(
+            """INSERT INTO policy_queue
+               (id, name, namespace, scope, manifest, submitted_by)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (item_id, name, namespace, scope, manifest_json, submitted_by),
+        )
+    return item_id
+
+
+def list_queue(status: str | None = None,
+               submitted_by: str | None = None) -> list[dict]:
+    with get_db() as conn:
+        query = "SELECT * FROM policy_queue WHERE 1=1"
+        params: list = []
+        if status:
+            query += " AND status=?"
+            params.append(status)
+        if submitted_by:
+            query += " AND submitted_by=?"
+            params.append(submitted_by)
+        query += " ORDER BY submitted_at DESC"
+        rows = conn.execute(query, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_queue_item(item_id: str) -> dict | None:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM policy_queue WHERE id=?", (item_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def update_queue_status(item_id: str, status: str,
+                        reviewed_by: str | None = None,
+                        review_note: str | None = None) -> None:
+    with get_db() as conn:
+        conn.execute(
+            """UPDATE policy_queue
+               SET status=?,
+                   reviewed_by=?,
+                   reviewed_at=strftime('%Y-%m-%dT%H:%M:%SZ','now'),
+                   review_note=?
+               WHERE id=?""",
+            (status, reviewed_by, review_note, item_id),
+        )
