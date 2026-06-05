@@ -890,13 +890,30 @@
               <div id="step-restart" class="step"><span id="icon-restart">&#9675;</span><span>Labeling &amp; restarting deployment&#8230;</span></div>
             </div>
             <div id="create-msg" class="hidden mb-4"></div>
-            <div class="flex justify-end gap-3">
-              <button type="button" id="btn-cancel-edit" class="hidden btn btn-ghost" onclick="cancelEdit()">Cancel Edit</button>
-              <button type="submit" id="btn-create" class="btn btn-primary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span id="btn-create-label">Apply Policy</span>
-              </button>
+            <!-- Validate + action buttons -->
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-3">
+                <button type="button" id="btn-validate" onclick="doValidatePolicy()" class="btn btn-ghost">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                  Validate
+                </button>
+                <span id="validate-indicator" class="text-sm font-semibold"></span>
+              </div>
+              <div class="flex items-center gap-3">
+                <button type="button" id="btn-cancel-edit" class="hidden btn btn-ghost" onclick="cancelEdit()">Cancel Edit</button>
+                <!-- Operator + Admin: Submit for Review -->
+                <button type="button" id="btn-submit-review" onclick="doSubmitForReview()" class="btn btn-warning hidden" disabled>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                  <span id="btn-submit-label">Submit for Review</span>
+                </button>
+                <!-- Admin only: Apply Directly (bypass review) -->
+                <button type="submit" id="btn-apply-direct" class="btn btn-primary hidden" disabled>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span id="btn-create-label">Apply Directly</span>
+                </button>
+              </div>
             </div>
+            <p id="validate-hint" class="text-xs mt-2" style="color:#475569">Click <b>Validate</b> first to check the policy spec — submit/apply buttons activate on success.</p>
           </form>
         </section>
 
@@ -942,6 +959,52 @@
               </thead>
               <tbody id="pol-body"></tbody>
             </table>
+          </div>
+        </section>
+
+        <!-- REVIEW QUEUE -->
+        <section class="card">
+          <div class="collapsible-hdr" onclick="toggleSection('queue-content','queue-arr')">
+            <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+              <svg class="w-5 h-5" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+              Review Queue <span id="queue-pending-badge" class="hidden badge badge-amber" style="font-size:.65rem;margin-left:.375rem">0 pending</span>
+              <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(submit → admin review → apply)</span>
+            </h2>
+            <div class="flex items-center gap-2">
+              <select id="sel-queue-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadPolicyQueue()">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <button onclick="event.stopPropagation();loadPolicyQueue()" class="btn btn-ghost btn-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+              </button>
+              <span id="queue-arr" style="color:#64748b;font-size:.75rem">&#9658;</span>
+            </div>
+          </div>
+          <div id="queue-content" class="hidden mt-4">
+            <div id="queue-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+            <div id="queue-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No items in queue.</div>
+            <div id="queue-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th">Policy</th><th class="th">Scope</th><th class="th">Submitted By</th>
+                    <th class="th">Submitted At</th><th class="th">Status</th>
+                    <th class="th">Reviewed By</th><th class="th">Note</th><th class="th th-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="queue-body"></tbody>
+              </table>
+            </div>
+            <p class="mt-3 text-xs" style="color:#475569">
+              <b>operator / admin</b>: submit policies for review.
+              <b>admin only</b>: approve (applies to cluster) or reject with a note.
+            </p>
           </div>
         </section>
 
@@ -1246,6 +1309,27 @@
   </main>
 </div>
 
+<!-- REJECT POLICY MODAL -->
+<div id="modal-reject" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:28rem;border-color:#7f1d1d">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Reject Policy</h3>
+      <button onclick="closeRejectModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <p class="text-sm mb-1" style="color:#94a3b8">Policy:</p>
+    <p id="reject-policy-name" class="font-mono font-semibold text-sm mb-3" style="color:#f87171"></p>
+    <div class="mb-4">
+      <label class="form-label">Rejection Note <span style="color:#f87171">*</span></label>
+      <textarea id="ta-reject-note" rows="3" class="form-input" placeholder="Explain why this policy is rejected…" style="resize:vertical"></textarea>
+    </div>
+    <div id="reject-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeRejectModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-reject-confirm" class="btn btn-danger">Reject Policy</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD USER MODAL -->
 <div id="modal-add-user" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4" style="max-width:26rem;border-color:#475569">
@@ -1265,8 +1349,9 @@
       <div class="mb-4">
         <label class="form-label">Role</label>
         <select id="sel-new-role" class="form-input">
-          <option value="viewer">viewer — Read-only access</option>
-          <option value="admin">admin — Full access</option>
+          <option value="viewer">viewer — Read-only: view policies, logs, dashboard</option>
+          <option value="operator">operator — Submit policies for review; cannot approve/apply</option>
+          <option value="admin">admin — Full access: submit, approve, reject, manage users</option>
         </select>
       </div>
       <div id="add-user-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
@@ -1492,7 +1577,8 @@ function enterDashboard(){
   api("/api/me").then(function(r){return r.json();}).then(function(d){
     CURRENT_ROLE=d.role||"viewer";
     var rb=$("user-role-badge");
-    if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(CURRENT_ROLE==="admin"?"badge-blue":"badge-gray");}
+    var roleColors={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
+    if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(roleColors[CURRENT_ROLE]||"badge-gray");}
   }).catch(function(){CURRENT_ROLE="viewer";}).then(function(){
     applyRoleUi();
     loadAll();
@@ -1501,17 +1587,47 @@ function enterDashboard(){
 function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();}
 
 function isAdmin(){return CURRENT_ROLE==="admin";}
+function canSubmit(){return CURRENT_ROLE==="admin"||CURRENT_ROLE==="operator";}
+function isViewer(){return CURRENT_ROLE==="viewer";}
+
+var _validatedOk=false; // true after successful validate
+
 function applyRoleUi(){
-  var admin=isAdmin();
+  var admin=isAdmin(),submit=canSubmit();
   var form=$("form-create");
   if(form){
-    form.querySelectorAll("input,select,textarea,button").forEach(function(el){el.disabled=!admin;});
+    form.querySelectorAll("input,select,textarea,button").forEach(function(el){el.disabled=!submit;});
   }
   var notice=$("policy-admin-notice");
-  if(notice) toggleVis("policy-admin-notice",!admin);
+  if(notice){
+    toggleVis("policy-admin-notice",!submit);
+    if(notice) notice.textContent=isViewer()
+      ?"Viewer role: read-only access. Cannot create, submit, or approve policies."
+      :"";
+  }
+  // Show/hide role-specific buttons
+  toggleVis("btn-submit-review", submit);
+  toggleVis("btn-apply-direct", admin);
+  // Direct apply button only for admins; disabled until validated
+  var btnApply=$("btn-apply-direct");
+  if(btnApply) btnApply.disabled=!admin||!_validatedOk;
+  var btnSubmit=$("btn-submit-review");
+  if(btnSubmit) btnSubmit.disabled=!submit||!_validatedOk;
   var all=$("chk-all");
   if(all){all.disabled=!admin;all.checked=false;all.indeterminate=false;}
   if(!admin) clearSelection();
+}
+
+function _onFormChange(){
+  // Any change resets validation state
+  if(_validatedOk){
+    _validatedOk=false;
+    var btnApply=$("btn-apply-direct"),btnSubmit=$("btn-submit-review");
+    if(btnApply) btnApply.disabled=true;
+    if(btnSubmit) btnSubmit.disabled=true;
+    var ind=$("validate-indicator");
+    if(ind){ind.textContent="";ind.className="";}
+  }
 }
 
 $("login-form").addEventListener("submit",async function(e){
@@ -1537,7 +1653,7 @@ async function api(path,opts){
 }
 
 function ns(){return $("inp-ns").value.trim()||"default";}
-function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadAaEvents();loadProfileModels();}
+function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadAaEvents();loadProfileModels();loadPolicyQueue();}
 
 // ── Scope / mode / target toggles ──
 function onScopeChange(){}
@@ -2968,11 +3084,15 @@ function renderUsers(users){
   $("users-body").innerHTML="";
   users.forEach(function(u){
     var isMe=u.username===CURRENT_USER;
-    var roleBadge=u.role==="admin"?'<span class="badge badge-blue">admin</span>':'<span class="badge badge-gray">viewer</span>';
-    var altRole=u.role==="admin"?"viewer":"admin";
+    var roleColors={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
+    var roleBadge='<span class="badge '+(roleColors[u.role]||"badge-gray")+'">'+esc(u.role)+'</span>';
+    var roleOpts=["admin","operator","viewer"].filter(function(r){return r!==u.role;});
+    var altRole=roleOpts[0]||"viewer";
     var cr=u.created_at?new Date(u.created_at).toLocaleDateString("vi-VN"):"—";
     var ll=u.last_login?new Date(u.last_login).toLocaleDateString("vi-VN"):"Never";
-    var roleBtn=isMe?"":('<button onclick="toggleUserRole(this)" data-user="'+esc(u.username)+'" data-role="'+esc(altRole)+'" class="btn btn-ghost btn-sm" style="margin-right:2px" title="Switch to '+altRole+'">'+altRole+'</button>');
+    var roleBtn=isMe?"":roleOpts.map(function(r){
+      return '<button onclick="toggleUserRole(this)" data-user="'+esc(u.username)+'" data-role="'+esc(r)+'" class="btn btn-ghost btn-sm" style="margin-right:2px" title="Set role to '+r+'">→'+r+'</button>';
+    }).join("");
     var resetBtn='<button onclick="openResetPwdModal(this)" data-user="'+esc(u.username)+'" class="btn btn-ghost btn-sm" style="margin-right:2px">Reset pwd</button>';
     var delBtn=isMe?"":'<button onclick="deleteUser(this)" data-user="'+esc(u.username)+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>';
     var tr=document.createElement("tr");
@@ -3423,6 +3543,244 @@ async function openModelModal(el){
     renderModelStructured(data);
     show("model-detail-structured");
   }catch(err){hide("model-detail-loading");showEl($("model-detail-err"),err.message);}
+}
+
+// ── Validate Policy ──
+async function doValidatePolicy(){
+  var ind=$("validate-indicator");
+  var hint=$("validate-hint");
+  ind.textContent="⟳ Validating…";ind.style.color="#60a5fa";
+  var payload=buildPolicyPayload();
+  if(!payload){ind.textContent="✗ Fill required fields first";ind.style.color="#f87171";return;}
+  try{
+    var res=await api("/api/policies/validate",{method:"POST",body:JSON.stringify(payload)});
+    var d=await res.json();
+    if(d.ok){
+      _validatedOk=true;
+      ind.textContent="✓ Valid";ind.style.color="#4ade80";
+      var btnSubmit=$("btn-submit-review"),btnApply=$("btn-apply-direct");
+      if(btnSubmit&&canSubmit()) btnSubmit.disabled=false;
+      if(btnApply&&isAdmin()) btnApply.disabled=false;
+      if(hint) hint.style.display="none";
+    }else{
+      _validatedOk=false;
+      ind.textContent="✗ "+esc(d.error||"Validation failed");ind.style.color="#f87171";
+      var btnSubmit=$("btn-submit-review"),btnApply=$("btn-apply-direct");
+      if(btnSubmit) btnSubmit.disabled=true;
+      if(btnApply) btnApply.disabled=true;
+    }
+  }catch(e){ind.textContent="✗ "+esc(e.message);ind.style.color="#f87171";}
+}
+
+// Build payload from current form state (shared by validate/submit/apply)
+function buildPolicyPayload(){
+  var name=($("inp-pname")||{value:""}).value.trim();
+  if(!name) return null;
+  var scope=document.querySelector('input[name="scope"]:checked');
+  if(!scope) return null;
+  var kind=$("sel-kind").value;
+  var mode=$("sel-mode").value;
+  var namespace=ns();
+  var tgtMode=document.querySelector('input[name="tgt-mode"]:checked');
+  var targetDeployment="",targetSelector=null;
+  if(tgtMode&&tgtMode.value==="selector"){
+    var lines=($("ta-selector").value||"").split("\n").filter(Boolean);
+    var ml={};
+    lines.forEach(function(l){var p=l.split("=");if(p.length===2)ml[p[0].trim()]=p[1].trim();});
+    targetSelector={};
+    if(Object.keys(ml).length) targetSelector.matchLabels=ml;
+    var exprRaw=($("ta-selector-expr").value||"").trim();
+    if(exprRaw){try{targetSelector.matchExpressions=JSON.parse(exprRaw);}catch(e){}}
+    if(!targetSelector.matchLabels&&!targetSelector.matchExpressions) return null;
+  }else{
+    targetDeployment=($("sel-target")||{value:""}).value;
+    if(!targetDeployment) return null;
+  }
+  var enforcers=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
+  if(!enforcers.length) enforcers=["AppArmor"];
+  var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
+  var caps=($("ta-dynamic-caps").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var banned=($("ta-banned").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var aaRaw=collectRawRuleInput("ta-apparmor-raw","AppArmor Raw Rules",$("create-msg"))||[];
+  var atGroups=collectAttackGroups();
+  var bpfFiles=collectBpfRules("bpf-files"),bpfProcs=collectBpfRules("bpf-procs"),bpfMounts=collectMountRules(),bpfPtrace=collectPtraceRule();
+  var bpfNet=null;var bpfNetStr=($("ta-bpf-network").value||"").trim();
+  if(bpfNetStr){try{bpfNet=JSON.parse(bpfNetStr);}catch(e){}}
+  var scSysc=($("ta-seccomp").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var scAction=$("sel-seccomp-action").value;
+  var scRaw=[];var scRawStr=($("ta-seccomp-raw").value||"").trim();
+  if(scRawStr){try{scRaw=JSON.parse(scRawStr);}catch(e){}}
+  var durationMins=parseInt(($("inp-duration")||{value:"60"}).value)||60;
+  var updateExisting=!!($("chk-update-existing")||{checked:false}).checked;
+  var auditViol=!!($("chk-audit-viol")||{checked:false}).checked;
+  var allowViol=!!($("chk-allow-viol")||{checked:false}).checked;
+  var privileged=!!($("chk-privileged")||{checked:false}).checked;
+  var containers=($("inp-containers").value||"").split(",").map(function(c){return c.trim();}).filter(Boolean);
+  // DID fields
+  var didAaType=(document.querySelector('input[name="did-aa-type"]:checked')||{value:""}).value;
+  var didScType=(document.querySelector('input[name="did-sc-type"]:checked')||{value:""}).value;
+  var didAaCustom=($("ta-did-aa-custom").value||"").trim();
+  var didAaRaw=($("ta-did-aa-raw").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var didScCustom=($("ta-did-sc-custom").value||"").trim();
+  var didScSysc=($("ta-did-sc-syscalls").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var didScRaw=[];var dsrStr=($("ta-did-sc-raw").value||"").trim();if(dsrStr){try{didScRaw=JSON.parse(dsrStr);}catch(e){}}
+  var didScAction=($("sel-did-sc-action")||{value:"SCMP_ACT_ERRNO"}).value;
+  var didAllowViol=!!($("did-allow-viol")||{checked:false}).checked;
+  var didNpEgress=null;var dneStr=($("ta-did-np-egress").value||"").trim();if(dneStr){try{didNpEgress=JSON.parse(dneStr);}catch(e){}}
+  var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var npMitmMut=null;try{npMitmMut=collectNpHeaders();}catch(e){}
+  var npEgress=null;try{npEgress=collectNpEgress();}catch(e){}
+  var npProxyUid=$("inp-np-proxy-uid")&&$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
+  var npProxyPort=$("inp-np-proxy-port")&&$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
+  var npProxyAdminPort=$("inp-np-proxy-admin-port")&&$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
+  var npResources=collectNpResources();
+  return{
+    name:name,namespace:namespace,scope:scope.value,target_kind:kind,
+    target_deployment:targetDeployment,target_selector:targetSelector,
+    target_containers:containers,mode:mode,enforcers:enforcers,
+    rules:rules,capability_rules:caps,banned_files:banned,
+    apparmor_raw_rules:aaRaw,attack_protection_groups:atGroups,privileged:privileged,
+    bpf_file_rules:bpfFiles,bpf_process_rules:bpfProcs,bpf_mounts:bpfMounts,
+    bpf_ptrace:bpfPtrace,bpf_network:bpfNet,
+    seccomp_syscalls:scSysc,seccomp_action:scAction,seccomp_raw_rules:scRaw,
+    modeling_duration:durationMins*60,
+    update_existing_workloads:updateExisting,audit_violations:auditViol,allow_violations:allowViol,
+    did_apparmor_type:didAaType,did_apparmor_custom:didAaCustom,did_apparmor_raw_rules:didAaRaw,
+    did_seccomp_type:didScType,did_seccomp_custom:didScCustom,
+    did_seccomp_syscalls:didScSysc,did_seccomp_action:didScAction,did_seccomp_raw_rules:didScRaw,
+    did_allow_violations:didAllowViol,did_np_egress:didNpEgress,
+    np_mitm_domains:npMitmDomains,np_mitm_mutations:npMitmMut,np_egress:npEgress,
+    np_proxy_uid:npProxyUid,np_proxy_port:npProxyPort,np_proxy_admin_port:npProxyAdminPort,
+    np_resources:npResources
+  };
+}
+
+// ── Submit for Review ──
+async function doSubmitForReview(){
+  if(!canSubmit()){alert("Only operator or admin can submit policies for review.");return;}
+  if(!_validatedOk){alert("Please validate the policy first.");return;}
+  var msgEl=$("create-msg");hideEl(msgEl);
+  var payload=buildPolicyPayload();
+  if(!payload){showMsg(msgEl,"error","Fill all required fields.");return;}
+  var btn=$("btn-submit-review");btn.disabled=true;
+  try{
+    var res=await api("/api/policies/submit",{method:"POST",body:JSON.stringify(payload)});
+    var d=await res.json();
+    if(!res.ok){showMsg(msgEl,"error",d.error||"Submit failed");btn.disabled=false;return;}
+    showMsg(msgEl,"success","Policy '"+esc(d.id?"... queued":"")+"' submitted for review. An admin must approve before it applies to the cluster.");
+    _validatedOk=false;
+    cancelEdit();
+    setTimeout(function(){loadPolicyQueue();show("queue-content");},800);
+  }catch(e){showMsg(msgEl,"error",e.message);}
+  finally{if(canSubmit()) btn.disabled=false;}
+}
+
+// ── Review Queue ──
+async function loadPolicyQueue(){
+  setLoading("queue",true);hide("queue-empty");hide("queue-err");$("queue-body").innerHTML="";
+  var statusFilter=($("sel-queue-filter")||{value:""}).value;
+  var params=statusFilter?"status="+encodeURIComponent(statusFilter):"";
+  try{
+    var r=await api("/api/policies/queue"+(params?"?"+params:"")),d=await r.json();
+    setLoading("queue",false);
+    if(!r.ok){showEl($("queue-err"),d.error||"Failed to load queue");return;}
+    var items=d.queue||[];
+    var pending=items.filter(function(i){return i.status==="pending";}).length;
+    var badge=$("queue-pending-badge");
+    if(badge){
+      badge.textContent=pending+" pending";
+      toggleVis("queue-pending-badge",pending>0);
+    }
+    renderPolicyQueue(items);
+  }catch(e){setLoading("queue",false);showEl($("queue-err"),e.message);}
+}
+
+function renderPolicyQueue(items){
+  var el=$("queue-body");
+  if(!items.length){show("queue-empty");el.innerHTML="";return;}
+  hide("queue-empty");
+  var admin=isAdmin();
+  var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
+  el.innerHTML="";
+  items.forEach(function(item){
+    var sb='<span class="badge '+(statusColors[item.status]||"badge-gray")+'">'+esc(item.status)+'</span>';
+    var submittedAt=item.submitted_at?new Date(item.submitted_at).toLocaleString("vi-VN"):"—";
+    var reviewedBy=item.reviewed_by?esc(item.reviewed_by):'<span style="color:#475569">—</span>';
+    var note=item.review_note?('<span title="'+esc(item.review_note)+'" style="cursor:help;color:#64748b">'+esc(item.review_note.slice(0,30))+(item.review_note.length>30?"…":"")+'</span>'):'<span style="color:#475569">—</span>';
+    var actions="";
+    if(item.status==="pending"){
+      if(admin){
+        actions+='<button onclick="approveQueued(\''+esc(item.id)+'\')" class="btn btn-green btn-sm" style="margin-right:2px">✓ Approve</button>';
+        actions+='<button onclick="openRejectModal(\''+esc(item.id)+'\',\''+esc(item.name)+'\')" class="btn btn-danger btn-sm" style="margin-right:2px">✗ Reject</button>';
+      }
+      // Submitter or admin can cancel
+      if(admin||item.submitted_by===CURRENT_USER){
+        actions+='<button onclick="cancelQueued(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm">Cancel</button>';
+      }
+    }
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
+    tr.onmouseover=function(){tr.style.background="#243552";};
+    tr.onmouseout=function(){tr.style.background="";};
+    tr.innerHTML='<td class="td" style="font-family:monospace;color:#93c5fd;font-size:.8rem">'+esc(item.name)
+      +'<div style="font-size:.68rem;color:#475569">'+esc(item.namespace)+'</div></td>'
+      +'<td class="td"><span class="badge '+(item.scope==="cluster"?"badge-purple":"badge-gray")+'">'+(item.scope==="cluster"?"Cluster":"NS")+'</span></td>'
+      +'<td class="td" style="font-size:.8rem;color:#94a3b8">'+esc(item.submitted_by)+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#475569;white-space:nowrap">'+esc(submittedAt)+'</td>'
+      +'<td class="td">'+sb+'</td>'
+      +'<td class="td" style="font-size:.75rem">'+reviewedBy+'</td>'
+      +'<td class="td" style="font-size:.75rem;max-width:10rem">'+note+'</td>'
+      +'<td class="td th-r" style="white-space:nowrap">'+actions+'</td>';
+    el.appendChild(tr);
+  });
+}
+
+async function approveQueued(id){
+  if(!isAdmin()){alert("Only admin can approve policies.");return;}
+  if(!confirm("Approve and apply this policy to the cluster?")) return;
+  try{
+    var r=await api("/api/policies/queue/"+encodeURIComponent(id)+"/approve",{method:"POST",body:JSON.stringify({})});
+    var d=await r.json();
+    if(!r.ok){alert("Approve failed: "+(d.error||r.status));return;}
+    loadPolicyQueue();loadPolicies();
+  }catch(e){alert("Error: "+e.message);}
+}
+
+var _rejectTargetId=null;
+function openRejectModal(id,name){
+  if(!isAdmin()){alert("Only admin can reject policies.");return;}
+  _rejectTargetId=id;
+  $("reject-policy-name").textContent=name;
+  $("ta-reject-note").value="";
+  hideEl($("reject-msg"));
+  show("modal-reject");
+}
+function closeRejectModal(){hide("modal-reject");_rejectTargetId=null;}
+$("modal-reject").addEventListener("click",function(e){if(e.target===$("modal-reject"))closeRejectModal();});
+$("btn-reject-confirm").addEventListener("click",async function(){
+  if(!_rejectTargetId) return;
+  var note=$("ta-reject-note").value.trim();
+  if(!note){showMsg($("reject-msg"),"error","Rejection note is required.");return;}
+  this.disabled=true;
+  try{
+    var r=await api("/api/policies/queue/"+encodeURIComponent(_rejectTargetId)+"/reject",{
+      method:"POST",body:JSON.stringify({note:note})
+    });
+    var d=await r.json();
+    if(!r.ok){showMsg($("reject-msg"),"error",d.error||"Reject failed");this.disabled=false;return;}
+    closeRejectModal();loadPolicyQueue();
+  }catch(e){showMsg($("reject-msg"),"error",e.message);this.disabled=false;}
+  this.disabled=false;
+});
+
+async function cancelQueued(id){
+  if(!confirm("Cancel this pending submission?")) return;
+  try{
+    var r=await api("/api/policies/queue/"+encodeURIComponent(id),{method:"DELETE"});
+    var d=await r.json();
+    if(!r.ok){alert("Cancel failed: "+(d.error||r.status));return;}
+    loadPolicyQueue();
+  }catch(e){alert("Error: "+e.message);}
 }
 
 // ── NetworkProxy Structured Builders ──

@@ -9,7 +9,9 @@ from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
 
 from ..audit import audit_logger
-from ..auth import get_current_user, require_admin, require_auth
+from ..auth import get_current_user, require_admin, require_auth, require_operator
+from ..db import (get_queue_item, list_queue, queue_policy,
+                  update_queue_status, VALID_ROLES)
 from ..k8s_client import (
     VARMOR_GROUP,
     VARMOR_PLURAL,
@@ -72,6 +74,7 @@ VALID_KINDS = frozenset(["Deployment", "StatefulSet", "DaemonSet", "Pod"])
 VALID_SCMP_ACTIONS = frozenset(["SCMP_ACT_KILL", "SCMP_ACT_ERRNO", "SCMP_ACT_LOG", "SCMP_ACT_ALLOW"])
 VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
 VALID_LABEL_SELECTOR_OPERATORS = frozenset(["In", "NotIn", "Exists", "DoesNotExist"])
+VALID_QUEUE_STATUSES = frozenset(["pending", "approved", "rejected", "cancelled"])
 
 
 def _clean_str_list(values) -> list[str]:
@@ -1047,8 +1050,8 @@ def create_user_endpoint():
         return jsonify({"error": "username and password are required"}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
-    if role not in ("admin", "viewer"):
-        return jsonify({"error": "role must be 'admin' or 'viewer'"}), 400
+    if role not in VALID_ROLES:
+        return jsonify({"error": f"role must be one of: {', '.join(sorted(VALID_ROLES))}"}), 400
     try:
         from ..db import create_user
         create_user(username, password, role)
@@ -1111,8 +1114,8 @@ def change_user_role(username: str):
         return jsonify({"error": "Cannot change your own role"}), 400
     body = request.get_json(silent=True) or {}
     role = body.get("role")
-    if role not in ("admin", "viewer"):
-        return jsonify({"error": "role must be 'admin' or 'viewer'"}), 400
+    if role not in VALID_ROLES:
+        return jsonify({"error": f"role must be one of: {', '.join(sorted(VALID_ROLES))}"}), 400
     from ..db import update_user_role
     update_user_role(username, role)
     audit_logger.log(get_current_user(), "UPDATE_ROLE", username, "system", "SUCCESS", f"role={role}")
@@ -1681,6 +1684,165 @@ def dashboard_summary():
 # ---------------------------------------------------------------------------
 # Apply Model as Policy - transition BehaviorModeling policy to DefenseInDepth
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Policy Validate / Submit for Review / Review Queue
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/policies/validate", methods=["POST"])
+@require_auth
+def validate_policy_endpoint():
+    """Dry-run: build and validate manifest without writing to cluster."""
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"ok": False, "error": "Request body must be valid JSON"}), 200
+    raw_name = (body.get("name") or "").strip()
+    name = _sanitize_name(raw_name)
+    namespace = (body.get("namespace") or "default").strip()
+    scope = (body.get("scope") or "namespace").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "Policy name is required"}), 200
+    if scope not in ("namespace", "cluster"):
+        return jsonify({"ok": False, "error": "scope must be 'namespace' or 'cluster'"}), 200
+    manifest, err = _build_manifest_from_body(body, scope, name, namespace)
+    if err:
+        return jsonify({"ok": False, "error": err}), 200
+    return jsonify({"ok": True, "manifest": manifest})
+
+
+@api_bp.route("/policies/submit", methods=["POST"])
+@require_operator
+def submit_policy_for_review():
+    """Validate + save to review queue (does NOT apply to cluster)."""
+    user = get_current_user()
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body must be valid JSON"}), 400
+    raw_name = (body.get("name") or "").strip()
+    name = _sanitize_name(raw_name)
+    namespace = (body.get("namespace") or "default").strip()
+    scope = (body.get("scope") or "namespace").strip()
+    if not name:
+        return jsonify({"error": "Policy name is required"}), 400
+    if scope not in ("namespace", "cluster"):
+        return jsonify({"error": "scope must be 'namespace' or 'cluster'"}), 400
+    manifest, err = _build_manifest_from_body(body, scope, name, namespace)
+    if err:
+        return jsonify({"error": err}), 400
+    import json as _json
+    item_id = queue_policy(name, namespace, scope, _json.dumps(manifest), user)
+    audit_logger.log(user, "SUBMIT_REVIEW", name, namespace, "SUCCESS", f"queue_id={item_id}")
+    return jsonify({"ok": True, "id": item_id,
+                    "message": f"Policy '{name}' submitted for review"}), 201
+
+
+@api_bp.route("/policies/queue", methods=["GET"])
+@require_auth
+def list_policy_queue():
+    from ..auth import get_current_role
+    role = get_current_role()
+    user = get_current_user()
+    status_filter = request.args.get("status") or None
+    if status_filter and status_filter not in VALID_QUEUE_STATUSES:
+        return jsonify({"error": f"status must be one of {sorted(VALID_QUEUE_STATUSES)}"}), 400
+    # operators/viewers see only their own submissions
+    submitted_by = None if role == "admin" else user
+    items = list_queue(status=status_filter, submitted_by=submitted_by)
+    return jsonify({"queue": items, "total": len(items)})
+
+
+@api_bp.route("/policies/queue/<item_id>", methods=["GET"])
+@require_auth
+def get_queue_item_endpoint(item_id: str):
+    from ..auth import get_current_role
+    role = get_current_role()
+    user = get_current_user()
+    item = get_queue_item(item_id)
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+    if role != "admin" and item["submitted_by"] != user:
+        return jsonify({"error": "Forbidden"}), 403
+    return jsonify(item)
+
+
+@api_bp.route("/policies/queue/<item_id>/approve", methods=["POST"])
+@require_admin
+def approve_queued_policy(item_id: str):
+    user = get_current_user()
+    body = request.get_json(silent=True) or {}
+    item = get_queue_item(item_id)
+    if not item:
+        return jsonify({"error": "Queue item not found"}), 404
+    if item["status"] != "pending":
+        return jsonify({"error": f"Cannot approve: item status is '{item['status']}'"}), 400
+    import json as _json
+    manifest = _json.loads(item["manifest"])
+    name = item["name"]
+    namespace = item["namespace"]
+    scope = item["scope"]
+    note = (body.get("note") or "").strip()
+    try:
+        if scope == "cluster":
+            custom_objects().create_cluster_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                plural=VARMOR_CLUSTER_PLURAL, body=manifest,
+            )
+        else:
+            custom_objects().create_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=namespace, plural=VARMOR_PLURAL, body=manifest,
+            )
+        update_queue_status(item_id, "approved", reviewed_by=user, review_note=note or "Approved")
+        audit_logger.log(user, "APPROVE_POLICY", name, namespace, "SUCCESS",
+                         f"queue_id={item_id}, submitter={item['submitted_by']}")
+        return jsonify({"ok": True,
+                        "message": f"Policy '{name}' approved and applied to cluster"})
+    except ApiException as exc:
+        err_msg = _k8s_error_msg(exc)
+        update_queue_status(item_id, "rejected", reviewed_by=user,
+                            review_note=f"Apply failed: {err_msg}")
+        audit_logger.log(user, "APPROVE_POLICY", name, namespace, "FAILURE", err_msg)
+        return jsonify({"error": err_msg}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error approving queued policy %s", item_id)
+        return jsonify({"error": str(exc)}), 500
+
+
+@api_bp.route("/policies/queue/<item_id>/reject", methods=["POST"])
+@require_admin
+def reject_queued_policy(item_id: str):
+    user = get_current_user()
+    body = request.get_json(silent=True) or {}
+    note = (body.get("note") or "").strip()
+    item = get_queue_item(item_id)
+    if not item:
+        return jsonify({"error": "Queue item not found"}), 404
+    if item["status"] != "pending":
+        return jsonify({"error": f"Cannot reject: item status is '{item['status']}'"}), 400
+    update_queue_status(item_id, "rejected", reviewed_by=user, review_note=note or "Rejected")
+    audit_logger.log(user, "REJECT_POLICY", item["name"], item["namespace"], "SUCCESS",
+                     f"queue_id={item_id}, submitter={item['submitted_by']}")
+    return jsonify({"ok": True, "message": f"Policy '{item['name']}' rejected"})
+
+
+@api_bp.route("/policies/queue/<item_id>", methods=["DELETE"])
+@require_auth
+def cancel_queued_policy(item_id: str):
+    from ..auth import get_current_role
+    user = get_current_user()
+    role = get_current_role()
+    item = get_queue_item(item_id)
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+    if role != "admin" and item["submitted_by"] != user:
+        return jsonify({"error": "Forbidden: can only cancel your own submissions"}), 403
+    if item["status"] != "pending":
+        return jsonify({"error": f"Cannot cancel: item status is '{item['status']}'"}), 400
+    update_queue_status(item_id, "cancelled", reviewed_by=user, review_note="Cancelled by user")
+    audit_logger.log(user, "CANCEL_REVIEW", item["name"], item["namespace"], "SUCCESS",
+                     f"queue_id={item_id}")
+    return jsonify({"ok": True})
+
 
 VARMOR_CLUSTER_PLURAL_APPLY = "varmorclusterpolicies"
 

@@ -80,3 +80,23 @@ def require_admin(f):
             )
         return f(*args, **kwargs)
     return decorated
+
+
+def require_operator(f):
+    """Allow admin and operator roles (can submit policies for review)."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        username, password = _parse_basic_auth()
+        if not username or not _credentials_valid(username, password):
+            return Response(
+                '{"error": "Unauthorized"}', status=401,
+                headers={"Content-Type": "application/json"},
+            )
+        from .db import get_user_role
+        if get_user_role(username) not in ("admin", "operator"):
+            return Response(
+                '{"error": "Forbidden: operator or admin role required"}', status=403,
+                headers={"Content-Type": "application/json"},
+            )
+        return f(*args, **kwargs)
+    return decorated
