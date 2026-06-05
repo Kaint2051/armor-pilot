@@ -400,10 +400,10 @@ def _validate_np_egress(egress: dict) -> str | None:
     default_action = egress.get("defaultAction", "")
     rules = egress.get("rules") or []
     http_rules = egress.get("httpRules") or []
-    if (rules or http_rules) and default_action not in ("allow", "deny"):
-        return "egress.defaultAction is required and must be 'allow' or 'deny' when rules/httpRules are present"
-    if default_action and default_action not in ("allow", "deny"):
-        return f"egress.defaultAction must be 'allow' or 'deny', got '{default_action}'"
+    # defaultAction is always required when egress object exists (no omitempty in CRD)
+    if default_action not in ("allow", "deny"):
+        return ("egress.defaultAction is required and must be 'allow' or 'deny' "
+                f"(got '{default_action}')")
     for i, rule in enumerate(rules):
         if not isinstance(rule, dict):
             return f"egress.rules[{i}] must be an object"
