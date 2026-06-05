@@ -3517,6 +3517,11 @@ function _parsePorts(raw,errors){
   for(var i=0;i<items.length;i++){
     var p=items[i].trim();if(!p) continue;
     var parts=p.split("-");
+    // Reject "80-90-100" — only single port or port-range (exactly 2 parts)
+    if(parts.length>2){
+      if(errors) errors.push("invalid port '"+p+"': use 'port' or 'port-endPort' format");
+      return [];
+    }
     // Strict: each part must be digits only — rejects "80abc", "8090xxx"
     if(!/^\d+$/.test(parts[0])){
       if(errors) errors.push("invalid port '"+p+"': not a valid integer");
@@ -3555,12 +3560,13 @@ function collectNpL4Rules(){
     var q=row.querySelector(".np-l4-q").value;
     var at=row.querySelector(".np-l4-at").value;
     var addr=row.querySelector(".np-l4-addr").value.trim();
-    if(!addr) return;
     var portErrors=[];
     var ports=_parsePorts(row.querySelector(".np-l4-ports").value,portErrors);
     if(portErrors.length){portErrors.forEach(function(e){errs.push("L4 rule #"+(idx+1)+": "+e);});return;}
+    // Skip only if BOTH addr and ports are empty (port-only rules are valid per CRD)
+    if(!addr&&!ports.length) return;
     var rule={qualifiers:[q]};
-    if(at==="ip") rule.ip=addr; else rule.cidr=addr;
+    if(addr){if(at==="ip") rule.ip=addr; else rule.cidr=addr;}
     if(ports.length) rule.ports=ports;
     var desc=row.querySelector(".np-l4-desc").value.trim();
     if(desc) rule.description=desc;
