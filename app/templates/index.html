@@ -664,7 +664,7 @@
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|Seccomp|BPF')">AppArmor + Seccomp + BPF</button>
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF')">NetworkProxy + BPF</button>
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF|Seccomp')">NetworkProxy + BPF + Seccomp</button>
-                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|NetworkProxy|BPF')">AppArmor + NetworkProxy + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|BPF|Seccomp')">AppArmor + BPF + Seccomp</button>
                 </div>
                 <div class="flex flex-wrap gap-5">
                   <label class="cb-row"><input type="checkbox" name="enforcer" value="AppArmor" checked onchange="onEnforcerChange()"><span>AppArmor</span></label>
@@ -2017,9 +2017,9 @@ function renderWizSummary(){
 // ── Policy templates ──
 var POLICY_TEMPLATES={
   hardening:{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disallow-insmod","disallow-mount","disallow-abuse-user-ns","disallow-umount"]},
-  "shell-block":{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disallow-run-shell","disallow-access-sensitive-files","disallow-write-etc","disallow-abuse-user-ns"]},
+  "shell-block":{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disable-shell","disable-access-shadow","disable-access-passwd","disable-write-etc","disallow-abuse-user-ns"]},
   privileged:{mode:"EnhanceProtect",enforcers:["AppArmor","BPF"],rules:["disable-cap-all-except-net-bind-service","disallow-write-core-pattern","disallow-mount-securityfs","disallow-write-release-agent"],privileged:true},
-  observe:{mode:"BehaviorModeling",enforcers:[],rules:[]},
+  observe:{mode:"BehaviorModeling",enforcers:["AppArmor"],rules:[]},
   egress:{mode:"EnhanceProtect",enforcers:["BPF","NetworkProxy"],rules:[]},
   did:{mode:"DefenseInDepth",enforcers:["AppArmor","Seccomp"],rules:[]}
 };
@@ -2099,6 +2099,22 @@ function updateRuleSummary(){
 }
 
 // ── YAML preview builder ──
+// Rule category sets — must match HARDENING_RULES/ATTACK_RULES/VULN_RULES in api.py
+var _YAML_HARDENING=new Set(["disallow-write-core-pattern","disallow-mount-securityfs","disallow-mount-procfs",
+  "disallow-write-release-agent","disallow-mount-cgroupfs","disallow-debug-disk-device",
+  "disallow-mount-disk-device","disallow-mount","disallow-umount","disallow-insmod",
+  "disallow-load-bpf-prog","disallow-access-procfs-root","disallow-access-kallsyms",
+  "disable-cap-all","disable-cap-all-except-net-bind-service","disable-cap-privileged",
+  "disallow-abuse-user-ns","disallow-create-user-ns","disallow-load-all-bpf-prog",
+  "disallow-load-bpf-via-setsockopt","disallow-userfaultfd-creation"]);
+var _YAML_VULN=new Set(["cgroups-lxcfs-escape-mitigation","runc-override-mitigation",
+  "dirty-pipe-mitigation","ingress-nightmare-mitigation","copy-fail-mitigation"]);
+function _yamlRuleCategory(r){
+  if(_YAML_HARDENING.has(r)||/^disable-cap-/.test(r)) return "hardening";
+  if(_YAML_VULN.has(r)) return "vuln";
+  return "attack";
+}
+
 function buildYamlPreview(){
   var name=($("inp-pname")||{value:""}).value.trim()||"unnamed";
   var scopeEl=document.querySelector('input[name="scope"]:checked');
@@ -2112,18 +2128,12 @@ function buildYamlPreview(){
   var containers=($("inp-containers")||{value:""}).value.split(",").map(function(c){return c.trim();}).filter(Boolean);
   var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
   var crdKind=scope==="cluster"?"VarmorClusterPolicy":"VarmorPolicy";
-  var lines=[
-    "apiVersion: crd.varmor.org/v1beta1",
-    "kind: "+crdKind,
-    "metadata:",
-    "  name: "+name
-  ];
+  var lines=["apiVersion: crd.varmor.org/v1beta1","kind: "+crdKind,"metadata:","  name: "+name];
   if(scope==="namespace") lines.push("  namespace: "+(ns()||"default"));
   lines.push("spec:","  target:","    kind: "+kind);
   if(tgtMode&&tgtMode.value==="selector"){
     if(tgtSel){
-      lines.push("    selector:");
-      lines.push("      matchLabels:");
+      lines.push("    selector:","      matchLabels:");
       tgtSel.split("\n").filter(Boolean).forEach(function(l){
         var p=l.split("=");if(p.length===2) lines.push("        "+p[0].trim()+": "+p[1].trim());
       });
@@ -2132,15 +2142,21 @@ function buildYamlPreview(){
     lines.push("    name: "+tgtName);
   }
   if(containers.length) lines.push("    containers: ["+containers.join(", ")+"]");
-  lines.push("  policy:","    enforcer: "+(enfs.join("|")||"AppArmor"),"    mode: "+mode);
+  lines.push("  policy:","    enforcer: "+(enfs.length?enfs.join("|"):"(none — required)"),"    mode: "+mode);
   if(mode==="EnhanceProtect"&&rules.length){
-    lines.push("    enhanceProtect:","      builtinRules:");
-    rules.forEach(function(r){lines.push("        - "+r);});
+    var hardening=rules.filter(function(r){return _yamlRuleCategory(r)==="hardening";});
+    var attack=rules.filter(function(r){return _yamlRuleCategory(r)==="attack";});
+    var vuln=rules.filter(function(r){return _yamlRuleCategory(r)==="vuln";});
+    lines.push("    enhanceProtect:");
+    if(hardening.length){lines.push("      hardeningRules:");hardening.forEach(function(r){lines.push("        - "+r);});}
+    if(attack.length){lines.push("      attackProtectionRules:");lines.push("        - rules: ["+attack.join(", ")+"]");}
+    if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
   }
   if(mode==="BehaviorModeling"){
     var dur=parseInt(($("inp-duration")||{value:"60"}).value)||60;
     lines.push("    behaviorModeling:","      duration: "+(dur*60)+"s");
   }
+  if(mode==="DefenseInDepth") lines.push("    defenseInDepth:","      # Configure allowlist profiles in the DefenseInDepth tab");
   return lines.join("\n");
 }
 
@@ -2149,10 +2165,19 @@ function resetWizard(){
   var form=$("form-create");
   if(form) form.reset();
   document.querySelectorAll('input[name="rule"]').forEach(function(cb){cb.checked=false;});
+  // Clear all dynamic rows so old state doesn't bleed into new policy
+  ["bpf-files","bpf-procs","bpf-mounts","attack-groups","unconfined-rows",
+   "np-header-rows","np-l4-rows","np-http-rows"].forEach(function(id){
+    var el=$(id);if(el) el.innerHTML="";
+  });
+  // Uncheck ptrace perms (not part of form.reset since they're individual ids)
+  ["ptrace-perm-all","ptrace-perm-trace","ptrace-perm-traceby","ptrace-perm-read","ptrace-perm-readby"].forEach(function(id){
+    var el=$(id);if(el) el.checked=false;
+  });
   document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
   var tp=$("tmpl-picker");if(tp) tp.classList.remove("hidden");
   var eb=$("edit-banner");if(eb) eb.classList.add("hidden");
-  var cb=$("btn-cancel-edit");if(cb) cb.classList.add("hidden");
+  var cancelBtn=$("btn-cancel-edit");if(cancelBtn) cancelBtn.classList.add("hidden");
   if($("pnav-create-label")) $("pnav-create-label").textContent="Create Policy";
   _validatedOk=false;
   editMode=null;
@@ -4022,7 +4047,7 @@ async function doValidatePolicy(){
   ind.textContent="⟳ Validating…";ind.style.color="#60a5fa";
   try{
     var payload=buildPolicyPayload();
-    if(!payload){ind.textContent="✗ Fill required fields first";ind.style.color="#f87171";return;}
+    if(!payload){ind.textContent="✗ Fill required fields (name, target, enforcer)";ind.style.color="#f87171";return;}
     var res=await api("/api/policies/validate",{method:"POST",body:JSON.stringify(payload)});
     var d=await res.json();
     if(d.ok){
@@ -4067,7 +4092,8 @@ function buildPolicyPayload(){
     if(!targetDeployment) return null;
   }
   var enforcers=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
-  if(!enforcers.length) enforcers=["AppArmor"];
+  // EnhanceProtect requires at least one enforcer; other modes still need one for the CRD
+  if(!enforcers.length) return null;
   var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
   var caps=($("ta-dynamic-caps").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var banned=($("ta-banned").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
