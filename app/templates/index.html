@@ -61,6 +61,22 @@
     .tab-btn{padding:.3rem .75rem;font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;color:#64748b;background:transparent;border-radius:.375rem;transition:color 150ms,background 150ms,border-color 150ms}
     .tab-btn:hover{color:#94a3b8;background:#1e293b}
     .tab-btn.tab-active{color:#f1f5f9;background:#1e293b;border-color:#334155}
+    .pv-subnav{display:flex;align-items:center;gap:.25rem;padding-bottom:1rem;margin-bottom:1.25rem;border-bottom:1px solid #1e293b}
+    .pnav-btn{padding:.4rem .875rem;font-size:.8rem;font-weight:500;border-radius:.5rem;color:#64748b;border:none;background:transparent;cursor:pointer;transition:color 120ms,background 120ms;display:inline-flex;align-items:center;gap:.375rem}
+    .pnav-btn:hover{color:#f1f5f9;background:#1e293b}
+    .pnav-active{color:#f1f5f9!important;background:#1e293b!important}
+    .wiz-ind{display:flex;align-items:center;justify-content:center;gap:.375rem;padding:.5rem .75rem;border-radius:.5rem;font-size:.8rem;font-weight:500;color:#475569;flex:1;white-space:nowrap}
+    .wiz-ind-active{color:#93c5fd;background:#0c1a3b;border:1px solid #1d4ed8}
+    .wiz-ind-done{color:#4ade80;background:#071a07}
+    .wiz-num{display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:1.25rem;border-radius:50%;font-size:.7rem;background:#334155;color:#94a3b8;flex-shrink:0}
+    .wiz-ind-active .wiz-num{background:#1d4ed8;color:#fff}
+    .wiz-ind-done .wiz-num{background:#166534;color:#86efac}
+    .wiz-connector{height:1px;flex:0 0 .75rem;background:#1e293b;align-self:center}
+    .rtab-btn{padding:.35rem .75rem;font-size:.78rem;font-weight:500;border-radius:.375rem;border:1px solid #334155;background:transparent;color:#64748b;cursor:pointer;transition:all 120ms}
+    .rtab-btn:hover:not([disabled]){color:#f1f5f9;background:#1e293b;border-color:#475569}
+    .rtab-active{color:#93c5fd!important;background:#0c1a3b!important;border-color:#1d4ed8!important}
+    .rtab-btn[disabled]{opacity:.35;cursor:not-allowed}
+    .wiz-sticky-bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:.75rem;padding:.75rem 1.5rem;margin-top:1.5rem;background:#0a0f1a;border-top:1px solid #1e293b}
   </style>
 </head>
 <body class="min-h-screen">
@@ -343,33 +359,169 @@
     </div>
 
     <!-- ═══════════════ TAB: POLICY ═══════════════ -->
-    <div id="tab-policy" class="max-w-screen-2xl mx-auto w-full px-6 py-6">
-      <div class="grid grid-cols-12 gap-6">
+    <div id="tab-policy" class="max-w-screen-2xl mx-auto w-full px-6 py-4">
 
-        <!-- LEFT 8 cols -->
-        <div class="col-span-12 xl:col-span-8 space-y-6">
+      <!-- Policy sub-nav -->
+      <div class="pv-subnav">
+        <button id="pnav-list" class="pnav-btn pnav-active" onclick="switchPolicyView('list')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          Policies
+        </button>
+        <button id="pnav-create" class="pnav-btn" onclick="switchPolicyView('create')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          <span id="pnav-create-label">Create Policy</span>
+        </button>
+        <button id="pnav-queue" class="pnav-btn" onclick="switchPolicyView('queue')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Review Queue
+          <span id="queue-pending-badge" class="hidden badge badge-amber" style="font-size:.65rem;margin-left:.25rem">0 pending</span>
+        </button>
+        <div style="flex:1"></div>
+        <button id="btn-import-policy" onclick="openImportModal()" class="btn btn-ghost btn-sm" title="Import policy from YAML">&#11014; Import YAML</button>
+      </div>
 
-        <!-- CREATE / EDIT POLICY -->
-        <section class="card">
-          <h2 id="form-title" class="text-base font-semibold flex items-center gap-2 mb-5" style="color:#f1f5f9">
-            <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Create Policy
-          </h2>
+      <!-- ═══════ VIEW: Policies list ═══════ -->
+      <div id="pv-list">
+        <div class="grid grid-cols-12 gap-6">
+          <div class="col-span-12 xl:col-span-8 space-y-6">
 
-          <!-- Edit mode banner -->
-          <div id="edit-banner" class="hidden edit-banner">
-            <div>
-              <span style="font-size:.8rem;color:#d97706;font-weight:600">&#9998; Editing Policy:</span>
-              <span id="edit-banner-name" class="font-mono text-sm ml-2" style="color:#fbbf24"></span>
+          <!-- ACTIVE POLICIES -->
+          <section class="card">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                Active Policies
+                <span id="auto-refresh-badge" class="hidden badge badge-purple" style="font-size:.65rem;padding:.15rem .45rem">&#x21BB; auto-refreshing</span>
+              </h2>
+              <div class="flex items-center gap-2">
+                <button onclick="loadPolicies()" class="btn btn-ghost btn-sm">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Refresh
+                </button>
+                <button onclick="switchPolicyView('create')" class="btn btn-primary btn-sm">+ New Policy</button>
+              </div>
             </div>
-            <button type="button" onclick="cancelEdit()" class="btn btn-ghost btn-sm">&#10005; Cancel</button>
+            <div class="mb-3">
+              <input id="inp-search" type="text" placeholder="Search by name, target or mode&#8230;" class="form-input" oninput="filterPolicies()" style="font-size:.8125rem"/>
+            </div>
+            <div id="pol-loading" class="hidden py-8 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="pol-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No policies found.</div>
+            <div id="pol-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div id="batch-bar" class="hidden mb-3 flex items-center gap-3 px-3 py-2 rounded-lg" style="background:#1c1a05;border:1px solid #854d0e">
+              <span id="batch-count" class="text-sm font-semibold" style="color:#fbbf24">0 selected</span>
+              <button onclick="confirmBatchDelete()" class="btn btn-danger btn-sm">Delete Selected</button>
+              <button onclick="clearSelection()" class="btn btn-ghost btn-sm">Clear</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th" style="width:2rem;text-align:center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer" title="Select all"></th>
+                    <th class="th">Name</th><th class="th">Scope</th><th class="th">Target</th>
+                    <th class="th">Mode</th><th class="th">Enforcer</th>
+                    <th class="th">Status</th><th class="th">Created</th><th class="th th-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pol-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- BEHAVIOR MODELS -->
+          <section class="card">
+            <div class="collapsible-hdr" onclick="toggleSection('models-content','models-arr')">
+              <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+                <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                Behavior Models <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(ArmorProfileModel)</span>
+              </h2>
+              <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation();loadProfileModels()" class="btn btn-ghost btn-sm">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Refresh
+                </button>
+                <span id="models-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
+              </div>
+            </div>
+            <div id="models-content" class="mt-4">
+              <div id="models-loading" class="hidden py-6 flex justify-center">
+                <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              </div>
+              <div id="models-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfileModels in this namespace.</div>
+              <div id="models-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr style="border-bottom:1px solid #1e293b">
+                      <th class="th">Name</th><th class="th">Phase</th><th class="th">Storage</th><th class="th">Created</th><th class="th th-r">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="models-body"></tbody>
+                </table>
+              </div>
+              <p class="mt-3 text-xs" style="color:#475569">ArmorProfileModels are generated automatically when a BehaviorModeling policy completes its observation period.</p>
+            </div>
+          </section>
+
           </div>
 
-          <div id="policy-admin-notice" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
-            Viewer role can inspect policies but cannot create, edit, delete, restart, or apply models.
+          <!-- RIGHT 4 cols: Deployments -->
+          <div class="col-span-12 xl:col-span-4">
+            <div class="card xl:sticky xl:top-28">
+              <div class="flex items-center justify-between mb-5">
+                <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                  <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
+                  Deployments
+                </h2>
+                <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:.3rem">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+              </div>
+              <div id="dep-loading" class="hidden py-6 flex justify-center">
+                <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              </div>
+              <div id="dep-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No deployments found.</div>
+              <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+              <div id="dep-list" class="space-y-2"></div>
+            </div>
           </div>
+        </div>
+      </div>
 
-          <form id="form-create" novalidate>
+      <!-- ═══════ VIEW: Create / Edit wizard ═══════ -->
+      <div id="pv-create" class="hidden">
+
+        <!-- Edit banner -->
+        <div id="edit-banner" class="hidden edit-banner">
+          <div>
+            <span style="font-size:.8rem;color:#d97706;font-weight:600">&#9998; Editing Policy:</span>
+            <span id="edit-banner-name" class="font-mono text-sm ml-2" style="color:#fbbf24"></span>
+          </div>
+          <button type="button" onclick="cancelEdit()" class="btn btn-ghost btn-sm">&#10005; Cancel</button>
+        </div>
+
+        <!-- Viewer notice -->
+        <div id="policy-admin-notice" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
+          Viewer role: read-only access. Cannot create, submit, or approve policies.
+        </div>
+
+        <!-- Wizard step indicator -->
+        <div class="flex items-center mb-6">
+          <div id="wiz-ind-1" class="wiz-ind wiz-ind-active"><span class="wiz-num">1</span><span>Scope &amp; Target</span></div>
+          <div class="wiz-connector"></div>
+          <div id="wiz-ind-2" class="wiz-ind"><span class="wiz-num">2</span><span>Mode &amp; Enforcers</span></div>
+          <div class="wiz-connector"></div>
+          <div id="wiz-ind-3" class="wiz-ind"><span class="wiz-num">3</span><span>Rules</span></div>
+          <div class="wiz-connector"></div>
+          <div id="wiz-ind-4" class="wiz-ind"><span class="wiz-num">4</span><span>Review &amp; Apply</span></div>
+        </div>
+
+        <form id="form-create" novalidate>
+
+          <!-- ─── STEP 1: Scope & Target ─── -->
+          <div id="wiz-step-1" class="card mb-4">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Scope &amp; Target</h3>
 
             <!-- Scope -->
             <div class="mb-4 p-3 rounded-xl flex flex-wrap gap-5" style="background:#0f172a;border:1px solid #334155">
@@ -430,10 +582,15 @@
             </div>
 
             <!-- Containers (optional) -->
-            <div class="mb-4">
+            <div>
               <label class="form-label">Target Containers <span style="color:#475569;font-size:.75rem;font-weight:400">(optional — comma-separated, leave blank to protect all)</span></label>
               <input id="inp-containers" type="text" placeholder="app, sidecar" class="form-input"/>
             </div>
+          </div>
+
+          <!-- ─── STEP 2: Mode & Enforcers ─── -->
+          <div id="wiz-step-2" class="card mb-4 hidden">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Mode &amp; Enforcers</h3>
 
             <!-- Mode -->
             <div class="mb-5">
@@ -447,9 +604,8 @@
               </select>
             </div>
 
-            <!-- EnhanceProtect options -->
+            <!-- Enforcers (for EnhanceProtect) -->
             <div id="sec-enhance">
-              <!-- Enforcers -->
               <div class="mb-4">
                 <label class="form-label" style="margin-bottom:.625rem">Kernel Enforcers</label>
                 <div class="flex flex-wrap gap-5">
@@ -461,8 +617,44 @@
                 <div id="enf-combo-warn" style="display:none;margin-top:.5rem;padding:.4rem .75rem;background:#1c0a05;border:1px solid #9a3412;border-radius:.5rem;font-size:.75rem;color:#fdba74"></div>
                 <label class="cb-row mt-3"><input type="checkbox" id="chk-privileged"><span style="color:#94a3b8">Privileged workload baseline <span class="dim">(build AppArmor/BPF from AlwaysAllow; Seccomp profile is skipped by vArmor)</span></span></label>
               </div>
+            </div>
 
-              <!-- Built-in rules -->
+            <!-- AlwaysAllow / RuntimeDefault / BehaviorModeling / DID info -->
+            <div id="sec-simple" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
+              <span id="simple-note"></span>
+            </div>
+
+            <!-- Options -->
+            <div class="p-3 rounded-xl space-y-2" style="background:#0c1a3b;border:1px solid #1d4ed8">
+              <label class="cb-row">
+                <input type="checkbox" id="chk-auto-restart" checked>
+                <span style="font-weight:600;color:#93c5fd">Auto-restart Deployment after policy creation</span>
+              </label>
+              <p style="font-size:.78rem;color:#475569;line-height:1.5;margin-left:1.5rem">Adds <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> label and triggers rolling restart.</p>
+              <label class="cb-row">
+                <input type="checkbox" id="chk-update-existing">
+                <span style="color:#93c5fd">updateExistingWorkloads <span style="color:#475569;font-weight:400;font-size:.8rem">— vArmor rolling update existing pods</span></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- ─── STEP 3: Rules (tab-based) ─── -->
+          <div id="wiz-step-3" class="card mb-4 hidden">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Rules</h3>
+
+            <!-- Rule tab buttons -->
+            <div class="flex flex-wrap gap-2 mb-5">
+              <button type="button" id="rtab-btn-apparmor" class="rtab-btn rtab-active" onclick="switchRuleTab('apparmor')">AppArmor</button>
+              <button type="button" id="rtab-btn-attack" class="rtab-btn" onclick="switchRuleTab('attack')">Attack Protection</button>
+              <button type="button" id="rtab-btn-bpf" class="rtab-btn" onclick="switchRuleTab('bpf')">BPF</button>
+              <button type="button" id="rtab-btn-seccomp" class="rtab-btn" onclick="switchRuleTab('seccomp')">Seccomp</button>
+              <button type="button" id="rtab-btn-networkproxy" class="rtab-btn" onclick="switchRuleTab('networkproxy')">NetworkProxy</button>
+              <button type="button" id="rtab-btn-did" class="rtab-btn" onclick="switchRuleTab('did')">DefenseInDepth</button>
+              <button type="button" id="rtab-btn-general" class="rtab-btn" onclick="switchRuleTab('general')">General</button>
+            </div>
+
+            <!-- Tab: AppArmor -->
+            <div id="rtab-apparmor">
               <div class="mb-4 space-y-2">
                 <label class="form-label" style="margin-bottom:.5rem">Built-in Defense Rules</label>
                 <div class="rule-group">
@@ -495,45 +687,6 @@
                   </div>
                 </div>
                 <div class="rule-group">
-                  <div class="rule-group-hdr" onclick="toggleGroup('grp-attack')" style="background:#0c1a3b">
-                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#93c5fd">&#128737; Attack Protection <span id="cnt-attack" class="text-xs font-normal" style="color:#64748b"></span></span>
-                    <span id="arr-attack" style="color:#64748b;font-size:.75rem">&#9660;</span>
-                  </div>
-                  <div id="grp-attack" class="rule-group-body">
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-sa-leak" onchange="updateRuleCounts()"><span>Mitigate ServiceAccount token leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-host-ip-leak" onchange="updateRuleCounts()"><span>Mitigate host IP/MAC leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-disk-device-number-leak" onchange="updateRuleCounts()"><span>Mitigate disk device number leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-overlayfs-leak" onchange="updateRuleCounts()"><span>Mitigate overlayfs path leakage</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-metadata-service" onchange="updateRuleCounts()"><span>Block all cloud metadata services <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-aws-metadata-service" onchange="updateRuleCounts()"><span>Block AWS/GCP/Azure metadata <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-kube-apiserver" onchange="updateRuleCounts()"><span>Block kube-apiserver access <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-container-runtime" onchange="updateRuleCounts()"><span>Block container runtime sockets <span class="dim">(CVE-2024-0132)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-etc" onchange="updateRuleCounts()"><span>Prohibit writing to /etc</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-shadow" onchange="updateRuleCounts()"><span>Prohibit access to /etc/shadow</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-passwd" onchange="updateRuleCounts()"><span>Prohibit access to /etc/passwd</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-ssh-dir" onchange="updateRuleCounts()"><span>Prohibit access to .ssh directories</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-shell" onchange="updateRuleCounts()"><span>Prohibit Unix shell creation</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-wget" onchange="updateRuleCounts()"><span>Prohibit wget</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-curl" onchange="updateRuleCounts()"><span>Prohibit curl</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-busybox" onchange="updateRuleCounts()"><span>Prohibit busybox</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod" onchange="updateRuleCounts()"><span>Prohibit chmod command</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-su-sudo" onchange="updateRuleCounts()"><span>Prohibit su/sudo</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-network" onchange="updateRuleCounts()"><span>Prohibit all network access</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet" onchange="updateRuleCounts()"><span>Prohibit IPv4</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet6" onchange="updateRuleCounts()"><span>Prohibit IPv6</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-tcp" onchange="updateRuleCounts()"><span>Prohibit TCP</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-udp" onchange="updateRuleCounts()"><span>Prohibit UDP</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-icmp" onchange="updateRuleCounts()"><span>Prohibit ICMP</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-unix-domain-socket" onchange="updateRuleCounts()"><span>Prohibit Unix domain sockets</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-skills" onchange="updateRuleCounts()"><span>Prohibit writing skill files</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-x-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +x (set exec bit)</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-s-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +s (set SUID/SGID)</span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-volc-metadata-service" onchange="updateRuleCounts()"><span>Block Volcengine metadata service <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-alibaba-metadata-service" onchange="updateRuleCounts()"><span>Block Alibaba Cloud metadata service <span class="dim">(BPF)</span></span></label>
-                    <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-oci-metadata-service" onchange="updateRuleCounts()"><span>Block OCI metadata service <span class="dim">(BPF)</span></span></label>
-                  </div>
-                </div>
-                <div class="rule-group">
                   <div class="rule-group-hdr" onclick="toggleGroup('grp-vuln')">
                     <span class="flex items-center gap-2 text-sm font-semibold" style="color:#4ade80">&#128203; Vulnerability Mitigation <span id="cnt-vuln" class="text-xs font-normal" style="color:#64748b"></span></span>
                     <span id="arr-vuln" style="color:#64748b;font-size:.75rem">&#9658;</span>
@@ -553,7 +706,19 @@
                 <textarea id="ta-dynamic-caps" rows="2" placeholder="NET_RAW&#10;MKNOD" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
               </div>
 
-              <!-- Attack Protection Groups (per-rule targets) -->
+              <div class="mb-4">
+                <label class="form-label">Banned File Paths <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor deny — one per line)</span></label>
+                <textarea id="ta-banned" rows="3" placeholder="/etc/shadow&#10;/proc/sysrq-trigger&#10;/sys/kernel/debug" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              </div>
+
+              <div>
+                <label class="form-label">AppArmor Raw Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, one rule per line or JSON array with rules/targets)</span></label>
+                <textarea id="ta-apparmor-raw" rows="3" placeholder="deny /var/run/docker.sock rw,&#10;deny network packet raw," class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+              </div>
+            </div>
+
+            <!-- Tab: Attack Protection -->
+            <div id="rtab-attack" class="hidden">
               <div class="mb-4">
                 <div class="flex items-center justify-between mb-1">
                   <label class="form-label" style="margin:0">Attack Protection Groups <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor only — per-group executable targets)</span></label>
@@ -562,25 +727,55 @@
                 <div id="attack-groups" class="space-y-2"></div>
                 <p class="mt-1 text-xs" style="color:#475569">Each group restricts specific rules to listed executables. Checked rules not in any group apply to all processes.</p>
               </div>
-
-              <!-- AppArmor banned files -->
-              <div class="mb-4">
-                <label class="form-label">Banned File Paths <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor deny — one per line)</span></label>
-                <textarea id="ta-banned" rows="3" placeholder="/etc/shadow&#10;/proc/sysrq-trigger&#10;/sys/kernel/debug" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              <div class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-attack')" style="background:#0c1a3b">
+                  <span class="flex items-center gap-2 text-sm font-semibold" style="color:#93c5fd">&#128737; Attack Protection Rules <span id="cnt-attack" class="text-xs font-normal" style="color:#64748b"></span></span>
+                  <span id="arr-attack" style="color:#64748b;font-size:.75rem">&#9660;</span>
+                </div>
+                <div id="grp-attack" class="rule-group-body">
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-sa-leak" onchange="updateRuleCounts()"><span>Mitigate ServiceAccount token leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-host-ip-leak" onchange="updateRuleCounts()"><span>Mitigate host IP/MAC leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-disk-device-number-leak" onchange="updateRuleCounts()"><span>Mitigate disk device number leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-overlayfs-leak" onchange="updateRuleCounts()"><span>Mitigate overlayfs path leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-metadata-service" onchange="updateRuleCounts()"><span>Block all cloud metadata services <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-aws-metadata-service" onchange="updateRuleCounts()"><span>Block AWS/GCP/Azure metadata <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-kube-apiserver" onchange="updateRuleCounts()"><span>Block kube-apiserver access <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-container-runtime" onchange="updateRuleCounts()"><span>Block container runtime sockets <span class="dim">(CVE-2024-0132)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-etc" onchange="updateRuleCounts()"><span>Prohibit writing to /etc</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-shadow" onchange="updateRuleCounts()"><span>Prohibit access to /etc/shadow</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-passwd" onchange="updateRuleCounts()"><span>Prohibit access to /etc/passwd</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-ssh-dir" onchange="updateRuleCounts()"><span>Prohibit access to .ssh directories</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-shell" onchange="updateRuleCounts()"><span>Prohibit Unix shell creation</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-wget" onchange="updateRuleCounts()"><span>Prohibit wget</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-curl" onchange="updateRuleCounts()"><span>Prohibit curl</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-busybox" onchange="updateRuleCounts()"><span>Prohibit busybox</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod" onchange="updateRuleCounts()"><span>Prohibit chmod command</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-su-sudo" onchange="updateRuleCounts()"><span>Prohibit su/sudo</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-network" onchange="updateRuleCounts()"><span>Prohibit all network access</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet" onchange="updateRuleCounts()"><span>Prohibit IPv4</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet6" onchange="updateRuleCounts()"><span>Prohibit IPv6</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-tcp" onchange="updateRuleCounts()"><span>Prohibit TCP</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-udp" onchange="updateRuleCounts()"><span>Prohibit UDP</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-icmp" onchange="updateRuleCounts()"><span>Prohibit ICMP</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-unix-domain-socket" onchange="updateRuleCounts()"><span>Prohibit Unix domain sockets</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-skills" onchange="updateRuleCounts()"><span>Prohibit writing skill files</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-x-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +x (set exec bit)</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-s-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +s (set SUID/SGID)</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-volc-metadata-service" onchange="updateRuleCounts()"><span>Block Volcengine metadata service <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-alibaba-metadata-service" onchange="updateRuleCounts()"><span>Block Alibaba Cloud metadata service <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-oci-metadata-service" onchange="updateRuleCounts()"><span>Block OCI metadata service <span class="dim">(BPF)</span></span></label>
+                </div>
               </div>
+            </div>
 
-              <div class="mb-4">
-                <label class="form-label">AppArmor Raw Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, one rule per line or JSON array with rules/targets)</span></label>
-                <textarea id="ta-apparmor-raw" rows="3" placeholder="deny /var/run/docker.sock rw,&#10;deny network packet raw," class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
-              </div>
-
-              <!-- BPF raw rules (shown when BPF checked) -->
-              <div id="sec-bpf-rules" class="hidden mb-4 rule-group">
+            <!-- Tab: BPF -->
+            <div id="rtab-bpf" class="hidden">
+              <div id="sec-bpf-rules" class="rule-group">
                 <div class="rule-group-hdr" onclick="toggleGroup('grp-bpf')" style="background:#051a0a">
                   <span class="text-sm font-semibold" style="color:#4ade80">&#9881; Custom BPF Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(bpfRawRules)</span></span>
-                  <span id="arr-bpf" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  <span id="arr-bpf" style="color:#64748b;font-size:.75rem">&#9660;</span>
                 </div>
-                <div id="grp-bpf" class="hidden p-3 space-y-4">
+                <div id="grp-bpf" class="p-3 space-y-4">
                   <div>
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-semibold" style="color:#94a3b8">FILE RULES</span>
@@ -648,13 +843,17 @@
                 </div>
               </div>
 
-              <!-- Seccomp raw rules (shown when Seccomp checked) -->
-              <div id="sec-seccomp-rules" class="hidden mb-4 rule-group">
+              </div><!-- /sec-bpf-rules -->
+            </div><!-- /rtab-bpf -->
+
+            <!-- Tab: Seccomp -->
+            <div id="rtab-seccomp" class="hidden">
+              <div id="sec-seccomp-rules" class="rule-group">
                 <div class="rule-group-hdr" onclick="toggleGroup('grp-seccomp')" style="background:#1c0a05">
                   <span class="text-sm font-semibold" style="color:#fb923c">&#128274; Custom Seccomp Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(syscallRawRules)</span></span>
-                  <span id="arr-seccomp" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  <span id="arr-seccomp" style="color:#64748b;font-size:.75rem">&#9660;</span>
                 </div>
-                <div id="grp-seccomp" class="hidden p-3 space-y-3">
+                <div id="grp-seccomp" class="p-3 space-y-3">
                   <div>
                     <label class="form-label">Action</label>
                     <select id="sel-seccomp-action" class="form-input" style="max-width:20rem">
@@ -674,30 +873,17 @@
                 </div>
               </div>
 
-              <!-- Observation -->
-              <div class="mb-4 flex flex-wrap gap-5">
-                <label class="cb-row"><input type="checkbox" id="chk-audit-viol"><span style="color:#94a3b8">Audit violations (log detections)</span></label>
-                <label class="cb-row"><input type="checkbox" id="chk-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only)</span></label>
-              </div>
+              </div><!-- /sec-seccomp-rules -->
+            </div><!-- /rtab-seccomp -->
 
-              <!-- Container unconfined overrides -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-1">
-                  <label class="form-label" style="margin:0">Container Unconfined Overrides <span style="color:#475569;font-size:.75rem;font-weight:400">(exclude specific containers from enforcement)</span></label>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="addUnconfinedRow()">+ Add Container</button>
+            <!-- Tab: NetworkProxy -->
+            <div id="rtab-networkproxy" class="hidden">
+              <div id="sec-np-config" class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-np')" style="background:#051429">
+                  <span class="text-sm font-semibold" style="color:#38bdf8">&#127760; NetworkProxy Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(networkProxyRawRules + config)</span></span>
+                  <span id="arr-grp-np" style="color:#64748b;font-size:.75rem">&#9660;</span>
                 </div>
-                <div id="unconfined-rows" class="space-y-1"></div>
-                <p class="mt-1 text-xs" style="color:#475569">Adds <code style="color:#7dd3fc">container.apparmor.security.beta.varmor.org/&lt;name&gt;=unconfined</code> annotation to the workload pod template.</p>
-              </div>
-            </div>
-
-            <!-- NetworkProxy MITM Config (shown when NetworkProxy enforcer enabled) -->
-            <div id="sec-np-config" class="hidden mb-4 rule-group">
-              <div class="rule-group-hdr" onclick="toggleGroup('grp-np')" style="background:#051429">
-                <span class="text-sm font-semibold" style="color:#38bdf8">&#127760; NetworkProxy Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(networkProxyRawRules + config)</span></span>
-                <span id="arr-grp-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
-              </div>
-              <div id="grp-np" class="hidden p-3 space-y-4">
+                <div id="grp-np" class="p-3 space-y-4">
 
                 <!-- MITM Domains -->
                 <div>
@@ -781,25 +967,19 @@
               </div>
             </div>
 
-            <!-- BehaviorModeling -->
-            <div id="sec-modeling" class="hidden mb-4">
-              <label class="form-label">Modeling Duration <span style="color:#475569;font-size:.75rem;font-weight:400">(minutes)</span></label>
-              <input id="inp-duration" type="number" min="1" value="60" class="form-input" style="max-width:12rem"/>
-              <p class="mt-1 text-xs" style="color:#64748b">vArmor records container behavior for this duration, then transitions to Completed state.</p>
-            </div>
-
-            <!-- DefenseInDepth full config -->
-            <div id="sec-did" class="hidden mb-4 space-y-3">
-              <div class="p-3 rounded-lg text-sm" style="background:#0c1205;border:1px solid #166534;color:#86efac">
-                DefenseInDepth applies a deny-by-default allowlist profile. Configure AppArmor/Seccomp profiles and optional NetworkProxy egress rules below.
-              </div>
-              <!-- DID AppArmor -->
-              <div class="rule-group">
-                <div class="rule-group-hdr" onclick="toggleGroup('did-apparmor')" style="background:#0c1205">
-                  <span class="text-sm font-semibold" style="color:#4ade80">AppArmor Profile</span>
-                  <span id="arr-did-apparmor" style="color:#64748b;font-size:.75rem">&#9658;</span>
+            <!-- Tab: DefenseInDepth -->
+            <div id="rtab-did" class="hidden">
+              <div id="sec-did" class="space-y-3">
+                <div class="p-3 rounded-lg text-sm" style="background:#0c1205;border:1px solid #166534;color:#86efac">
+                  DefenseInDepth applies a deny-by-default allowlist profile. Configure AppArmor/Seccomp profiles and optional NetworkProxy egress rules below.
                 </div>
-                <div id="did-apparmor" class="hidden p-3 space-y-3">
+                <!-- DID AppArmor -->
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('did-apparmor')" style="background:#0c1205">
+                    <span class="text-sm font-semibold" style="color:#4ade80">AppArmor Profile</span>
+                    <span id="arr-did-apparmor" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="did-apparmor" class="hidden p-3 space-y-3">
                   <div>
                     <label class="form-label">Profile Type</label>
                     <div class="flex gap-5">
@@ -818,27 +998,27 @@
                 </div>
               </div>
               <!-- DID Seccomp -->
-              <div class="rule-group">
-                <div class="rule-group-hdr" onclick="toggleGroup('did-seccomp')" style="background:#1c0a05">
-                  <span class="text-sm font-semibold" style="color:#fb923c">Seccomp Profile</span>
-                  <span id="arr-did-seccomp" style="color:#64748b;font-size:.75rem">&#9658;</span>
-                </div>
-                <div id="did-seccomp" class="hidden p-3 space-y-3">
-                  <div>
-                    <label class="form-label">Profile Type</label>
-                    <div class="flex gap-5">
-                      <label class="cb-row"><input type="radio" name="did-sc-type" value="BehaviorModel" onchange="onDidScTypeChange()"><span>BehaviorModel</span></label>
-                      <label class="cb-row"><input type="radio" name="did-sc-type" value="Custom" onchange="onDidScTypeChange()"><span>Custom</span></label>
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('did-seccomp')" style="background:#1c0a05">
+                    <span class="text-sm font-semibold" style="color:#fb923c">Seccomp Profile</span>
+                    <span id="arr-did-seccomp" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="did-seccomp" class="hidden p-3 space-y-3">
+                    <div>
+                      <label class="form-label">Profile Type</label>
+                      <div class="flex gap-5">
+                        <label class="cb-row"><input type="radio" name="did-sc-type" value="BehaviorModel" onchange="onDidScTypeChange()"><span>BehaviorModel</span></label>
+                        <label class="cb-row"><input type="radio" name="did-sc-type" value="Custom" onchange="onDidScTypeChange()"><span>Custom</span></label>
+                      </div>
                     </div>
-                  </div>
-                  <div id="did-sc-custom-sec" class="hidden">
-                    <label class="form-label">Custom Profile <span style="color:#475569;font-size:.75rem;font-weight:400">(base64-encoded Seccomp profile)</span></label>
-                    <textarea id="ta-did-sc-custom" rows="3" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
-                  </div>
-                  <div>
-                    <label class="form-label">Allowed Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
-                    <textarea id="ta-did-sc-syscalls" rows="4" placeholder="read&#10;write&#10;open&#10;close" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
-                  </div>
+                    <div id="did-sc-custom-sec" class="hidden">
+                      <label class="form-label">Custom Profile <span style="color:#475569;font-size:.75rem;font-weight:400">(base64-encoded Seccomp profile)</span></label>
+                      <textarea id="ta-did-sc-custom" rows="3" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                    </div>
+                    <div>
+                      <label class="form-label">Allowed Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                      <textarea id="ta-did-sc-syscalls" rows="4" placeholder="read&#10;write&#10;open&#10;close" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                    </div>
                   <div>
                     <label class="form-label">Full LinuxSyscall JSON <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, overrides simple syscall list)</span></label>
                     <textarea id="ta-did-sc-raw" rows="4" placeholder='[{"names":["read","write"],"action":"SCMP_ACT_ALLOW"}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
@@ -853,121 +1033,91 @@
                 </div>
               </div>
               <!-- DID NetworkProxy egress -->
-              <div class="rule-group">
-                <div class="rule-group-hdr" onclick="toggleGroup('did-np')" style="background:#051429">
-                  <span class="text-sm font-semibold" style="color:#38bdf8">NetworkProxy Egress <span style="color:#64748b;font-weight:400;font-size:.75rem">(optional)</span></span>
-                  <span id="arr-did-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('did-np')" style="background:#051429">
+                    <span class="text-sm font-semibold" style="color:#38bdf8">NetworkProxy Egress <span style="color:#64748b;font-weight:400;font-size:.75rem">(optional)</span></span>
+                    <span id="arr-did-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="did-np" class="hidden p-3">
+                    <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON object)</span></label>
+                    <textarea id="ta-did-np-egress" rows="4" placeholder='{"defaultAction":"deny","rules":[{"qualifiers":["allow"],"cidr":"10.0.0.0/8","ports":[{"port":443}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  </div>
                 </div>
-                <div id="did-np" class="hidden p-3">
-                  <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON object)</span></label>
-                  <textarea id="ta-did-np-egress" rows="4" placeholder='{"defaultAction":"deny","rules":[{"qualifiers":["allow"],"cidr":"10.0.0.0/8","ports":[{"port":443}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
-                </div>
+                <label class="cb-row mt-2"><input type="checkbox" id="did-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only mode)</span></label>
+              </div><!-- /sec-did -->
+            </div><!-- /rtab-did -->
+
+            <!-- Tab: General -->
+            <div id="rtab-general" class="hidden">
+              <!-- BehaviorModeling duration -->
+              <div id="sec-modeling" class="mb-4">
+                <label class="form-label">Modeling Duration <span style="color:#475569;font-size:.75rem;font-weight:400">(minutes)</span></label>
+                <input id="inp-duration" type="number" min="1" value="60" class="form-input" style="max-width:12rem"/>
+                <p class="mt-1 text-xs" style="color:#64748b">vArmor records container behavior for this duration, then transitions to Completed state.</p>
               </div>
-              <label class="cb-row"><input type="checkbox" id="did-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only mode)</span></label>
-            </div>
 
-            <!-- AlwaysAllow / RuntimeDefault info -->
-            <div id="sec-simple" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
-              <span id="simple-note"></span>
-            </div>
+              <!-- Observation toggles -->
+              <div class="mb-4 flex flex-wrap gap-5">
+                <label class="cb-row"><input type="checkbox" id="chk-audit-viol"><span style="color:#94a3b8">Audit violations (log detections)</span></label>
+                <label class="cb-row"><input type="checkbox" id="chk-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only)</span></label>
+              </div>
 
-            <!-- Options -->
-            <div class="mb-5 p-3 rounded-xl space-y-2" style="background:#0c1a3b;border:1px solid #1d4ed8">
-              <label class="cb-row">
-                <input type="checkbox" id="chk-auto-restart" checked>
-                <span style="font-weight:600;color:#93c5fd">Auto-restart Deployment after policy creation</span>
-              </label>
-              <p style="font-size:.78rem;color:#475569;line-height:1.5;margin-left:1.5rem">Adds <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> label and triggers rolling restart.</p>
-              <label class="cb-row">
-                <input type="checkbox" id="chk-update-existing">
-                <span style="color:#93c5fd">updateExistingWorkloads <span style="color:#475569;font-weight:400;font-size:.8rem">— vArmor rolling update existing pods</span></span>
-              </label>
-            </div>
+              <!-- Container unconfined overrides -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="form-label" style="margin:0">Container Unconfined Overrides <span style="color:#475569;font-size:.75rem;font-weight:400">(exclude specific containers from enforcement)</span></label>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="addUnconfinedRow()">+ Add Container</button>
+                </div>
+                <div id="unconfined-rows" class="space-y-1"></div>
+                <p class="mt-1 text-xs" style="color:#475569">Adds <code style="color:#7dd3fc">container.apparmor.security.beta.varmor.org/&lt;name&gt;=unconfined</code> annotation to the workload pod template.</p>
+              </div>
+            </div><!-- /rtab-general -->
 
-            <!-- Progress -->
+          </div><!-- /wiz-step-3 -->
+
+          <!-- ─── STEP 4: Review & Apply ─── -->
+          <div id="wiz-step-4" class="card mb-4 hidden">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Review &amp; Apply</h3>
+            <div id="wiz-summary" class="mb-4 space-y-1 text-sm" style="color:#94a3b8"></div>
             <div id="create-progress" class="hidden mb-4 p-4 rounded-xl space-y-2" style="background:#0f172a;border:1px solid #1e293b">
               <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Applying policy CRD&#8230;</span></div>
               <div id="step-restart" class="step"><span id="icon-restart">&#9675;</span><span>Labeling &amp; restarting deployment&#8230;</span></div>
             </div>
             <div id="create-msg" class="hidden mb-4"></div>
-            <!-- Validate + action buttons -->
-            <div class="flex items-center justify-between gap-3 flex-wrap">
-              <div class="flex items-center gap-3">
-                <button type="button" id="btn-validate" onclick="doValidatePolicy()" class="btn btn-ghost">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                  Validate
-                </button>
-                <span id="validate-indicator" class="text-sm font-semibold"></span>
-              </div>
-              <div class="flex items-center gap-3">
-                <button type="button" id="btn-cancel-edit" class="hidden btn btn-ghost" onclick="cancelEdit()">Cancel Edit</button>
-                <!-- Operator + Admin: Submit for Review -->
-                <button type="button" id="btn-submit-review" onclick="doSubmitForReview()" class="btn btn-warning hidden" disabled>
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                  <span id="btn-submit-label">Submit for Review</span>
-                </button>
-                <!-- Admin only: Apply Directly (bypass review) -->
-                <button type="submit" id="btn-apply-direct" class="btn btn-primary hidden" disabled>
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  <span id="btn-create-label">Apply Directly</span>
-                </button>
-              </div>
-            </div>
-            <p id="validate-hint" class="text-xs mt-2" style="color:#475569">Click <b>Validate</b> first to check the policy spec — submit/apply buttons activate on success.</p>
-          </form>
-        </section>
+            <p id="validate-hint" class="text-xs" style="color:#475569">Click <b>Validate</b> to check the policy spec — submit/apply buttons activate on success.</p>
+          </div><!-- /wiz-step-4 -->
 
-        <!-- ACTIVE POLICIES -->
+          <!-- Sticky action bar -->
+          <div class="wiz-sticky-bar">
+            <button type="button" id="wiz-btn-back" class="btn btn-ghost hidden" onclick="wizBack()">&#8592; Back</button>
+            <div style="flex:1"></div>
+            <button type="button" id="wiz-btn-next" class="btn btn-primary" onclick="wizNext()">Next &#8594;</button>
+            <button type="button" id="btn-validate" onclick="doValidatePolicy()" class="btn btn-ghost hidden">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Validate
+            </button>
+            <span id="validate-indicator" class="text-sm font-semibold hidden"></span>
+            <button type="button" id="btn-cancel-edit" class="hidden btn btn-ghost" onclick="cancelEdit()">Cancel Edit</button>
+            <button type="button" id="btn-submit-review" onclick="doSubmitForReview()" class="btn btn-warning hidden" disabled>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              <span id="btn-submit-label">Submit for Review</span>
+            </button>
+            <button type="submit" id="btn-apply-direct" class="btn btn-primary hidden" disabled>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span id="btn-create-label">Apply Directly</span>
+            </button>
+          </div><!-- /sticky bar -->
+
+        </form>
+      </div><!-- /pv-create -->
+
+      <!-- ═══════ VIEW: Review Queue ═══════ -->
+      <div id="pv-queue" class="hidden">
         <section class="card">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
-              <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-              Active Policies
-              <span id="auto-refresh-badge" class="hidden badge badge-purple" style="font-size:.65rem;padding:.15rem .45rem">&#x21BB; auto-refreshing</span>
-            </h2>
-            <div class="flex items-center gap-2">
-              <button id="btn-import-policy" onclick="openImportModal()" class="btn btn-ghost btn-sm" title="Import policy from YAML">&#11014; Import YAML</button>
-              <button onclick="loadPolicies()" class="btn btn-ghost btn-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Refresh
-              </button>
-            </div>
-          </div>
-          <div class="mb-3">
-            <input id="inp-search" type="text" placeholder="Search by name, target or mode&#8230;" class="form-input" oninput="filterPolicies()" style="font-size:.8125rem"/>
-          </div>
-          <div id="pol-loading" class="hidden py-8 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          </div>
-          <div id="pol-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No policies found.</div>
-          <div id="pol-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-          <!-- Batch toolbar (shown when checkboxes selected) -->
-          <div id="batch-bar" class="hidden mb-3 flex items-center gap-3 px-3 py-2 rounded-lg" style="background:#1c1a05;border:1px solid #854d0e">
-            <span id="batch-count" class="text-sm font-semibold" style="color:#fbbf24">0 selected</span>
-            <button onclick="confirmBatchDelete()" class="btn btn-danger btn-sm">Delete Selected</button>
-            <button onclick="clearSelection()" class="btn btn-ghost btn-sm">Clear</button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr style="border-bottom:1px solid #1e293b">
-                  <th class="th" style="width:2rem;text-align:center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer" title="Select all"></th>
-                  <th class="th">Name</th><th class="th">Scope</th><th class="th">Target</th>
-                  <th class="th">Mode</th><th class="th">Enforcer</th>
-                  <th class="th">Status</th><th class="th">Created</th><th class="th th-r">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="pol-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- REVIEW QUEUE -->
-        <section class="card">
-          <div class="collapsible-hdr" onclick="toggleSection('queue-content','queue-arr')">
-            <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
               <svg class="w-5 h-5" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-              Review Queue <span id="queue-pending-badge" class="hidden badge badge-amber" style="font-size:.65rem;margin-left:.375rem">0 pending</span>
+              Review Queue
               <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(submit → admin review → apply)</span>
             </h2>
             <div class="flex items-center gap-2">
@@ -978,95 +1128,35 @@
                 <option value="rejected">Rejected</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              <button onclick="event.stopPropagation();loadPolicyQueue()" class="btn btn-ghost btn-sm">
+              <button onclick="loadPolicyQueue()" class="btn btn-ghost btn-sm">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 Refresh
               </button>
-              <span id="queue-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
             </div>
           </div>
-          <div id="queue-content" class="mt-4">
-            <div id="queue-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
-            <div id="queue-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No items in queue.</div>
-            <div id="queue-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr style="border-bottom:1px solid #1e293b">
-                    <th class="th">Policy</th><th class="th">Scope</th><th class="th">Submitted By</th>
-                    <th class="th">Submitted At</th><th class="th">Status</th>
-                    <th class="th">Reviewed By</th><th class="th">Note</th><th class="th th-r">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="queue-body"></tbody>
-              </table>
-            </div>
-            <p class="mt-3 text-xs" style="color:#475569">
-              <b>operator / admin</b>: submit policies for review.
-              <b>admin only</b>: approve (applies to cluster) or reject with a note.
-            </p>
+          <div id="queue-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+          <div id="queue-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No items in queue.</div>
+          <div id="queue-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr style="border-bottom:1px solid #1e293b">
+                  <th class="th">Policy</th><th class="th">Scope</th><th class="th">Submitted By</th>
+                  <th class="th">Submitted At</th><th class="th">Status</th>
+                  <th class="th">Reviewed By</th><th class="th">Note</th><th class="th th-r">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body"></tbody>
+            </table>
           </div>
+          <p class="mt-3 text-xs" style="color:#475569">
+            <b>operator / admin</b>: submit policies for review.
+            <b>admin only</b>: approve (applies to cluster) or reject with a note.
+          </p>
         </section>
+      </div><!-- /pv-queue -->
 
-        <!-- BEHAVIOR MODELS -->
-        <section class="card">
-          <div class="collapsible-hdr" onclick="toggleSection('models-content','models-arr')">
-            <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
-              <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-              Behavior Models <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(ArmorProfileModel)</span>
-            </h2>
-            <div class="flex items-center gap-2">
-              <button onclick="event.stopPropagation();loadProfileModels()" class="btn btn-ghost btn-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Refresh
-              </button>
-              <span id="models-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
-            </div>
-          </div>
-          <div id="models-content" class="mt-4">
-            <div id="models-loading" class="hidden py-6 flex justify-center">
-              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            </div>
-            <div id="models-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfileModels in this namespace.</div>
-            <div id="models-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr style="border-bottom:1px solid #1e293b">
-                    <th class="th">Name</th><th class="th">Phase</th><th class="th">Storage</th><th class="th">Created</th><th class="th th-r">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="models-body"></tbody>
-              </table>
-            </div>
-            <p class="mt-3 text-xs" style="color:#475569">ArmorProfileModels are generated automatically when a BehaviorModeling policy completes its observation period.</p>
-          </div>
-        </section>
-
-        </div>
-
-        <!-- RIGHT 4 cols -->
-        <div class="col-span-12 xl:col-span-4">
-          <div class="card xl:sticky xl:top-28">
-            <div class="flex items-center justify-between mb-5">
-              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
-                <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
-                Deployments
-              </h2>
-              <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:.3rem">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              </button>
-            </div>
-            <div id="dep-loading" class="hidden py-6 flex justify-center">
-              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            </div>
-            <div id="dep-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No deployments found.</div>
-            <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-            <div id="dep-list" class="space-y-2"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </div><!-- /tab-policy -->
 
     <!-- ═══════════════ TAB: LOGS ═══════════════ -->
     <div id="tab-logs" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
@@ -1598,24 +1688,20 @@ function applyRoleUi(){
   var admin=isAdmin(),submit=canSubmit();
   var form=$("form-create");
   if(form){
-    form.querySelectorAll("input,select,textarea,button").forEach(function(el){el.disabled=!submit;});
+    form.querySelectorAll("input,select,textarea").forEach(function(el){el.disabled=!submit;});
   }
-  var notice=$("policy-admin-notice");
-  if(notice){
-    toggleVis("policy-admin-notice",!submit);
-    if(notice) notice.textContent=isViewer()
-      ?"Viewer role: read-only access. Cannot create, submit, or approve policies."
-      :"";
-  }
-  // Show/hide role-specific buttons
-  toggleVis("btn-submit-review", submit);
-  toggleVis("btn-apply-direct", admin);
-  toggleVis("btn-add-user", admin);
-  // Direct apply button only for admins; disabled until validated
+  toggleVis("policy-admin-notice",!submit);
+  // Wizard navigation buttons always accessible; action buttons role-gated
   var btnApply=$("btn-apply-direct");
-  if(btnApply) btnApply.disabled=!admin||!_validatedOk;
+  if(btnApply){btnApply.classList.toggle("hidden",!admin||_currentWizStep!==4);btnApply.disabled=!admin||!_validatedOk;}
   var btnSubmit=$("btn-submit-review");
-  if(btnSubmit) btnSubmit.disabled=!submit||!_validatedOk;
+  if(btnSubmit){btnSubmit.classList.toggle("hidden",!submit||_currentWizStep!==4);btnSubmit.disabled=!submit||!_validatedOk;}
+  var btnVal=$("btn-validate");
+  if(btnVal){btnVal.classList.toggle("hidden",_currentWizStep!==4);btnVal.disabled=!submit;}
+  // pv-create nav: only show create if submit-capable
+  var pnCreate=$("pnav-create");
+  if(pnCreate) pnCreate.classList.toggle("hidden",!submit);
+  toggleVis("btn-add-user", admin);
   var all=$("chk-all");
   if(all){all.disabled=!admin;all.checked=false;all.indeterminate=false;}
   if(!admin) clearSelection();
@@ -1662,15 +1748,18 @@ function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadAaEvents
 function onScopeChange(){}
 function onModeChange(){
   var m=$("sel-mode").value;
-  toggleVis("sec-enhance",m==="EnhanceProtect");
-  toggleVis("sec-np-config",m==="EnhanceProtect"&&Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).some(function(c){return c.value==="NetworkProxy";}));
-  toggleVis("sec-modeling",m==="BehaviorModeling");
-  toggleVis("sec-did",m==="DefenseInDepth");
+  var isEnhance=m==="EnhanceProtect";
+  toggleVis("sec-enhance",isEnhance);
   var isSimple=(m==="AlwaysAllow"||m==="RuntimeDefault");
-  toggleVis("sec-simple",isSimple);
-  var notes={AlwaysAllow:"AlwaysAllow disables all security restrictions. Use only for testing.",
-    RuntimeDefault:"RuntimeDefault applies the container runtime's default AppArmor/Seccomp profile."};
-  if(isSimple) $("simple-note").textContent=notes[m]||"";
+  toggleVis("sec-simple",isSimple||m==="BehaviorModeling"||m==="DefenseInDepth");
+  var notes={
+    AlwaysAllow:"AlwaysAllow disables all security restrictions. Use only for testing.",
+    RuntimeDefault:"RuntimeDefault applies the container runtime's default AppArmor/Seccomp profile.",
+    BehaviorModeling:"BehaviorModeling records container syscall/file/network behavior. Configure duration in the General tab.",
+    DefenseInDepth:"DefenseInDepth applies a deny-by-default allowlist profile. Configure profiles in the DefenseInDepth tab."
+  };
+  var sn=$("simple-note");if(sn) sn.textContent=notes[m]||"";
+  updateRuleTabAvailability();
 }
 function onTargetModeChange(){
   var byLabel=document.querySelector('input[name="tgt-mode"]:checked').value==="selector";
@@ -1688,9 +1777,7 @@ var VALID_ENFORCER_COMBOS_JS=[
 
 function onEnforcerChange(){
   var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
-  toggleVis("sec-bpf-rules",enfs.includes("BPF"));
-  toggleVis("sec-seccomp-rules",enfs.includes("Seccomp"));
-  toggleVis("sec-np-config",enfs.includes("NetworkProxy")&&$("sel-mode").value==="EnhanceProtect");
+  updateRuleTabAvailability();
   // Combo validation
   var warn=$("enf-combo-warn");
   if(warn){
@@ -1699,6 +1786,117 @@ function onEnforcerChange(){
     warn.style.display=isValid?"none":"block";
     if(!isValid) warn.textContent="Warning: '"+enfs.join("+")+"' is not a supported enforcer combination. Valid: "+VALID_ENFORCER_COMBOS_JS.map(function(s){return s.replace(/\|/g,"+");}).join(", ");
   }
+}
+
+// ── Policy sub-view & wizard navigation ──
+var _currentPolicyView="list";
+var _currentWizStep=1;
+var _currentRuleTab="apparmor";
+
+function switchPolicyView(view){
+  _currentPolicyView=view;
+  ["list","create","queue"].forEach(function(v){
+    toggleVis("pv-"+v,v===view);
+    var b=$("pnav-"+v);
+    if(b){b.classList.toggle("pnav-active",v===view);}
+  });
+  if(view==="queue") loadPolicyQueue();
+}
+
+function wizGoToStep(n){
+  _currentWizStep=n;
+  [1,2,3,4].forEach(function(i){
+    var step=$("wiz-step-"+i);
+    if(step) step.classList.toggle("hidden",i!==n);
+    var ind=$("wiz-ind-"+i);
+    if(ind){
+      ind.classList.toggle("wiz-ind-active",i===n);
+      ind.classList.toggle("wiz-ind-done",i<n);
+      if(i<n){ind.classList.remove("wiz-ind-active");}
+      if(i===n){ind.classList.remove("wiz-ind-done");}
+    }
+  });
+  var back=$("wiz-btn-back"),next=$("wiz-btn-next");
+  var val=$("btn-validate"),sub=$("btn-submit-review"),app=$("btn-apply-direct"),valInd=$("validate-indicator");
+  if(back) back.classList.toggle("hidden",n===1);
+  if(next) next.classList.toggle("hidden",n===4);
+  if(val) val.classList.toggle("hidden",n!==4);
+  if(valInd) valInd.classList.toggle("hidden",n!==4);
+  if(sub) sub.classList.toggle("hidden",!canSubmit()||n!==4);
+  if(app) app.classList.toggle("hidden",!isAdmin()||n!==4);
+  if(n===3) updateRuleTabAvailability();
+  if(n===4) renderWizSummary();
+}
+
+function wizBack(){ if(_currentWizStep>1) wizGoToStep(_currentWizStep-1); }
+function wizNext(){
+  if(_currentWizStep===1){
+    var name=$("inp-pname").value.trim();
+    var tgtMode=document.querySelector('input[name="tgt-mode"]:checked').value;
+    var tgtName=$("sel-target").value,tgtSel=$("ta-selector").value.trim();
+    if(!name){alert("Policy Name is required.");return;}
+    if(tgtMode==="name"&&!tgtName){alert("Please select a target workload.");return;}
+    if(tgtMode==="selector"&&!tgtSel){alert("Please enter a label selector.");return;}
+  }
+  if(_currentWizStep<4) wizGoToStep(_currentWizStep+1);
+}
+
+function switchRuleTab(tab){
+  _currentRuleTab=tab;
+  ["apparmor","attack","bpf","seccomp","networkproxy","did","general"].forEach(function(t){
+    var panel=$("rtab-"+t);
+    if(panel) panel.classList.toggle("hidden",t!==tab);
+    var btn=$("rtab-btn-"+t);
+    if(btn) btn.classList.toggle("rtab-active",t===tab);
+  });
+}
+
+function updateRuleTabAvailability(){
+  var mode=$("sel-mode")?$("sel-mode").value:"EnhanceProtect";
+  var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
+  var isEnhance=mode==="EnhanceProtect";
+  var isDid=mode==="DefenseInDepth";
+  var isModeling=mode==="BehaviorModeling";
+  var tabMap={
+    apparmor:isEnhance&&(enfs.includes("AppArmor")||enfs.includes("BPF")),
+    attack:isEnhance,
+    bpf:isEnhance&&enfs.includes("BPF"),
+    seccomp:isEnhance&&enfs.includes("Seccomp"),
+    networkproxy:isEnhance&&enfs.includes("NetworkProxy"),
+    did:isDid,
+    general:isModeling||isEnhance||isDid
+  };
+  var firstEnabled=null;
+  ["apparmor","attack","bpf","seccomp","networkproxy","did","general"].forEach(function(t){
+    var btn=$("rtab-btn-"+t);
+    if(!btn) return;
+    var enabled=!!tabMap[t];
+    btn.disabled=!enabled;
+    if(enabled&&!firstEnabled) firstEnabled=t;
+  });
+  if(!tabMap[_currentRuleTab]&&firstEnabled) switchRuleTab(firstEnabled);
+}
+
+function renderWizSummary(){
+  var el=$("wiz-summary");if(!el) return;
+  var mode=$("sel-mode")?$("sel-mode").value:"";
+  var scope=document.querySelector('input[name="scope"]:checked');
+  var name=$("inp-pname")?$("inp-pname").value.trim():"";
+  var kind=$("sel-kind")?$("sel-kind").value:"";
+  var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
+  var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).length;
+  var rows=[
+    ["Policy Name",name||"(unnamed)"],
+    ["Scope",(scope?scope.value:"namespace")+" ("+kind+")"],
+    ["Mode",mode],
+    ["Enforcers",enfs.length?enfs.join(" + "):"(none)"],
+    ["Built-in Rules",rules+" selected"]
+  ];
+  el.innerHTML=rows.map(function(r){
+    return '<div style="display:flex;gap:1rem;padding:.375rem 0;border-bottom:1px solid #1e293b">'
+      +'<span style="min-width:8rem;color:#64748b;font-size:.8rem">'+r[0]+'</span>'
+      +'<span style="color:#f1f5f9;font-size:.8rem;font-weight:500">'+esc(r[1])+'</span></div>';
+  }).join("");
 }
 
 async function loadWorkloadsForKind(kind){
@@ -1865,11 +2063,12 @@ async function loadPolicyForEdit(el){
     show("edit-banner");show("btn-cancel-edit");
     $("edit-banner-name").textContent=(scope==="cluster"?"[cluster] ":namespace+"/")+name;
     $("btn-create-label").textContent="Update Policy";
-    $("form-title").innerHTML='<svg class="w-5 h-5" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Edit Policy';
+    if($("pnav-create-label")) $("pnav-create-label").textContent="Edit Policy";
     $("inp-pname").readOnly=true;
     $("inp-pname").value=name;
     document.querySelectorAll('input[name="scope"]').forEach(function(r){r.disabled=true;r.checked=(r.value===scope);});
-    $("form-create").scrollIntoView({behavior:"smooth",block:"start"});
+    switchPolicyView("create");
+    wizGoToStep(1);
   }catch(err){alert("Error loading policy: "+err.message);}
 }
 
@@ -2087,8 +2286,8 @@ function cancelEdit(){
   $("inp-pname").readOnly=false;
   document.querySelectorAll('input[name="scope"]').forEach(function(r){r.disabled=false;});
   hide("edit-banner");hide("btn-cancel-edit");
-  $("btn-create-label").textContent="Apply Policy";
-  $("form-title").innerHTML='<svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Create Policy';
+  $("btn-create-label").textContent="Apply Directly";
+  if($("pnav-create-label")) $("pnav-create-label").textContent="Create Policy";
   $("form-create").reset();
   document.querySelector('input[name="enforcer"][value="AppArmor"]').checked=true;
   $("chk-auto-restart").checked=true;
@@ -2114,6 +2313,9 @@ function cancelEdit(){
   document.querySelector('input[name="tgt-mode"][value="name"]').checked=true;
   onTargetModeChange();
   hideEl($("create-msg"));
+  _validatedOk=false;
+  switchPolicyView("list");
+  wizGoToStep(1);
 }
 
 // ── Deployments sidebar ──
@@ -2950,8 +3152,7 @@ $("form-create").addEventListener("submit",async function(e){
       var okMsg=editMode?("Policy \""+name+"\" updated successfully."):"Policy \""+name+"\" applied successfully.";
       showMsg(msgEl,"success",okMsg);
     }
-    cancelEdit();
-    setTimeout(function(){loadAll();if(!statusPollTimer){statusPollTimer=setInterval(loadPolicies,5000);show("auto-refresh-badge");}},1200);
+    setTimeout(function(){cancelEdit();loadAll();if(!statusPollTimer){statusPollTimer=setInterval(loadPolicies,5000);show("auto-refresh-badge");}},1500);
   }catch(err){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",err.message);}
   finally{btn.disabled=false;}
 });
@@ -3675,8 +3876,7 @@ async function doSubmitForReview(){
     if(!res.ok){showMsg(msgEl,"error",d.error||"Submit failed");btn.disabled=false;return;}
     showMsg(msgEl,"success","Policy '"+esc(payload.name)+"' submitted for review (ID: "+esc(d.id||"?")+"). An admin must approve before it applies to the cluster.");
     _validatedOk=false;
-    cancelEdit();
-    setTimeout(function(){loadPolicyQueue();show("queue-content");},800);
+    setTimeout(function(){cancelEdit();switchPolicyView("queue");loadPolicyQueue();},1500);
   }catch(e){showMsg(msgEl,"error",e.message);}
   finally{if(canSubmit()&&_validatedOk) btn.disabled=false;}
 }
