@@ -982,10 +982,10 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 Refresh
               </button>
-              <span id="queue-arr" style="color:#64748b;font-size:.75rem">&#9658;</span>
+              <span id="queue-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
             </div>
           </div>
-          <div id="queue-content" class="hidden mt-4">
+          <div id="queue-content" class="mt-4">
             <div id="queue-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
             <div id="queue-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No items in queue.</div>
             <div id="queue-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
@@ -1556,7 +1556,8 @@ function switchTab(tab){
       $("user-display-name").textContent=CURRENT_USER;
       $("user-avatar").textContent=(CURRENT_USER[0]||"U").toUpperCase();
       var rb=$("user-role-badge");
-      if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(CURRENT_ROLE==="admin"?"badge-blue":"badge-gray");}
+      var _rc2={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
+      if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(_rc2[CURRENT_ROLE]||"badge-gray");}
     }
     loadUsers();
   }
