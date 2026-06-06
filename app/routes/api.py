@@ -1752,7 +1752,9 @@ def list_policy_queue():
     # operators/viewers see only their own submissions
     submitted_by = None if role == "admin" else user
     items = list_queue(status=status_filter, submitted_by=submitted_by)
-    return jsonify({"queue": items, "total": len(items)})
+    # Always return total_pending from full (unfiltered) queue so badge is accurate
+    pending_items = list_queue(status="pending", submitted_by=submitted_by)
+    return jsonify({"queue": items, "total": len(items), "total_pending": len(pending_items)})
 
 
 @api_bp.route("/policies/queue/<item_id>", methods=["GET"])
