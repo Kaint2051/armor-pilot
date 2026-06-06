@@ -38,6 +38,7 @@ VALID_ENFORCER_COMBOS = frozenset([
     frozenset(["BPF", "Seccomp"]),
     frozenset(["BPF", "NetworkProxy"]),
     frozenset(["AppArmor", "BPF", "Seccomp"]),
+    frozenset(["BPF", "NetworkProxy", "Seccomp"]),  # NetworkProxyBPFSeccomp per CRD common.go
 ])
 
 HARDENING_RULES = frozenset([
@@ -377,6 +378,9 @@ def _build_defense_in_depth(body: dict) -> dict:
 
     np_egress = body.get("did_np_egress")
     if np_egress and isinstance(np_egress, dict):
+        err = _validate_np_egress(np_egress)
+        if err:
+            raise ValueError(f"DefenseInDepth networkProxy.egress: {err}")
         did["networkProxy"] = {"egress": np_egress}
 
     return did
@@ -1781,17 +1785,38 @@ def approve_queued_policy(item_id: str):
     namespace = item["namespace"]
     scope = item["scope"]
     note = (body.get("note") or "").strip()
-    try:
+    def _do_apply():
+        """Create policy; if it already exists, patch-update it instead."""
         if scope == "cluster":
-            custom_objects().create_cluster_custom_object(
-                group=VARMOR_GROUP, version=VARMOR_VERSION,
-                plural=VARMOR_CLUSTER_PLURAL, body=manifest,
-            )
+            try:
+                custom_objects().create_cluster_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    plural=VARMOR_CLUSTER_PLURAL, body=manifest,
+                )
+            except ApiException as exc:
+                if exc.status != 409:
+                    raise
+                custom_objects().patch_cluster_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    plural=VARMOR_CLUSTER_PLURAL, name=name, body=manifest,
+                )
         else:
-            custom_objects().create_namespaced_custom_object(
-                group=VARMOR_GROUP, version=VARMOR_VERSION,
-                namespace=namespace, plural=VARMOR_PLURAL, body=manifest,
-            )
+            try:
+                custom_objects().create_namespaced_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    namespace=namespace, plural=VARMOR_PLURAL, body=manifest,
+                )
+            except ApiException as exc:
+                if exc.status != 409:
+                    raise
+                custom_objects().patch_namespaced_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    namespace=namespace, plural=VARMOR_PLURAL,
+                    name=name, body=manifest,
+                )
+
+    try:
+        _do_apply()
         update_queue_status(item_id, "approved", reviewed_by=user, review_note=note or "Approved")
         audit_logger.log(user, "APPROVE_POLICY", name, namespace, "SUCCESS",
                          f"queue_id={item_id}, submitter={item['submitted_by']}")
@@ -2081,7 +2106,7 @@ def get_violation_events():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/namespaces/<namespace>/secrets", methods=["GET"])
-@require_auth
+@require_operator
 def list_secrets(namespace: str):
     try:
         result = core_v1().list_namespaced_secret(namespace=namespace)
