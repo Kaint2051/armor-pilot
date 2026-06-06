@@ -77,6 +77,18 @@
     .rtab-active{color:#93c5fd!important;background:#0c1a3b!important;border-color:#1d4ed8!important}
     .rtab-btn[disabled]{opacity:.35;cursor:not-allowed}
     .wiz-sticky-bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:.75rem;padding:.75rem 1.5rem;margin-top:1.5rem;background:#0a0f1a;border-top:1px solid #1e293b}
+    .tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));gap:.5rem;margin-bottom:.875rem}
+    .tmpl-btn{padding:.5rem .75rem;border-radius:.5rem;border:1px solid #334155;background:#0f172a;color:#94a3b8;cursor:pointer;font-size:.78rem;font-weight:500;text-align:left;line-height:1.45;transition:all 120ms;width:100%}
+    .tmpl-btn:hover{border-color:#3b82f6;background:#0c1a3b;color:#93c5fd}
+    .tmpl-active{border-color:#1d4ed8!important;background:#0c1a3b!important;color:#93c5fd!important}
+    .mode-hint-box{margin-top:.75rem;padding:.625rem .875rem;border-radius:.5rem;border:1px solid #1e293b;background:#0f172a;font-size:.78rem;color:#94a3b8;line-height:1.6}
+    .mode-hint-box b{color:#93c5fd}
+    .combo-chip{padding:.2rem .55rem;border-radius:9999px;border:1px solid #334155;background:#0f172a;font-size:.72rem;color:#94a3b8;cursor:pointer;transition:all 100ms;white-space:nowrap}
+    .combo-chip:hover{border-color:#3b82f6;color:#93c5fd;background:#0c1a3b}
+    .combo-chip-active{border-color:#1d4ed8!important;color:#93c5fd!important;background:#0c1a3b!important}
+    .rule-summary-bar{padding:.45rem .875rem;border-radius:.5rem;background:#071a07;border:1px solid #166534;font-size:.78rem;color:#4ade80;margin-bottom:.875rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+    .rsb-badge{padding:.1rem .45rem;border-radius:.25rem;background:#0a1a0a;border:1px solid #166534;color:#86efac;font-size:.7rem;font-family:monospace}
+    .yaml-preview{font-family:monospace;font-size:.7rem;background:#060c18;border:1px solid #1e293b;border-radius:.5rem;padding:.75rem;color:#94a3b8;overflow:auto;white-space:pre;max-height:18rem}
   </style>
 </head>
 <body class="min-h-screen">
@@ -492,6 +504,38 @@
       <!-- ═══════ VIEW: Create / Edit wizard ═══════ -->
       <div id="pv-create" class="hidden">
 
+        <!-- Template picker (hidden during edit) -->
+        <div id="tmpl-picker" class="mb-5 p-4 rounded-xl" style="background:#0a0f1a;border:1px solid #1e293b">
+          <p class="text-xs font-semibold mb-3" style="color:#64748b;text-transform:uppercase;letter-spacing:.07em">Quick Start &mdash; choose a template or start blank below</p>
+          <div class="tmpl-grid">
+            <button type="button" class="tmpl-btn" onclick="applyTemplate('hardening')">
+              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#c4b5fd">&#9632; Basic Hardening</span>
+              <span style="color:#475569;font-size:.7rem">AppArmor &plus; common blocking rules</span>
+            </button>
+            <button type="button" class="tmpl-btn" onclick="applyTemplate('shell-block')">
+              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#f87171">&#9632; Block Shell / Sensitive Files</span>
+              <span style="color:#475569;font-size:.7rem">No shell, no sensitive path access</span>
+            </button>
+            <button type="button" class="tmpl-btn" onclick="applyTemplate('privileged')">
+              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#fbbf24">&#9632; Privileged Lockdown</span>
+              <span style="color:#475569;font-size:.7rem">AppArmor &plus; BPF, privileged baseline</span>
+            </button>
+            <button type="button" class="tmpl-btn" onclick="applyTemplate('observe')">
+              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#4ade80">&#9632; Observe First</span>
+              <span style="color:#475569;font-size:.7rem">BehaviorModeling &mdash; learn before blocking</span>
+            </button>
+            <button type="button" class="tmpl-btn" onclick="applyTemplate('egress')">
+              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#38bdf8">&#9632; Network Egress Whitelist</span>
+              <span style="color:#475569;font-size:.7rem">BPF &plus; NetworkProxy for egress control</span>
+            </button>
+            <button type="button" class="tmpl-btn" onclick="applyTemplate('did')">
+              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#fb923c">&#9632; DefenseInDepth from Model</span>
+              <span style="color:#475569;font-size:.7rem">Strict allowlist &mdash; use after modeling</span>
+            </button>
+          </div>
+          <p style="font-size:.72rem;color:#475569">Templates pre-fill mode &amp; enforcers and advance to Step 2. Adjust anything in the steps below.</p>
+        </div>
+
         <!-- Edit banner -->
         <div id="edit-banner" class="hidden edit-banner">
           <div>
@@ -602,12 +646,26 @@
                 <option value="BehaviorModeling">BehaviorModeling — record behavior (experimental)</option>
                 <option value="DefenseInDepth">DefenseInDepth — allowlist strict mode (experimental)</option>
               </select>
+              <div id="mode-hint-box" class="mode-hint-box"><b>EnhanceProtect</b> &mdash; Most commonly used. Adds blocking rules on top of the runtime default. Choose enforcers below, then configure rules in Step 3.</div>
             </div>
 
             <!-- Enforcers (for EnhanceProtect) -->
             <div id="sec-enhance">
               <div class="mb-4">
-                <label class="form-label" style="margin-bottom:.625rem">Kernel Enforcers</label>
+                <label class="form-label" style="margin-bottom:.375rem">Kernel Enforcers</label>
+                <p class="text-xs mb-2" style="color:#64748b">Click a combination below to apply it, or tick individually:</p>
+                <div class="flex flex-wrap gap-2 mb-3" id="combo-chips">
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor')">AppArmor</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('Seccomp')">Seccomp</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('BPF')">BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|Seccomp')">AppArmor + Seccomp</button>
+                  <button type="button" class="combo-chip combo-chip-active" onclick="applyEnforcerCombo('AppArmor|BPF')">AppArmor + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('Seccomp|BPF')">Seccomp + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|Seccomp|BPF')">AppArmor + Seccomp + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF')">NetworkProxy + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF|Seccomp')">NetworkProxy + BPF + Seccomp</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|NetworkProxy|BPF')">AppArmor + NetworkProxy + BPF</button>
+                </div>
                 <div class="flex flex-wrap gap-5">
                   <label class="cb-row"><input type="checkbox" name="enforcer" value="AppArmor" checked onchange="onEnforcerChange()"><span>AppArmor</span></label>
                   <label class="cb-row"><input type="checkbox" name="enforcer" value="Seccomp" onchange="onEnforcerChange()"><span>Seccomp</span></label>
@@ -640,7 +698,14 @@
 
           <!-- ─── STEP 3: Rules (tab-based) ─── -->
           <div id="wiz-step-3" class="card mb-4 hidden">
-            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Rules</h3>
+            <h3 class="text-sm font-semibold mb-3" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Rules</h3>
+
+            <!-- Rule selection summary bar -->
+            <div id="rule-summary-bar" class="rule-summary-bar hidden">
+              <span><b id="rsb-total">0</b> rules selected</span>
+              <span id="rsb-groups" class="flex flex-wrap gap-1"></span>
+              <span id="rsb-warn" class="hidden" style="color:#fbbf24">&#9888; <span id="rsb-warn-text"></span></span>
+            </div>
 
             <!-- Rule tab buttons -->
             <div class="flex flex-wrap gap-2 mb-5">
@@ -1078,13 +1143,28 @@
           <!-- ─── STEP 4: Review & Apply ─── -->
           <div id="wiz-step-4" class="card mb-4 hidden">
             <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Review &amp; Apply</h3>
-            <div id="wiz-summary" class="mb-4 space-y-1 text-sm" style="color:#94a3b8"></div>
+
+            <div class="grid gap-5 mb-5" style="grid-template-columns:1fr 1fr">
+              <!-- Left: summary table -->
+              <div>
+                <p class="text-xs font-semibold mb-2" style="color:#64748b;text-transform:uppercase;letter-spacing:.06em">Policy Summary</p>
+                <div id="wiz-summary" class="space-y-0 text-sm"></div>
+                <div id="wiz-restart-note" class="hidden mt-3 p-2 rounded-lg text-xs" style="background:#0c1a3b;border:1px solid #1d4ed8;color:#93c5fd"></div>
+                <div id="wiz-apply-note" class="mt-3 p-2 rounded-lg text-xs" style="background:#0f172a;border:1px solid #334155;color:#64748b"></div>
+              </div>
+              <!-- Right: YAML preview -->
+              <div>
+                <p class="text-xs font-semibold mb-2" style="color:#64748b;text-transform:uppercase;letter-spacing:.06em">Spec Preview <span style="font-weight:400;color:#475569">(read-only)</span></p>
+                <pre id="yaml-preview" class="yaml-preview"></pre>
+              </div>
+            </div>
+
             <div id="create-progress" class="hidden mb-4 p-4 rounded-xl space-y-2" style="background:#0f172a;border:1px solid #1e293b">
               <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Applying policy CRD&#8230;</span></div>
               <div id="step-restart" class="step"><span id="icon-restart">&#9675;</span><span>Labeling &amp; restarting deployment&#8230;</span></div>
             </div>
             <div id="create-msg" class="hidden mb-4"></div>
-            <p id="validate-hint" class="text-xs" style="color:#475569">Click <b>Validate</b> to check the policy spec — submit/apply buttons activate on success.</p>
+            <p id="validate-hint" class="text-xs" style="color:#475569">Click <b>Validate</b> to check the policy spec &mdash; submit/apply buttons activate on success.</p>
           </div><!-- /wiz-step-4 -->
 
           <!-- Sticky action bar -->
@@ -1759,6 +1839,7 @@ function onModeChange(){
     DefenseInDepth:"DefenseInDepth applies a deny-by-default allowlist profile. Configure profiles in the DefenseInDepth tab."
   };
   var sn=$("simple-note");if(sn) sn.textContent=notes[m]||"";
+  updateModeHint();
   updateRuleTabAvailability();
 }
 function onTargetModeChange(){
@@ -1778,6 +1859,7 @@ var VALID_ENFORCER_COMBOS_JS=[
 function onEnforcerChange(){
   var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
   updateRuleTabAvailability();
+  updateComboChipHighlight();
   // Combo validation
   var warn=$("enf-combo-warn");
   if(warn){
@@ -1800,6 +1882,7 @@ function switchPolicyView(view){
     var b=$("pnav-"+v);
     if(b){b.classList.toggle("pnav-active",v===view);}
   });
+  if(view==="create"&&!editMode) resetWizard();
   if(view==="queue") loadPolicyQueue();
 }
 
@@ -1824,8 +1907,8 @@ function wizGoToStep(n){
   if(valInd) valInd.classList.toggle("hidden",n!==4);
   if(sub) sub.classList.toggle("hidden",!canSubmit()||n!==4);
   if(app) app.classList.toggle("hidden",!isAdmin()||n!==4);
-  if(n===3) updateRuleTabAvailability();
-  if(n===4) renderWizSummary();
+  if(n===3){updateRuleTabAvailability();updateRuleSummary();}
+  if(n===4){renderWizSummary();}
 }
 
 function wizBack(){ if(_currentWizStep>1) wizGoToStep(_currentWizStep-1); }
@@ -1837,6 +1920,13 @@ function wizNext(){
     if(!name){alert("Policy Name is required.");return;}
     if(tgtMode==="name"&&!tgtName){alert("Please select a target workload.");return;}
     if(tgtMode==="selector"&&!tgtSel){alert("Please enter a label selector.");return;}
+  }
+  if(_currentWizStep===2){
+    var mode=$("sel-mode").value;
+    if(mode==="EnhanceProtect"){
+      var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked'));
+      if(!enfs.length){alert("EnhanceProtect requires at least one enforcer. Select AppArmor, BPF, Seccomp, or NetworkProxy.");return;}
+    }
   }
   if(_currentWizStep<4) wizGoToStep(_currentWizStep+1);
 }
@@ -1880,23 +1970,196 @@ function updateRuleTabAvailability(){
 function renderWizSummary(){
   var el=$("wiz-summary");if(!el) return;
   var mode=$("sel-mode")?$("sel-mode").value:"";
-  var scope=document.querySelector('input[name="scope"]:checked');
+  var scopeEl=document.querySelector('input[name="scope"]:checked');
+  var scopeVal=scopeEl?scopeEl.value:"namespace";
   var name=$("inp-pname")?$("inp-pname").value.trim():"";
   var kind=$("sel-kind")?$("sel-kind").value:"";
+  var tgtMode=document.querySelector('input[name="tgt-mode"]:checked');
+  var tgtVal=tgtMode&&tgtMode.value==="selector"?("selector: "+($("ta-selector").value.trim().split("\n")[0]||"…")):($("sel-target").value||"(not set)");
   var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
-  var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).length;
+  var checkedRules=Array.from(document.querySelectorAll('input[name="rule"]:checked'));
+  var autoR=$("chk-auto-restart")&&$("chk-auto-restart").checked&&scopeVal==="namespace"&&!editMode&&kind==="Deployment";
+  var applyType=isAdmin()?"Apply Directly (admin)":canSubmit()?"Submit for Review (operator)":"Read-only (viewer)";
   var rows=[
     ["Policy Name",name||"(unnamed)"],
-    ["Scope",(scope?scope.value:"namespace")+" ("+kind+")"],
+    ["Scope",scopeVal+" / "+kind],
+    ["Target",tgtVal],
     ["Mode",mode],
-    ["Enforcers",enfs.length?enfs.join(" + "):"(none)"],
-    ["Built-in Rules",rules+" selected"]
+    ["Enforcers",enfs.length?enfs.join(" + "):"(none — will fail for EnhanceProtect)"],
+    ["Rules selected",checkedRules.length+" built-in rule(s)"],
+    ["Workload restart",autoR?"Yes — rolling restart after apply":"No"],
+    ["Action",applyType]
   ];
   el.innerHTML=rows.map(function(r){
-    return '<div style="display:flex;gap:1rem;padding:.375rem 0;border-bottom:1px solid #1e293b">'
-      +'<span style="min-width:8rem;color:#64748b;font-size:.8rem">'+r[0]+'</span>'
-      +'<span style="color:#f1f5f9;font-size:.8rem;font-weight:500">'+esc(r[1])+'</span></div>';
+    var warn=(r[1]+"").indexOf("fail")>=0||(r[1]+"").indexOf("viewer")>=0;
+    return '<div style="display:flex;gap:1rem;padding:.35rem 0;border-bottom:1px solid #1e293b">'
+      +'<span style="min-width:9rem;flex-shrink:0;color:#64748b;font-size:.78rem">'+r[0]+'</span>'
+      +'<span style="color:'+(warn?"#f87171":"#f1f5f9")+';font-size:.78rem;font-weight:500">'+esc(r[1])+'</span></div>';
   }).join("");
+  // restart note
+  var rn=$("wiz-restart-note");
+  if(rn){
+    if(autoR){rn.classList.remove("hidden");rn.innerHTML="&#10003; Auto-restart is enabled — deployment will get <code>sandbox.varmor.org/enable=true</code> label and rolling restart.";}
+    else{rn.classList.add("hidden");}
+  }
+  // apply note
+  var an=$("wiz-apply-note");
+  if(an){
+    if(isAdmin()) an.innerHTML="&#9654; <b>Apply Directly</b> will push the policy CRD immediately to the cluster.";
+    else if(canSubmit()) an.innerHTML="&#9654; <b>Submit for Review</b> queues the policy for admin approval. Nothing changes in the cluster until approved.";
+    else an.innerHTML="Viewer role — cannot create or submit policies.";
+  }
+  // YAML preview
+  var yp=$("yaml-preview");
+  if(yp) yp.textContent=buildYamlPreview();
+}
+
+// ── Policy templates ──
+var POLICY_TEMPLATES={
+  hardening:{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disallow-insmod","disallow-mount","disallow-abuse-user-ns","disallow-umount"]},
+  "shell-block":{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disallow-run-shell","disallow-access-sensitive-files","disallow-write-etc","disallow-abuse-user-ns"]},
+  privileged:{mode:"EnhanceProtect",enforcers:["AppArmor","BPF"],rules:["disable-cap-all-except-net-bind-service","disallow-write-core-pattern","disallow-mount-securityfs","disallow-write-release-agent"],privileged:true},
+  observe:{mode:"BehaviorModeling",enforcers:[],rules:[]},
+  egress:{mode:"EnhanceProtect",enforcers:["BPF","NetworkProxy"],rules:[]},
+  did:{mode:"DefenseInDepth",enforcers:["AppArmor","Seccomp"],rules:[]}
+};
+
+function applyTemplate(name){
+  var t=POLICY_TEMPLATES[name];if(!t) return;
+  document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
+  document.querySelectorAll(".tmpl-btn").forEach(function(b){
+    if(b.getAttribute("onclick")==="applyTemplate('"+name+"')") b.classList.add("tmpl-active");
+  });
+  var sm=$("sel-mode");if(sm){sm.value=t.mode;onModeChange();}
+  document.querySelectorAll('input[name="enforcer"]').forEach(function(cb){cb.checked=t.enforcers.includes(cb.value);});
+  onEnforcerChange();
+  document.querySelectorAll('input[name="rule"]').forEach(function(cb){cb.checked=t.rules.includes(cb.value);});
+  var priv=$("chk-privileged");if(priv) priv.checked=!!t.privileged;
+  updateRuleCounts&&updateRuleCounts();
+  wizGoToStep(2);
+}
+
+// ── Enforcer combo chips ──
+function applyEnforcerCombo(combo){
+  var sel=combo.split("|");
+  document.querySelectorAll('input[name="enforcer"]').forEach(function(cb){cb.checked=sel.includes(cb.value);});
+  onEnforcerChange();
+}
+
+function updateComboChipHighlight(){
+  var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;}).sort();
+  var cur=enfs.join("|");
+  document.querySelectorAll(".combo-chip").forEach(function(chip){
+    var m=chip.getAttribute("onclick").match(/applyEnforcerCombo\('([^']+)'\)/);
+    if(!m) return;
+    var chk=m[1].split("|").sort().join("|");
+    chip.classList.toggle("combo-chip-active",chk===cur);
+  });
+}
+
+// ── Mode hint box ──
+var MODE_HINTS={
+  EnhanceProtect:"<b>EnhanceProtect</b> &mdash; Most commonly used. Adds blocking rules on top of the runtime default. Choose enforcers below, then configure rules in Step 3.",
+  AlwaysAllow:"<b>AlwaysAllow</b> &mdash; Disables all security restrictions. For testing/debugging only. No enforcer or rule configuration needed.",
+  RuntimeDefault:"<b>RuntimeDefault</b> &mdash; Applies the container runtime's built-in AppArmor/Seccomp profile. Minimal configuration needed.",
+  BehaviorModeling:"<b>BehaviorModeling</b> &mdash; Records what the container actually does (syscalls, file access, network). Use before DefenseInDepth. Configure duration in the General tab.",
+  DefenseInDepth:"<b>DefenseInDepth</b> &mdash; Strict deny-by-default allowlist. Can break workloads. Recommended only after BehaviorModeling produces a profile."
+};
+function updateModeHint(){
+  var m=$("sel-mode")?$("sel-mode").value:"";
+  var box=$("mode-hint-box");
+  if(box) box.innerHTML=MODE_HINTS[m]||"";
+}
+
+// ── Rule summary bar (Step 3) ──
+function updateRuleSummary(){
+  var bar=$("rule-summary-bar");if(!bar) return;
+  var checked=Array.from(document.querySelectorAll('input[name="rule"]:checked'));
+  if(!checked.length){bar.classList.add("hidden");return;}
+  bar.classList.remove("hidden");
+  $("rsb-total").textContent=checked.length;
+  var groups={};
+  checked.forEach(function(cb){
+    var body=cb.closest(".rule-group-body");
+    var hdr=body?body.previousElementSibling:null;
+    var nameEl=hdr?hdr.querySelector("span.flex"):null;
+    var gname=nameEl?nameEl.childNodes[0].textContent.trim():"Other";
+    groups[gname]=(groups[gname]||0)+1;
+  });
+  $("rsb-groups").innerHTML=Object.entries(groups).map(function(e){
+    return '<span class="rsb-badge">'+esc(e[0])+" &times;"+e[1]+"</span>";
+  }).join(" ");
+  var HIGH_RISK=["disable-cap-all","disallow-mount","disallow-create-user-ns","disallow-load-all-bpf-prog"];
+  var risky=checked.filter(function(cb){return HIGH_RISK.includes(cb.value);});
+  var warnEl=$("rsb-warn");
+  if(warnEl){
+    warnEl.classList.toggle("hidden",!risky.length);
+    if(risky.length) $("rsb-warn-text").textContent=risky.length+" high-impact rule(s) selected — test thoroughly";
+  }
+}
+
+// ── YAML preview builder ──
+function buildYamlPreview(){
+  var name=($("inp-pname")||{value:""}).value.trim()||"unnamed";
+  var scopeEl=document.querySelector('input[name="scope"]:checked');
+  var scope=scopeEl?scopeEl.value:"namespace";
+  var kind=$("sel-kind")?$("sel-kind").value:"Deployment";
+  var mode=$("sel-mode")?$("sel-mode").value:"EnhanceProtect";
+  var enfs=Array.from(document.querySelectorAll('input[name="enforcer"]:checked')).map(function(c){return c.value;});
+  var tgtMode=document.querySelector('input[name="tgt-mode"]:checked');
+  var tgtName=$("sel-target")?$("sel-target").value:"";
+  var tgtSel=($("ta-selector")||{value:""}).value.trim();
+  var containers=($("inp-containers")||{value:""}).value.split(",").map(function(c){return c.trim();}).filter(Boolean);
+  var rules=Array.from(document.querySelectorAll('input[name="rule"]:checked')).map(function(c){return c.value;});
+  var crdKind=scope==="cluster"?"VarmorClusterPolicy":"VarmorPolicy";
+  var lines=[
+    "apiVersion: crd.varmor.org/v1beta1",
+    "kind: "+crdKind,
+    "metadata:",
+    "  name: "+name
+  ];
+  if(scope==="namespace") lines.push("  namespace: "+(ns()||"default"));
+  lines.push("spec:","  target:","    kind: "+kind);
+  if(tgtMode&&tgtMode.value==="selector"){
+    if(tgtSel){
+      lines.push("    selector:");
+      lines.push("      matchLabels:");
+      tgtSel.split("\n").filter(Boolean).forEach(function(l){
+        var p=l.split("=");if(p.length===2) lines.push("        "+p[0].trim()+": "+p[1].trim());
+      });
+    }
+  } else if(tgtName){
+    lines.push("    name: "+tgtName);
+  }
+  if(containers.length) lines.push("    containers: ["+containers.join(", ")+"]");
+  lines.push("  policy:","    enforcer: "+(enfs.join("|")||"AppArmor"),"    mode: "+mode);
+  if(mode==="EnhanceProtect"&&rules.length){
+    lines.push("    enhanceProtect:","      builtinRules:");
+    rules.forEach(function(r){lines.push("        - "+r);});
+  }
+  if(mode==="BehaviorModeling"){
+    var dur=parseInt(($("inp-duration")||{value:"60"}).value)||60;
+    lines.push("    behaviorModeling:","      duration: "+(dur*60)+"s");
+  }
+  return lines.join("\n");
+}
+
+// ── Reset wizard to blank state ──
+function resetWizard(){
+  var form=$("form-create");
+  if(form) form.reset();
+  document.querySelectorAll('input[name="rule"]').forEach(function(cb){cb.checked=false;});
+  document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
+  var tp=$("tmpl-picker");if(tp) tp.classList.remove("hidden");
+  var eb=$("edit-banner");if(eb) eb.classList.add("hidden");
+  var cb=$("btn-cancel-edit");if(cb) cb.classList.add("hidden");
+  if($("pnav-create-label")) $("pnav-create-label").textContent="Create Policy";
+  _validatedOk=false;
+  editMode=null;
+  onModeChange();
+  onEnforcerChange();
+  updateRuleCounts&&updateRuleCounts();
+  wizGoToStep(1);
 }
 
 async function loadWorkloadsForKind(kind){
@@ -2061,6 +2324,7 @@ async function loadPolicyForEdit(el){
     editMode={name:name,ns:namespace,scope:scope};
     parseSpecIntoForm(crd,scope,name);
     show("edit-banner");show("btn-cancel-edit");
+    var _tp=$("tmpl-picker");if(_tp) _tp.classList.add("hidden");
     $("edit-banner-name").textContent=(scope==="cluster"?"[cluster] ":namespace+"/")+name;
     $("btn-create-label").textContent="Update Policy";
     if($("pnav-create-label")) $("pnav-create-label").textContent="Edit Policy";
@@ -3182,6 +3446,7 @@ function updateRuleCounts(){
     var n=document.querySelectorAll('#grp-'+g+' input[type="checkbox"]:checked').length;
     var el=$("cnt-"+g);if(el) el.textContent=n?("("+n+" selected)"):"";
   });
+  updateRuleSummary();
 }
 
 // ── Delete modal ──
