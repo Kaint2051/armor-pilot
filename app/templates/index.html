@@ -89,6 +89,12 @@
     .rule-summary-bar{padding:.45rem .875rem;border-radius:.5rem;background:#071a07;border:1px solid #166534;font-size:.78rem;color:#4ade80;margin-bottom:.875rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
     .rsb-badge{padding:.1rem .45rem;border-radius:.25rem;background:#0a1a0a;border:1px solid #166534;color:#86efac;font-size:.7rem;font-family:monospace}
     .yaml-preview{font-family:monospace;font-size:.7rem;background:#060c18;border:1px solid #1e293b;border-radius:.5rem;padding:.75rem;color:#94a3b8;overflow:auto;white-space:pre;max-height:18rem}
+    .qd-section{margin-bottom:.875rem;padding-bottom:.75rem;border-bottom:1px solid #1e293b}
+    .qd-label{font-size:.69rem;color:#64748b;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:.3rem;display:block}
+    .qd-value{font-size:.82rem;color:#f1f5f9;font-weight:500}
+    .qd-rule-chip{display:inline-block;padding:.1rem .45rem;border-radius:.25rem;font-size:.7rem;font-family:monospace;margin:.1rem .1rem .1rem 0}
+    .qd-timeline-row{display:flex;gap:.75rem;align-items:flex-start;font-size:.78rem}
+    .qd-timeline-dot{width:.45rem;height:.45rem;border-radius:50%;flex-shrink:0;margin-top:.35rem}
   </style>
 </head>
 <body class="min-h-screen">
@@ -1495,6 +1501,82 @@
       <button onclick="closeRejectModal()" class="btn btn-ghost">Cancel</button>
       <button id="btn-reject-confirm" class="btn btn-danger">Reject Policy</button>
     </div>
+  </div>
+</div>
+
+<!-- QUEUE DETAIL MODAL -->
+<div id="modal-queue-detail" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.78);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeQueueDetail()">
+  <div class="card flex flex-col w-full mx-4" style="max-width:68rem;max-height:92vh;border-color:#334155">
+
+    <!-- Header -->
+    <div class="flex items-start gap-3 mb-4 flex-shrink-0" style="border-bottom:1px solid #1e293b;padding-bottom:.875rem">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h3 class="text-sm font-semibold" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em">Policy Review</h3>
+          <span id="qd-status-badge"></span>
+        </div>
+        <p id="qd-title" class="font-mono font-semibold mt-1" style="color:#f1f5f9;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+        <p id="qd-subtitle" class="text-xs mt-0.5" style="color:#64748b"></p>
+      </div>
+      <button onclick="closeQueueDetail()" class="btn btn-ghost btn-sm flex-shrink-0">&#10005;</button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overflow-y-auto flex-1" style="min-height:0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+
+        <!-- LEFT: structured details -->
+        <div>
+          <div class="qd-section">
+            <span class="qd-label">Target</span>
+            <div id="qd-target"></div>
+          </div>
+          <div class="qd-section">
+            <span class="qd-label">Mode &amp; Enforcers</span>
+            <div id="qd-mode"></div>
+          </div>
+          <div class="qd-section">
+            <span class="qd-label">Rules Selected</span>
+            <div id="qd-rules"></div>
+          </div>
+          <div class="qd-section">
+            <span class="qd-label">Extended Config</span>
+            <div id="qd-extended" style="font-size:.78rem;color:#64748b"></div>
+          </div>
+          <div>
+            <span class="qd-label">Options</span>
+            <div id="qd-options"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: YAML + timeline -->
+        <div style="display:flex;flex-direction:column;gap:1rem">
+          <div>
+            <span class="qd-label">Spec Preview <span style="font-weight:400;color:#475569">(read-only)</span></span>
+            <pre id="qd-yaml" class="yaml-preview" style="max-height:22rem;margin-top:.3rem"></pre>
+          </div>
+          <div>
+            <span class="qd-label">Review Timeline</span>
+            <div id="qd-timeline" class="space-y-2 mt-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="flex items-center gap-3 flex-shrink-0 flex-wrap" style="border-top:1px solid #1e293b;padding-top:.875rem;margin-top:.875rem">
+      <div id="qd-reject-note-sec" class="hidden" style="flex:1;min-width:12rem">
+        <textarea id="qd-reject-note" rows="2" class="form-input" placeholder="Rejection note (required)&#8230;" style="resize:none;font-size:.8rem"></textarea>
+      </div>
+      <div id="qd-spacer" style="flex:1"></div>
+      <div id="qd-msg" class="hidden text-xs"></div>
+      <button id="qd-btn-cancel-sub" onclick="cancelQueuedFromDetail()" class="hidden btn btn-ghost btn-sm">Cancel Submission</button>
+      <button id="qd-btn-reject-toggle" onclick="toggleQdRejectNote()" class="hidden btn btn-danger btn-sm">&#10005; Reject</button>
+      <button id="qd-btn-reject-confirm" onclick="confirmQdReject()" class="hidden btn btn-danger">Confirm Reject</button>
+      <button id="qd-btn-approve" onclick="approveFromDetail()" class="hidden btn btn-green">&#10003; Approve &amp; Apply</button>
+      <button onclick="closeQueueDetail()" class="btn btn-ghost">Close</button>
+    </div>
+
   </div>
 </div>
 
@@ -4192,25 +4274,28 @@ async function loadPolicyQueue(){
   }catch(e){setLoading("queue",false);showEl($("queue-err"),e.message);}
 }
 
+var _queueItemsMap={};
+
 function renderPolicyQueue(items){
   var el=$("queue-body");
   if(!items.length){show("queue-empty");el.innerHTML="";return;}
   hide("queue-empty");
   var admin=isAdmin();
   var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
+  _queueItemsMap={};
   el.innerHTML="";
   items.forEach(function(item){
+    _queueItemsMap[item.id]=item;
     var sb='<span class="badge '+(statusColors[item.status]||"badge-gray")+'">'+esc(item.status)+'</span>';
     var submittedAt=item.submitted_at?new Date(item.submitted_at).toLocaleString("vi-VN"):"—";
     var reviewedBy=item.reviewed_by?esc(item.reviewed_by):'<span style="color:#475569">—</span>';
     var note=item.review_note?('<span title="'+esc(item.review_note)+'" style="cursor:help;color:#64748b">'+esc(item.review_note.slice(0,30))+(item.review_note.length>30?"…":"")+'</span>'):'<span style="color:#475569">—</span>';
-    var actions="";
+    var actions='<button onclick="openQueueDetail(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm" style="margin-right:2px">Detail</button>';
     if(item.status==="pending"){
       if(admin){
-        actions+='<button onclick="approveQueued(\''+esc(item.id)+'\')" class="btn btn-green btn-sm" style="margin-right:2px">✓ Approve</button>';
-        actions+='<button onclick="openRejectModal(\''+esc(item.id)+'\',\''+esc(item.name)+'\')" class="btn btn-danger btn-sm" style="margin-right:2px">✗ Reject</button>';
+        actions+='<button onclick="approveQueued(\''+esc(item.id)+'\')" class="btn btn-green btn-sm" style="margin-right:2px">&#10003;</button>';
+        actions+='<button onclick="openRejectModal(\''+esc(item.id)+'\',\''+esc(item.name)+'\')" class="btn btn-danger btn-sm" style="margin-right:2px">&#10005;</button>';
       }
-      // Submitter or admin can cancel
       if(admin||item.submitted_by===CURRENT_USER){
         actions+='<button onclick="cancelQueued(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm">Cancel</button>';
       }
@@ -4278,6 +4363,228 @@ async function cancelQueued(id){
     if(!r.ok){alert("Cancel failed: "+(d.error||r.status));return;}
     loadPolicyQueue();
   }catch(e){alert("Error: "+e.message);}
+}
+
+// ── Queue Detail Modal ──
+var _qdItem=null;
+
+function openQueueDetail(id){
+  var item=_queueItemsMap[id];
+  if(!item) return;
+  _qdItem=item;
+  var payload=null;
+  try{payload=JSON.parse(item.manifest);}catch(e){}
+  _renderQueueDetail(item,payload);
+  show("modal-queue-detail");
+}
+
+function closeQueueDetail(){
+  hide("modal-queue-detail");
+  _qdItem=null;
+}
+
+function _renderQueueDetail(item,p){
+  var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
+  var isPending=item.status==="pending";
+  var admin=isAdmin();
+
+  // Header
+  $("qd-title").textContent=item.name;
+  $("qd-subtitle").textContent=(item.scope==="cluster"?"[cluster-scoped]":("namespace: "+item.namespace));
+  $("qd-status-badge").innerHTML='<span class="badge '+(statusColors[item.status]||"badge-gray")+'">'+esc(item.status)+'</span>';
+
+  if(!p){
+    $("qd-target").innerHTML='<span style="color:#f87171;font-size:.8rem">Failed to parse policy payload.</span>';
+    $("qd-mode").innerHTML="";$("qd-rules").innerHTML="";$("qd-extended").innerHTML="";$("qd-options").innerHTML="";$("qd-yaml").textContent="";
+  } else {
+    // Target
+    var tgt='<div class="qd-value">'+esc(p.target_kind||"Deployment")+'</div>';
+    if(p.target_deployment) tgt+='<div style="font-family:monospace;color:#93c5fd;font-size:.82rem;margin-top:.2rem">'+esc(p.target_deployment)+'</div>';
+    if(p.target_selector){var ml=p.target_selector.matchLabels||{};if(Object.keys(ml).length) tgt+='<div style="font-size:.72rem;color:#64748b;margin-top:.2rem">selector: '+esc(JSON.stringify(ml))+'</div>';}
+    if(p.target_containers&&p.target_containers.length) tgt+='<div style="font-size:.72rem;color:#64748b">containers: '+esc(p.target_containers.join(", "))+'</div>';
+    $("qd-target").innerHTML=tgt;
+
+    // Mode & Enforcers
+    var enfsHtml=(p.enforcers||[]).map(function(e){
+      return '<span style="padding:.15rem .5rem;border-radius:.25rem;background:#0c1a3b;border:1px solid #1d4ed8;font-size:.75rem;color:#93c5fd;margin-right:.3rem">'+esc(e)+'</span>';
+    }).join("");
+    $("qd-mode").innerHTML='<div class="qd-value mb-2">'+esc(p.mode||"")+'</div><div>'+enfsHtml+'</div>';
+
+    // Rules breakdown
+    var rules=p.rules||[];
+    var caps=p.capability_rules||[];
+    var banned=p.banned_files||[];
+    var rulesHtml="";
+    if(!rules.length&&!caps.length&&!banned.length){
+      rulesHtml='<span style="color:#475569;font-size:.78rem">(none selected)</span>';
+    } else {
+      var hardening=rules.filter(function(r){return _YAML_HARDENING.has(r)||/^disable-cap-/.test(r);});
+      var attack=rules.filter(function(r){return !_YAML_HARDENING.has(r)&&!/^disable-cap-/.test(r)&&!_YAML_VULN.has(r);});
+      var vuln=rules.filter(function(r){return _YAML_VULN.has(r);});
+      function chips(arr,color){
+        return arr.map(function(r){return '<span class="qd-rule-chip" style="background:#0f172a;border:1px solid '+color+';color:'+color+'">'+esc(r)+'</span>';}).join("");
+      }
+      if(hardening.length) rulesHtml+='<div class="mb-2"><span class="qd-label" style="color:#c4b5fd">Hardening ('+hardening.length+')</span><div>'+chips(hardening,"#c4b5fd")+'</div></div>';
+      if(attack.length) rulesHtml+='<div class="mb-2"><span class="qd-label" style="color:#f87171">Attack Protection ('+attack.length+')</span><div>'+chips(attack,"#f87171")+'</div></div>';
+      if(vuln.length) rulesHtml+='<div class="mb-2"><span class="qd-label" style="color:#fbbf24">Vuln Mitigation ('+vuln.length+')</span><div>'+chips(vuln,"#fbbf24")+'</div></div>';
+      if(caps.length) rulesHtml+='<div class="mb-2"><span class="qd-label" style="color:#94a3b8">Custom Capabilities</span><div>'+chips(caps,"#94a3b8")+'</div></div>';
+      if(banned.length) rulesHtml+='<div><span class="qd-label">Banned Files</span><div style="font-size:.72rem;color:#64748b;font-family:monospace">'+esc(banned.join(", "))+'</div></div>';
+    }
+    $("qd-rules").innerHTML=rulesHtml;
+
+    // Extended config summary
+    var ext=[];
+    if((p.bpf_file_rules||[]).length) ext.push("BPF: "+(p.bpf_file_rules||[]).length+" file rule(s)");
+    if((p.bpf_process_rules||[]).length) ext.push("BPF: "+(p.bpf_process_rules||[]).length+" process rule(s)");
+    if((p.bpf_mounts||[]).length) ext.push("BPF: "+(p.bpf_mounts||[]).length+" mount rule(s)");
+    if(p.bpf_ptrace) ext.push("BPF ptrace rule");
+    if(p.bpf_network) ext.push("BPF network rule");
+    if((p.seccomp_syscalls||[]).length) ext.push("Seccomp: "+(p.seccomp_syscalls||[]).length+" syscall(s) ["+esc(p.seccomp_action||"SCMP_ACT_ERRNO")+"]");
+    if((p.seccomp_raw_rules||[]).length) ext.push("Seccomp: "+(p.seccomp_raw_rules||[]).length+" raw rule(s)");
+    if(p.np_egress) ext.push("NetworkProxy: egress configured");
+    if((p.np_mitm_domains||[]).length) ext.push("NetworkProxy: "+(p.np_mitm_domains||[]).length+" MITM domain(s)");
+    if(p.did_apparmor_type) ext.push("DID AppArmor: "+esc(p.did_apparmor_type));
+    if(p.did_seccomp_type) ext.push("DID Seccomp: "+esc(p.did_seccomp_type));
+    if(p.modeling_duration) ext.push("Modeling duration: "+Math.round(p.modeling_duration/60)+" min");
+    if((p.apparmor_raw_rules||[]).length) ext.push("AppArmor raw: "+(p.apparmor_raw_rules||[]).length+" rule(s)");
+    if((p.attack_protection_groups||[]).length) ext.push("Attack groups: "+(p.attack_protection_groups||[]).length+" group(s)");
+    $("qd-extended").innerHTML=ext.length?ext.map(function(s){return '<div style="margin-bottom:.2rem">&#8226; '+s+'</div>';}).join(""):'<span style="color:#475569">—</span>';
+
+    // Options
+    var opts=[];
+    if(p.update_existing_workloads) opts.push("updateExistingWorkloads");
+    if(p.audit_violations) opts.push("auditViolations");
+    if(p.allow_violations) opts.push("allowViolations");
+    if(p.privileged) opts.push("privileged baseline");
+    $("qd-options").innerHTML=opts.length?opts.map(function(o){return '<span style="padding:.1rem .45rem;border-radius:.25rem;background:#0f172a;border:1px solid #334155;color:#94a3b8;font-size:.75rem;margin-right:.3rem">'+esc(o)+'</span>';}).join(""):'<span style="color:#475569;font-size:.78rem">—</span>';
+
+    // YAML preview
+    $("qd-yaml").textContent=_buildQueueItemYaml(p,item.scope);
+  }
+
+  // Timeline
+  var tl=[];
+  tl.push({color:"#4ade80",label:"Submitted",detail:esc(item.submitted_by)+" &mdash; "+(item.submitted_at?esc(new Date(item.submitted_at).toLocaleString("vi-VN")):"—")});
+  if(item.reviewed_by){
+    var rlabel=item.status==="approved"?"Approved":item.status==="rejected"?"Rejected":"Reviewed";
+    var rcolor=item.status==="approved"?"#4ade80":item.status==="rejected"?"#f87171":"#fbbf24";
+    tl.push({color:rcolor,label:rlabel,detail:esc(item.reviewed_by)+(item.reviewed_at?" &mdash; "+esc(new Date(item.reviewed_at).toLocaleString("vi-VN")):"")});
+    if(item.review_note) tl.push({color:"#64748b",label:"Note",detail:'<em style="color:#94a3b8">'+esc(item.review_note)+'</em>'});
+  }
+  $("qd-timeline").innerHTML=tl.map(function(t){
+    return '<div class="qd-timeline-row">'
+      +'<div class="qd-timeline-dot" style="background:'+t.color+'"></div>'
+      +'<div><span style="font-weight:600;color:#94a3b8;font-size:.78rem">'+t.label+'</span> <span style="color:#475569;font-size:.78rem">'+t.detail+'</span></div></div>';
+  }).join("");
+
+  // Footer buttons
+  $("qd-btn-approve").classList.toggle("hidden",!admin||!isPending);
+  $("qd-btn-reject-toggle").classList.toggle("hidden",!admin||!isPending);
+  $("qd-btn-reject-confirm").classList.add("hidden");
+  $("qd-reject-note-sec").classList.add("hidden");
+  $("qd-spacer").classList.remove("hidden");
+  $("qd-btn-cancel-sub").classList.toggle("hidden",!isPending||(!isAdmin()&&item.submitted_by!==CURRENT_USER));
+  $("qd-btn-reject-toggle").textContent="✗ Reject";
+  hideEl($("qd-msg"));
+  var rn=$("qd-reject-note");if(rn) rn.value="";
+}
+
+function _buildQueueItemYaml(p,scope){
+  var crdKind=scope==="cluster"?"VarmorClusterPolicy":"VarmorPolicy";
+  var lines=["apiVersion: crd.varmor.org/v1beta1","kind: "+crdKind,"metadata:","  name: "+(p.name||"unnamed")];
+  if(scope!=="cluster") lines.push("  namespace: "+(p.namespace||"default"));
+  lines.push("spec:","  target:","    kind: "+(p.target_kind||"Deployment"));
+  if(p.target_deployment) lines.push("    name: "+p.target_deployment);
+  if(p.target_selector){
+    var ml=p.target_selector.matchLabels||{};
+    if(Object.keys(ml).length){lines.push("    selector:","      matchLabels:");Object.entries(ml).forEach(function(e){lines.push("        "+e[0]+": "+e[1]);});}
+  }
+  if(p.target_containers&&p.target_containers.length) lines.push("    containers: ["+p.target_containers.join(", ")+"]");
+  lines.push("  policy:","    enforcer: "+((p.enforcers||[]).join("|")||"—"),"    mode: "+(p.mode||"EnhanceProtect"));
+  if(p.mode==="EnhanceProtect"){
+    var rules=p.rules||[];
+    var hard=rules.filter(function(r){return _YAML_HARDENING.has(r)||/^disable-cap-/.test(r);});
+    var atk=rules.filter(function(r){return !_YAML_HARDENING.has(r)&&!/^disable-cap-/.test(r)&&!_YAML_VULN.has(r);});
+    var vuln=rules.filter(function(r){return _YAML_VULN.has(r);});
+    if(hard.length||atk.length||vuln.length||(p.apparmor_raw_rules||[]).length){
+      lines.push("    enhanceProtect:");
+      if(hard.length){lines.push("      hardeningRules:");hard.forEach(function(r){lines.push("        - "+r);});}
+      if(atk.length){lines.push("      attackProtectionRules:");lines.push("        - rules: ["+atk.join(", ")+"]");}
+      if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
+      if((p.apparmor_raw_rules||[]).length) lines.push("      # appArmorRawRules: "+(p.apparmor_raw_rules||[]).length+" rule(s)");
+    }
+    if((p.bpf_file_rules||[]).length||(p.bpf_process_rules||[]).length){
+      lines.push("    # bpfRawRules:");
+      if((p.bpf_file_rules||[]).length) lines.push("    #   fileRules: ["+(p.bpf_file_rules||[]).length+" entries]");
+      if((p.bpf_process_rules||[]).length) lines.push("    #   processRules: ["+(p.bpf_process_rules||[]).length+" entries]");
+    }
+    if((p.seccomp_syscalls||[]).length){
+      lines.push("    seccomp:");
+      lines.push("      syscalls: ["+p.seccomp_syscalls.slice(0,6).join(", ")+(p.seccomp_syscalls.length>6?"…":"")+"]\n      action: "+(p.seccomp_action||"SCMP_ACT_ERRNO"));
+    }
+    if(p.np_egress) lines.push("    # networkProxy: egress configured");
+  }
+  if(p.mode==="BehaviorModeling"&&p.modeling_duration) lines.push("    behaviorModeling:","      duration: "+p.modeling_duration+"s");
+  if(p.mode==="DefenseInDepth"){
+    lines.push("    defenseInDepth:");
+    if(p.did_apparmor_type) lines.push("      appArmorProfile:","        mode: "+p.did_apparmor_type);
+    if(p.did_seccomp_type) lines.push("      seccompProfile:","        mode: "+p.did_seccomp_type);
+  }
+  return lines.join("\n");
+}
+
+function toggleQdRejectNote(){
+  var sec=$("qd-reject-note-sec"),sp=$("qd-spacer"),confirm=$("qd-btn-reject-confirm"),toggle=$("qd-btn-reject-toggle");
+  var showing=!sec.classList.contains("hidden");
+  sec.classList.toggle("hidden",showing);
+  sp.classList.toggle("hidden",!showing);
+  confirm.classList.toggle("hidden",showing);
+  toggle.textContent=showing?"✗ Reject":"↩ Cancel";
+  if(!showing) sec.querySelector("textarea").focus();
+}
+
+async function approveFromDetail(){
+  if(!_qdItem||!isAdmin()) return;
+  if(!confirm("Approve and apply this policy to the cluster?")) return;
+  $("qd-btn-approve").disabled=true;
+  try{
+    var r=await api("/api/policies/queue/"+encodeURIComponent(_qdItem.id)+"/approve",{method:"POST",body:"{}"});
+    var d=await r.json();
+    if(!r.ok){showMsg($("qd-msg"),"error",d.error||"Approve failed");$("qd-btn-approve").disabled=false;return;}
+    showMsg($("qd-msg"),"success","Approved and applied to cluster.");
+    $("qd-btn-approve").classList.add("hidden");$("qd-btn-reject-toggle").classList.add("hidden");
+    setTimeout(function(){closeQueueDetail();loadPolicyQueue();loadPolicies();},1400);
+  }catch(e){showMsg($("qd-msg"),"error",e.message);$("qd-btn-approve").disabled=false;}
+}
+
+async function confirmQdReject(){
+  if(!_qdItem||!isAdmin()) return;
+  var note=($("qd-reject-note").value||"").trim();
+  if(!note){showMsg($("qd-msg"),"error","Rejection note is required.");return;}
+  $("qd-btn-reject-confirm").disabled=true;
+  try{
+    var r=await api("/api/policies/queue/"+encodeURIComponent(_qdItem.id)+"/reject",{method:"POST",body:JSON.stringify({note:note})});
+    var d=await r.json();
+    if(!r.ok){showMsg($("qd-msg"),"error",d.error||"Reject failed");$("qd-btn-reject-confirm").disabled=false;return;}
+    showMsg($("qd-msg"),"success","Policy rejected.");
+    ["qd-btn-approve","qd-btn-reject-toggle","qd-btn-reject-confirm","qd-reject-note-sec"].forEach(function(id){$(id).classList.add("hidden");});
+    $("qd-spacer").classList.remove("hidden");
+    setTimeout(function(){closeQueueDetail();loadPolicyQueue();},1200);
+  }catch(e){showMsg($("qd-msg"),"error",e.message);$("qd-btn-reject-confirm").disabled=false;}
+}
+
+async function cancelQueuedFromDetail(){
+  if(!_qdItem) return;
+  if(!confirm("Cancel this pending submission?")) return;
+  $("qd-btn-cancel-sub").disabled=true;
+  try{
+    var r=await api("/api/policies/queue/"+encodeURIComponent(_qdItem.id),{method:"DELETE"});
+    var d=await r.json();
+    if(!r.ok){showMsg($("qd-msg"),"error",d.error||"Cancel failed");$("qd-btn-cancel-sub").disabled=false;return;}
+    showMsg($("qd-msg"),"success","Submission cancelled.");
+    $("qd-btn-cancel-sub").classList.add("hidden");
+    setTimeout(function(){closeQueueDetail();loadPolicyQueue();},1200);
+  }catch(e){showMsg($("qd-msg"),"error",e.message);$("qd-btn-cancel-sub").disabled=false;}
 }
 
 // ── NetworkProxy Structured Builders ──
