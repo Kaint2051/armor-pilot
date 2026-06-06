@@ -3594,7 +3594,7 @@ function buildPolicyPayload(){
     targetSelector={};
     if(Object.keys(ml).length) targetSelector.matchLabels=ml;
     var exprRaw=($("ta-selector-expr").value||"").trim();
-    if(exprRaw){try{targetSelector.matchExpressions=JSON.parse(exprRaw);}catch(e){}}
+    if(exprRaw){try{targetSelector.matchExpressions=JSON.parse(exprRaw);}catch(e){throw new Error("Selector matchExpressions: invalid JSON — "+e.message);}}
     if(!targetSelector.matchLabels&&!targetSelector.matchExpressions) return null;
   }else{
     targetDeployment=($("sel-target")||{value:""}).value;
@@ -3609,11 +3609,11 @@ function buildPolicyPayload(){
   var atGroups=collectAttackGroups();
   var bpfFiles=collectBpfRules("bpf-files"),bpfProcs=collectBpfRules("bpf-procs"),bpfMounts=collectMountRules(),bpfPtrace=collectPtraceRule();
   var bpfNet=null;var bpfNetStr=($("ta-bpf-network").value||"").trim();
-  if(bpfNetStr){try{bpfNet=JSON.parse(bpfNetStr);}catch(e){}}
+  if(bpfNetStr){try{bpfNet=JSON.parse(bpfNetStr);}catch(e){throw new Error("BPF network rules: invalid JSON — "+e.message);}}
   var scSysc=($("ta-seccomp").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var scAction=$("sel-seccomp-action").value;
   var scRaw=[];var scRawStr=($("ta-seccomp-raw").value||"").trim();
-  if(scRawStr){try{scRaw=JSON.parse(scRawStr);}catch(e){}}
+  if(scRawStr){try{scRaw=JSON.parse(scRawStr);}catch(e){throw new Error("Seccomp raw rules: invalid JSON — "+e.message);}}
   var durationMins=parseInt(($("inp-duration")||{value:"60"}).value)||60;
   var updateExisting=!!($("chk-update-existing")||{checked:false}).checked;
   var auditViol=!!($("chk-audit-viol")||{checked:false}).checked;
@@ -3627,10 +3627,10 @@ function buildPolicyPayload(){
   var didAaRaw=($("ta-did-aa-raw").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var didScCustom=($("ta-did-sc-custom").value||"").trim();
   var didScSysc=($("ta-did-sc-syscalls").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var didScRaw=[];var dsrStr=($("ta-did-sc-raw").value||"").trim();if(dsrStr){try{didScRaw=JSON.parse(dsrStr);}catch(e){}}
+  var didScRaw=[];var dsrStr=($("ta-did-sc-raw").value||"").trim();if(dsrStr){try{didScRaw=JSON.parse(dsrStr);}catch(e){throw new Error("DID Seccomp raw rules: invalid JSON — "+e.message);}}
   var didScAction=($("sel-did-sc-action")||{value:"SCMP_ACT_ERRNO"}).value;
   var didAllowViol=!!($("did-allow-viol")||{checked:false}).checked;
-  var didNpEgress=null;var dneStr=($("ta-did-np-egress").value||"").trim();if(dneStr){try{didNpEgress=JSON.parse(dneStr);}catch(e){}}
+  var didNpEgress=null;var dneStr=($("ta-did-np-egress").value||"").trim();if(dneStr){try{didNpEgress=JSON.parse(dneStr);}catch(e){throw new Error("DID NetworkProxy egress: invalid JSON — "+e.message);}}
   var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
   // NP builders: let errors propagate so callers (validate/submit) show them to user
   var npMitmMut=null;try{npMitmMut=collectNpHeaders();}catch(e){throw new Error("Header mutations: "+e.message);}
@@ -3673,12 +3673,12 @@ async function doSubmitForReview(){
     var res=await api("/api/policies/submit",{method:"POST",body:JSON.stringify(payload)});
     var d=await res.json();
     if(!res.ok){showMsg(msgEl,"error",d.error||"Submit failed");btn.disabled=false;return;}
-    showMsg(msgEl,"success","Policy '"+esc(d.id?"... queued":"")+"' submitted for review. An admin must approve before it applies to the cluster.");
+    showMsg(msgEl,"success","Policy '"+esc(payload.name)+"' submitted for review (ID: "+esc(d.id||"?")+"). An admin must approve before it applies to the cluster.");
     _validatedOk=false;
     cancelEdit();
     setTimeout(function(){loadPolicyQueue();show("queue-content");},800);
   }catch(e){showMsg(msgEl,"error",e.message);}
-  finally{if(canSubmit()) btn.disabled=false;}
+  finally{if(canSubmit()&&_validatedOk) btn.disabled=false;}
 }
 
 // ── Review Queue ──
@@ -3691,7 +3691,7 @@ async function loadPolicyQueue(){
     setLoading("queue",false);
     if(!r.ok){showEl($("queue-err"),d.error||"Failed to load queue");return;}
     var items=d.queue||[];
-    var pending=items.filter(function(i){return i.status==="pending";}).length;
+    var pending=typeof d.total_pending==="number"?d.total_pending:items.filter(function(i){return i.status==="pending";}).length;
     var badge=$("queue-pending-badge");
     if(badge){
       badge.textContent=pending+" pending";
