@@ -667,10 +667,9 @@
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|Seccomp')">AppArmor + Seccomp</button>
                   <button type="button" class="combo-chip combo-chip-active" onclick="applyEnforcerCombo('AppArmor|BPF')">AppArmor + BPF</button>
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('Seccomp|BPF')">Seccomp + BPF</button>
-                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|Seccomp|BPF')">AppArmor + Seccomp + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|BPF|Seccomp')">AppArmor + BPF + Seccomp</button>
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF')">NetworkProxy + BPF</button>
                   <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF|Seccomp')">NetworkProxy + BPF + Seccomp</button>
-                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|BPF|Seccomp')">AppArmor + BPF + Seccomp</button>
                 </div>
                 <div class="flex flex-wrap gap-5">
                   <label class="cb-row"><input type="checkbox" name="enforcer" value="AppArmor" checked onchange="onEnforcerChange()"><span>AppArmor</span></label>
@@ -2252,16 +2251,29 @@ function resetWizard(){
    "np-header-rows","np-l4-rows","np-http-rows"].forEach(function(id){
     var el=$(id);if(el) el.innerHTML="";
   });
-  // Uncheck ptrace perms (not part of form.reset since they're individual ids)
+  // Uncheck ptrace perms (form.reset unchecks chk-ptrace-enable but doesn't fire the change handler)
   ["ptrace-perm-all","ptrace-perm-trace","ptrace-perm-traceby","ptrace-perm-read","ptrace-perm-readby"].forEach(function(id){
     var el=$(id);if(el) el.checked=false;
   });
+  // Hide conditional panels that aren't driven by form.reset
+  hide("sec-ptrace-rule");
+  hide("did-aa-custom-sec");
+  hide("did-sc-custom-sec");
+  // Reset validate state: clear indicator, re-show hint, disable action buttons
+  _validatedOk=false;
+  var ind=$("validate-indicator");
+  if(ind){ind.textContent="";ind.className="text-sm font-semibold hidden";}
+  var hint=$("validate-hint");
+  if(hint){hint.style.display="";}
+  var btnApply=$("btn-apply-direct");
+  if(btnApply){btnApply.disabled=true;}
+  var btnSubmit=$("btn-submit-review");
+  if(btnSubmit){btnSubmit.disabled=true;}
   document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
   var tp=$("tmpl-picker");if(tp) tp.classList.remove("hidden");
   var eb=$("edit-banner");if(eb) eb.classList.add("hidden");
   var cancelBtn=$("btn-cancel-edit");if(cancelBtn) cancelBtn.classList.add("hidden");
   if($("pnav-create-label")) $("pnav-create-label").textContent="Create Policy";
-  _validatedOk=false;
   editMode=null;
   onModeChange();
   onEnforcerChange();
@@ -3381,6 +3393,7 @@ $("form-create").addEventListener("submit",async function(e){
   var msgEl=$("create-msg"),progEl=$("create-progress");
   hideEl(msgEl);
   if(!isAdmin()){showMsg(msgEl,"error","Viewer role cannot change policies.");return;}
+  if(!_validatedOk){showMsg(msgEl,"error","Please run Validate first — policy spec must pass validation before applying.");return;}
   var name=$("inp-pname").value.trim();
   var scope=document.querySelector('input[name="scope"]:checked').value;
   var kind=$("sel-kind").value;
