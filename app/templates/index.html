@@ -1565,6 +1565,9 @@ function switchTab(tab){
 
 window.addEventListener("DOMContentLoaded",function(){
   updateRuleCounts();
+  // Bind form-change validation reset so editing after ✓ Validate clears the valid state
+  var _fc=$("form-create");
+  if(_fc){_fc.addEventListener("input",_onFormChange);_fc.addEventListener("change",_onFormChange);}
   try{var s=JSON.parse(localStorage.getItem("va_auth")||"null");
     if(s&&s.header&&s.user){AUTH_HEADER=s.header;CURRENT_USER=s.user;enterDashboard();return;}}catch(x){}
   enterLogin();
@@ -1681,7 +1684,7 @@ function onKindChange(){
 var VALID_ENFORCER_COMBOS_JS=[
   ["AppArmor"],["BPF"],["Seccomp"],["NetworkProxy"],
   ["AppArmor","BPF"],["AppArmor","Seccomp"],["BPF","Seccomp"],["BPF","NetworkProxy"],
-  ["AppArmor","BPF","Seccomp"]
+  ["AppArmor","BPF","Seccomp"],["BPF","NetworkProxy","Seccomp"]
 ].map(function(a){return a.slice().sort().join("|");});
 
 function onEnforcerChange(){
@@ -2896,7 +2899,7 @@ $("form-create").addEventListener("submit",async function(e){
 
   progEl.classList.remove("hidden");
   setStep("policy","spin");setStep("restart","wait");
-  var btn=$("btn-create");btn.disabled=true;
+  var btn=$("btn-apply-direct");btn.disabled=true;
 
   var payload={
     name:name,namespace:namespace,scope:scope,target_kind:kind,
@@ -3551,9 +3554,9 @@ async function doValidatePolicy(){
   var ind=$("validate-indicator");
   var hint=$("validate-hint");
   ind.textContent="⟳ Validating…";ind.style.color="#60a5fa";
-  var payload=buildPolicyPayload();
-  if(!payload){ind.textContent="✗ Fill required fields first";ind.style.color="#f87171";return;}
   try{
+    var payload=buildPolicyPayload();
+    if(!payload){ind.textContent="✗ Fill required fields first";ind.style.color="#f87171";return;}
     var res=await api("/api/policies/validate",{method:"POST",body:JSON.stringify(payload)});
     var d=await res.json();
     if(d.ok){
@@ -3629,8 +3632,9 @@ function buildPolicyPayload(){
   var didAllowViol=!!($("did-allow-viol")||{checked:false}).checked;
   var didNpEgress=null;var dneStr=($("ta-did-np-egress").value||"").trim();if(dneStr){try{didNpEgress=JSON.parse(dneStr);}catch(e){}}
   var npMitmDomains=($("ta-np-mitm-domains").value||"").split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var npMitmMut=null;try{npMitmMut=collectNpHeaders();}catch(e){}
-  var npEgress=null;try{npEgress=collectNpEgress();}catch(e){}
+  // NP builders: let errors propagate so callers (validate/submit) show them to user
+  var npMitmMut=null;try{npMitmMut=collectNpHeaders();}catch(e){throw new Error("Header mutations: "+e.message);}
+  var npEgress=null;try{npEgress=collectNpEgress();}catch(e){throw new Error("NetworkProxy egress: "+e.message);}
   var npProxyUid=$("inp-np-proxy-uid")&&$("inp-np-proxy-uid").value?parseInt($("inp-np-proxy-uid").value):null;
   var npProxyPort=$("inp-np-proxy-port")&&$("inp-np-proxy-port").value?parseInt($("inp-np-proxy-port").value):null;
   var npProxyAdminPort=$("inp-np-proxy-admin-port")&&$("inp-np-proxy-admin-port").value?parseInt($("inp-np-proxy-admin-port").value):null;
@@ -3641,6 +3645,7 @@ function buildPolicyPayload(){
     target_containers:containers,mode:mode,enforcers:enforcers,
     rules:rules,capability_rules:caps,banned_files:banned,
     apparmor_raw_rules:aaRaw,attack_protection_groups:atGroups,privileged:privileged,
+    unconfined_containers:collectUnconfinedContainers(),
     bpf_file_rules:bpfFiles,bpf_process_rules:bpfProcs,bpf_mounts:bpfMounts,
     bpf_ptrace:bpfPtrace,bpf_network:bpfNet,
     seccomp_syscalls:scSysc,seccomp_action:scAction,seccomp_raw_rules:scRaw,
@@ -3661,10 +3666,10 @@ async function doSubmitForReview(){
   if(!canSubmit()){alert("Only operator or admin can submit policies for review.");return;}
   if(!_validatedOk){alert("Please validate the policy first.");return;}
   var msgEl=$("create-msg");hideEl(msgEl);
-  var payload=buildPolicyPayload();
-  if(!payload){showMsg(msgEl,"error","Fill all required fields.");return;}
   var btn=$("btn-submit-review");btn.disabled=true;
   try{
+    var payload=buildPolicyPayload();
+    if(!payload){showMsg(msgEl,"error","Fill all required fields.");btn.disabled=false;return;}
     var res=await api("/api/policies/submit",{method:"POST",body:JSON.stringify(payload)});
     var d=await res.json();
     if(!res.ok){showMsg(msgEl,"error",d.error||"Submit failed");btn.disabled=false;return;}
