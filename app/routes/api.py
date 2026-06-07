@@ -1922,15 +1922,15 @@ def submit_policy_for_review():
 
 
 @api_bp.route("/policies/queue", methods=["GET"])
-@require_auth
+@require_permission("review:view")
 def list_policy_queue():
-    role = get_current_role()
     user = get_current_user()
     status_filter = request.args.get("status") or None
     if status_filter and status_filter not in VALID_QUEUE_STATUSES:
         return jsonify({"error": f"status must be one of {sorted(VALID_QUEUE_STATUSES)}"}), 400
-    # operators/viewers see only their own submissions
-    submitted_by = None if role == "admin" else user
+    # Approvers see all submissions; others see only their own
+    from ..auth import current_user_has_permission
+    submitted_by = None if current_user_has_permission("review:approve") else user
     items = list_queue(status=status_filter, submitted_by=submitted_by)
     # Always return total_pending from full (unfiltered) queue so badge is accurate
     pending_items = list_queue(status="pending", submitted_by=submitted_by)
@@ -1938,14 +1938,14 @@ def list_policy_queue():
 
 
 @api_bp.route("/policies/queue/<item_id>", methods=["GET"])
-@require_auth
+@require_permission("review:view")
 def get_queue_item_endpoint(item_id: str):
-    role = get_current_role()
     user = get_current_user()
     item = get_queue_item(item_id)
     if not item:
         return jsonify({"error": "Not found"}), 404
-    if role != "admin" and item["submitted_by"] != user:
+    from ..auth import current_user_has_permission
+    if not current_user_has_permission("review:approve") and item["submitted_by"] != user:
         return jsonify({"error": "Forbidden"}), 403
     return jsonify(item)
 
@@ -2048,11 +2048,11 @@ def reject_queued_policy(item_id: str):
 @require_auth
 def cancel_queued_policy(item_id: str):
     user = get_current_user()
-    role = get_current_role()
     item = get_queue_item(item_id)
     if not item:
         return jsonify({"error": "Not found"}), 404
-    if role != "admin" and item["submitted_by"] != user:
+    from ..auth import current_user_has_permission
+    if not current_user_has_permission("review:cancel") and item["submitted_by"] != user:
         return jsonify({"error": "Forbidden: can only cancel your own submissions"}), 403
     if item["status"] != "pending":
         return jsonify({"error": f"Cannot cancel: item status is '{item['status']}'"}), 400
