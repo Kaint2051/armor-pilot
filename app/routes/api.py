@@ -1428,7 +1428,7 @@ def _collect_agent_health() -> dict:
 
 
 @api_bp.route("/agent-health", methods=["GET"])
-@require_auth
+@require_permission("system:health")
 def agent_health():
     try:
         return jsonify(_collect_agent_health())
@@ -1541,42 +1541,76 @@ def _parse_apparmor_line(line: str) -> dict | None:
 
 
 @api_bp.route("/enforcement-events", methods=["GET"])
-@require_auth
+@require_permission("dashboard:view")
 def get_enforcement_events():
-    log_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
+    kern_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
     limit = _bounded_int_arg("limit", 200, 1000)
     enforcer_filter = request.args.get("enforcer", "all")
+    warns: list[str] = []
+    events: list[dict] = []
 
-    try:
-        with open(log_path, "r", errors="replace") as f:
-            all_lines = f.readlines()
-    except FileNotFoundError:
-        return jsonify({
-            "events": [],
-            "warn": f"Log file not found: {log_path}. Mount host kern.log via hostPath volume.",
-        })
-    except PermissionError:
-        return jsonify({"events": [], "warn": f"Permission denied: {log_path}."}), 200
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+    # ── kern.log: AppArmor + Seccomp ──
+    if enforcer_filter in ("all", "apparmor", "seccomp"):
+        try:
+            with open(kern_path, "r", errors="replace") as f:
+                kern_lines = f.readlines()
+            for raw in reversed(kern_lines):
+                if len(events) >= limit:
+                    break
+                line = raw.rstrip()
+                if "type=1326" in line or ("SECCOMP" in line and "syscall=" in line):
+                    if enforcer_filter in ("all", "seccomp"):
+                        evt = _parse_seccomp_line(line)
+                        if evt:
+                            events.append(evt)
+                elif "apparmor=" in line.lower():
+                    if enforcer_filter in ("all", "apparmor"):
+                        evt = _parse_apparmor_line(line)
+                        if evt:
+                            events.append(evt)
+        except FileNotFoundError:
+            warns.append(f"kern.log not found: {kern_path}")
+        except PermissionError:
+            warns.append(f"Permission denied: {kern_path}")
 
-    events = []
-    for raw in reversed(all_lines):
-        line = raw.rstrip()
-        if len(events) >= limit:
-            break
-        if ("type=1326" in line or ("SECCOMP" in line and "syscall=" in line)):
-            if enforcer_filter in ("all", "seccomp"):
-                evt = _parse_seccomp_line(line)
-                if evt:
-                    events.append(evt)
-        elif "apparmor=" in line.lower():
-            if enforcer_filter in ("all", "apparmor"):
-                evt = _parse_apparmor_line(line)
-                if evt:
-                    events.append(evt)
+    # ── violations.log: BPF events ──
+    if enforcer_filter in ("all", "bpf"):
+        try:
+            with open(_VIOL_LOG_PATH, "r", errors="replace") as f:
+                viol_lines = f.readlines()
+            for raw in reversed(viol_lines):
+                if len(events) >= limit:
+                    break
+                parsed = _parse_violation_line(raw.rstrip())
+                if not parsed or (parsed.get("enforcer") or "").lower() != "bpf":
+                    continue
+                events.append({
+                    "type": "bpf",
+                    "ts": parsed.get("ts", ""),
+                    "action": parsed.get("action", ""),
+                    "operation": parsed.get("operation", ""),
+                    "name": parsed.get("path", "") or parsed.get("name", ""),
+                    "comm": parsed.get("comm", ""),
+                    "capability": parsed.get("capability", ""),
+                    "ip": parsed.get("ip", ""),
+                    "port": parsed.get("port", ""),
+                    "pod": parsed.get("pod", ""),
+                    "namespace": parsed.get("namespace", ""),
+                    "profile": parsed.get("profile", ""),
+                })
+        except FileNotFoundError:
+            warns.append(f"violations.log not found: {_VIOL_LOG_PATH}")
+        except PermissionError:
+            warns.append(f"Permission denied: {_VIOL_LOG_PATH}")
 
-    return jsonify({"events": events, "total": len(events), "log_path": log_path})
+    # Sort merged list by ts descending, cap at limit
+    events.sort(key=lambda e: e.get("ts", ""), reverse=True)
+    events = events[:limit]
+    return jsonify({
+        "events": events,
+        "total": len(events),
+        "warn": " | ".join(warns) if warns else None,
+    })
 
 
 def _policy_dashboard_summary(namespace: str) -> dict:
@@ -1637,13 +1671,21 @@ def _workload_ready_counts(item, kind: str) -> tuple[int, int, bool]:
     return desired, ready, desired > 0 and ready >= desired
 
 
+def _is_standalone_pod(pod) -> bool:
+    """True when the pod has no controller owner (not managed by Deployment/RS/DS/SS)."""
+    refs = getattr(pod.metadata, "owner_references", None) or []
+    return len(refs) == 0
+
+
 def _workload_dashboard_summary(namespace: str) -> dict:
     api = apps_v1()
+    all_pods = core_v1().list_namespaced_pod(namespace=namespace).items
     sources = {
         "Deployment": api.list_namespaced_deployment(namespace=namespace).items,
         "StatefulSet": api.list_namespaced_stateful_set(namespace=namespace).items,
         "DaemonSet": api.list_namespaced_daemon_set(namespace=namespace).items,
-        "Pod": core_v1().list_namespaced_pod(namespace=namespace).items,
+        # Only standalone pods — controller-owned pods are already counted via their owner
+        "Pod": [p for p in all_pods if _is_standalone_pod(p)],
     }
     by_kind = {}
     total = ready_workloads = protected = desired_total = ready_total = 0
@@ -1722,51 +1764,73 @@ def _model_dashboard_summary(namespace: str) -> dict:
 
 
 def _enforcement_dashboard_summary() -> dict:
-    log_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
     result = {
         "total": 0,
         "apparmor": 0,
+        "bpf": 0,
         "seccomp": 0,
         "blocked": 0,
         "logged": 0,
         "warn": None,
-        "log_path": log_path,
     }
-    try:
-        with open(log_path, "r", errors="replace") as f:
-            lines = collections.deque(f, maxlen=3000)
-    except FileNotFoundError:
-        result["warn"] = f"Log file not found: {log_path}"
-        return result
-    except PermissionError:
-        result["warn"] = f"Permission denied reading {log_path}"
-        return result
+    warns: list[str] = []
 
-    for raw in lines:
-        line = raw.rstrip()
-        if "type=1326" in line or ("SECCOMP" in line and "syscall=" in line):
-            evt = _parse_seccomp_line(line)
-            if not evt:
-                continue
-            result["total"] += 1
-            result["seccomp"] += 1
-            if evt.get("action") in ("SCMP_ACT_ERRNO", "SCMP_ACT_KILL", "SCMP_ACT_KILL_THREAD"):
-                result["blocked"] += 1
-            elif evt.get("action") == "SCMP_ACT_LOG":
-                result["logged"] += 1
-        elif "apparmor=" in line.lower():
-            evt = _parse_apparmor_line(line)
-            if not evt:
-                continue
-            result["total"] += 1
-            result["apparmor"] += 1
-            if evt.get("action") in ("DENIED", "AUDIT"):
-                result["blocked"] += 1
+    # ── kern.log: AppArmor + Seccomp kernel events ──
+    kern_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
+    try:
+        with open(kern_path, "r", errors="replace") as f:
+            for raw in collections.deque(f, maxlen=3000):
+                line = raw.rstrip()
+                if "type=1326" in line or ("SECCOMP" in line and "syscall=" in line):
+                    evt = _parse_seccomp_line(line)
+                    if not evt:
+                        continue
+                    result["total"] += 1
+                    result["seccomp"] += 1
+                    if evt.get("action") in ("SCMP_ACT_ERRNO", "SCMP_ACT_KILL", "SCMP_ACT_KILL_THREAD"):
+                        result["blocked"] += 1
+                    elif evt.get("action") == "SCMP_ACT_LOG":
+                        result["logged"] += 1
+                elif "apparmor=" in line.lower():
+                    evt = _parse_apparmor_line(line)
+                    if not evt:
+                        continue
+                    result["total"] += 1
+                    result["apparmor"] += 1
+                    if evt.get("action") in ("DENIED", "AUDIT"):
+                        result["blocked"] += 1
+    except FileNotFoundError:
+        warns.append(f"kern.log not found: {kern_path}")
+    except PermissionError:
+        warns.append(f"Permission denied: {kern_path}")
+
+    # ── violations.log: BPF events (only source for BPF enforcer) ──
+    try:
+        with open(_VIOL_LOG_PATH, "r", errors="replace") as f:
+            for raw in collections.deque(f, maxlen=3000):
+                evt = _parse_violation_line(raw.rstrip())
+                if not evt:
+                    continue
+                if (evt.get("enforcer") or "").lower() != "bpf":
+                    continue  # AppArmor/Seccomp already counted from kern.log
+                result["total"] += 1
+                result["bpf"] += 1
+                if evt.get("action") == "DENIED":
+                    result["blocked"] += 1
+                elif evt.get("action") in ("AUDIT", "AUDIT|ALLOWED"):
+                    result["logged"] += 1
+    except FileNotFoundError:
+        warns.append(f"violations.log not found: {_VIOL_LOG_PATH}")
+    except PermissionError:
+        warns.append(f"Permission denied: {_VIOL_LOG_PATH}")
+
+    if warns:
+        result["warn"] = " | ".join(warns)
     return result
 
 
 @api_bp.route("/dashboard-summary", methods=["GET"])
-@require_auth
+@require_permission("dashboard:view")
 def dashboard_summary():
     namespace = (request.args.get("namespace") or "default").strip() or "default"
     errors = []

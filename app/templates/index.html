@@ -358,13 +358,14 @@
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold flex items-center gap-2" style="color:#94a3b8">
             <svg class="w-4 h-4" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-            Enforcement Events <span class="text-xs font-normal ml-1" style="color:#475569">(Seccomp blocks · AppArmor denies)</span>
+            Enforcement Events <span class="text-xs font-normal ml-1" style="color:#475569">(AppArmor · BPF · Seccomp)</span>
           </h3>
           <div class="flex items-center gap-2">
             <select id="enf-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadEnforcementEvents()">
               <option value="all">All</option>
-              <option value="seccomp">Seccomp</option>
               <option value="apparmor">AppArmor</option>
+              <option value="bpf">BPF</option>
+              <option value="seccomp">Seccomp</option>
             </select>
             <button onclick="loadEnforcementEvents()" class="btn btn-ghost btn-sm">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -3198,7 +3199,7 @@ async function loadDashboard(){
     $("dash-agent-health").textContent=(agents.healthy||0)+"/"+(agents.total||0);
     $("dash-agent-restarts").textContent=(agents.restarts||0)+" restarts observed";
     $("dash-events-total").textContent=events.total||0;
-    $("dash-events-breakdown").textContent=(events.apparmor||0)+" AppArmor / "+(events.seccomp||0)+" Seccomp";
+    $("dash-events-breakdown").textContent=(events.apparmor||0)+" AppArmor / "+(events.bpf||0)+" BPF / "+(events.seccomp||0)+" Seccomp";
     $("dash-model-total").textContent=models.total||0;
     $("dash-model-breakdown").textContent=formatCounts(models.by_phase||{});
     setText("dash-policy-total",(pol.namespace||0)+(pol.cluster||0));
@@ -3214,7 +3215,7 @@ async function loadDashboard(){
     setText("dash-agent-health-compact",(agents.healthy||0)+"/"+(agents.total||0));
     setText("dash-agent-restarts-compact",(agents.restarts||0)+" restarts");
     setText("dash-events-total-compact",events.total||0);
-    setText("dash-events-breakdown-compact",(events.apparmor||0)+" AppArmor / "+(events.seccomp||0)+" Seccomp");
+    setText("dash-events-breakdown-compact",(events.apparmor||0)+" AA / "+(events.bpf||0)+" BPF / "+(events.seccomp||0)+" SC");
     setText("dash-model-total-compact",models.total||0);
     setText("dash-model-breakdown-compact",formatCounts(models.by_phase||{}));
     renderCompactStackedChart("dash-modes",pol.by_mode||{},{
@@ -3434,17 +3435,26 @@ async function loadEnforcementEvents(){
       +'<div style="max-height:14rem;overflow-y:auto">'
       +evs.map(function(ev){
         var isSeccomp=ev.type==="seccomp";
-        var typeColor=isSeccomp?"#f472b6":"#60a5fa";
-        var typeLabel=isSeccomp?"SECCOMP":"APPARMOR";
-        var isBlocked=isSeccomp?(ev.action==="SCMP_ACT_ERRNO"||ev.action==="SCMP_ACT_KILL"):(ev.action==="DENIED"||ev.action==="AUDIT");
-        var actionColor=isBlocked?"#f87171":(ev.action==="SCMP_ACT_LOG"?"#fbbf24":"#64748b");
-        var actionLabel=isBlocked?(isSeccomp?"BLOCKED":"DENIED"):(ev.action==="SCMP_ACT_LOG"?"LOGGED":"ALLOWED");
+        var isBpf=ev.type==="bpf";
+        var typeColor=isSeccomp?"#f472b6":isBpf?"#34d399":"#60a5fa";
+        var typeLabel=isSeccomp?"SECCOMP":isBpf?"BPF":"APPARMOR";
+        var isBlocked=isSeccomp
+          ?(ev.action==="SCMP_ACT_ERRNO"||ev.action==="SCMP_ACT_KILL"||ev.action==="SCMP_ACT_KILL_THREAD")
+          :isBpf
+            ?(ev.action==="DENIED")
+            :(ev.action==="DENIED"||ev.action==="AUDIT");
+        var actionColor=isBlocked?"#f87171":(ev.action==="SCMP_ACT_LOG"||ev.action==="AUDIT|ALLOWED"?"#fbbf24":"#64748b");
+        var actionLabel=isBlocked?"DENIED":(ev.action==="SCMP_ACT_LOG"||ev.action==="AUDIT|ALLOWED"?"LOGGED":"ALLOWED");
         var detail=isSeccomp
           ?('<span style="color:#cbd5e1">'+esc(ev.syscall||"")+'</span>'
             +' <span style="color:'+actionColor+';font-weight:600">'+actionLabel+'</span>')
-          :('<span style="color:#94a3b8">'+esc(ev.operation||"")+'</span>'
-            +' <span style="color:'+actionColor+';font-weight:600">'+actionLabel+'</span>'
-            +(ev.name?' <span style="color:#64748b">'+esc(ev.name)+'</span>':''));
+          :isBpf
+            ?('<span style="color:#94a3b8">'+esc(ev.operation||ev.capability||"")+'</span>'
+              +' <span style="color:'+actionColor+';font-weight:600">'+actionLabel+'</span>'
+              +(ev.name||ev.ip?' <span style="color:#64748b">'+esc(ev.name||ev.ip||"")+'</span>':''))
+            :('<span style="color:#94a3b8">'+esc(ev.operation||"")+'</span>'
+              +' <span style="color:'+actionColor+';font-weight:600">'+actionLabel+'</span>'
+              +(ev.name?' <span style="color:#64748b">'+esc(ev.name)+'</span>':''));
         var ts=ev.ts?new Date(ev.ts).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
         return '<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid #0f172a">'
           +'<span style="font-family:monospace;color:#475569;min-width:4rem;font-size:.65rem">'+esc(ts)+'</span>'
