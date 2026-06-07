@@ -1243,149 +1243,164 @@
     </div><!-- /tab-policy -->
 
     <!-- ═══════════════ TAB: LOGS ═══════════════ -->
-    <div id="tab-logs" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
+    <div id="tab-logs" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
 
-      <!-- AUDIT LOG -->
-      <section class="card">
-        <div class="collapsible-hdr" onclick="toggleSection('audit-content','audit-arr')">
-          <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
-            <svg class="w-5 h-5" style="color:#fb923c" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            Audit Log
-          </h2>
-          <div class="flex items-center gap-2">
-            <button onclick="event.stopPropagation();loadAuditLogs()" class="btn btn-ghost btn-sm">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Refresh
-            </button>
-            <span id="audit-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
-          </div>
+      <!-- ── Summary bar ── -->
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-5">
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','DENIED')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#f87171">Denied</div>
+          <div id="sval-denied" class="text-xl font-bold" style="color:#f87171">—</div>
         </div>
-        <div id="audit-content" class="mt-4">
-          <div id="audit-loading" class="hidden py-6 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          </div>
-          <div id="audit-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No audit events recorded yet.</div>
-          <div id="audit-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr style="border-bottom:1px solid #1e293b">
-                  <th class="th">Time</th><th class="th">User</th><th class="th">Action</th>
-                  <th class="th">Policy</th><th class="th">Namespace</th><th class="th">Status</th><th class="th">Details</th>
-                </tr>
-              </thead>
-              <tbody id="audit-body"></tbody>
-            </table>
-          </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','AUDIT')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#fbbf24">Audit</div>
+          <div id="sval-audit-evt" class="text-xl font-bold" style="color:#fbbf24">—</div>
         </div>
-      </section>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','ALLOWED')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#4ade80">Allowed</div>
+          <div id="sval-allowed" class="text-xl font-bold" style="color:#4ade80">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#93c5fd">AA Events</div>
+          <div id="sval-aa" class="text-xl font-bold" style="color:#93c5fd">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('profiles')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#fb923c">Not Ready</div>
+          <div id="sval-not-ready" class="text-xl font-bold" style="color:#fb923c">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('audit')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#f87171">Audit Fail</div>
+          <div id="sval-audit-fail" class="text-xl font-bold" style="color:#f87171">—</div>
+        </div>
+      </div>
 
-      <!-- APPARMOR KERNEL EVENTS -->
-      <section class="card">
-        <div class="collapsible-hdr" onclick="toggleSection('aa-events-content','aa-events-arr')">
-          <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
-            <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-            AppArmor Kernel Events
-            <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(kern.log)</span>
-          </h2>
-          <div class="flex items-center gap-2">
-            <button onclick="event.stopPropagation();loadAaEvents()" class="btn btn-ghost btn-sm">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Refresh
-            </button>
-            <span id="aa-events-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
-          </div>
-        </div>
-        <div id="aa-events-content" class="mt-4">
-          <div id="aa-events-loading" class="hidden py-6 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          </div>
-          <div id="aa-events-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No AppArmor events found.</div>
-          <div id="aa-events-warn" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1404;border:1px solid #713f12;color:#fde68a"></div>
-          <div id="aa-events-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr style="border-bottom:1px solid #1e293b">
-                  <th class="th">Time</th><th class="th">Profile</th><th class="th">Operation</th><th class="th">Name</th><th class="th">Disposition</th>
-                </tr>
-              </thead>
-              <tbody id="aa-events-body"></tbody>
-            </table>
-          </div>
-          <p class="mt-3 text-xs" style="color:#475569">Reads <code>/var/log/kern.log</code> inside the pod. Requires a hostPath volume mount on the console deployment.</p>
-        </div>
-      </section>
+      <!-- ── Sub-nav ── -->
+      <div class="flex gap-2 mb-4 border-b pb-3" style="border-color:#1e293b">
+        <button id="lcnav-security" onclick="switchLogsView('security')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="background:#334155;color:#f1f5f9">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Security Events
+        </button>
+        <button id="lcnav-audit" onclick="switchLogsView('audit')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Console Audit
+        </button>
+        <button id="lcnav-profiles" onclick="switchLogsView('profiles')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          Profile Health
+        </button>
+      </div>
 
-      <!-- ARMOR PROFILE STATUS (per-node) -->
-      <section class="card">
-        <div class="collapsible-hdr" onclick="toggleSection('ap-status-content','ap-status-arr')">
-          <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
-            <svg class="w-5 h-5" style="color:#38bdf8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-            ArmorProfile Status <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(per-node profile loading)</span>
-          </h2>
-          <div class="flex items-center gap-2">
-            <button onclick="event.stopPropagation();loadArmorProfiles()" class="btn btn-ghost btn-sm">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Refresh
-            </button>
-            <span id="ap-status-arr" style="color:#64748b;font-size:.75rem">&#9658;</span>
-          </div>
-        </div>
-        <div id="ap-status-content" class="hidden mt-4">
-          <div id="ap-status-loading" class="hidden py-6 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          </div>
-          <div id="ap-status-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfiles found in this namespace.</div>
-          <div id="ap-status-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-          <div id="ap-status-body"></div>
-        </div>
-      </section>
+      <!-- ── VIEW: Security Events ── -->
+      <div id="lcv-security">
 
-      <!-- VIOLATION LOG -->
-      <section class="card">
-        <div class="collapsible-hdr" onclick="toggleSection('viol-log-content','viol-log-arr')">
-          <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
-            <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-            Violation Log <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(violations.log — DENIED/AUDIT/ALLOWED)</span>
-          </h2>
-          <div class="flex items-center gap-2 flex-wrap">
-            <input id="viol-ns-filter" type="text" class="form-input" placeholder="namespace (blank = all)" style="padding:.2rem .5rem;font-size:.72rem;width:10rem" onchange="loadViolationEvents()"/>
-            <select id="viol-action-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadViolationEvents()">
-              <option value="">All actions</option>
+        <!-- Filter bar -->
+        <div class="card mb-4" style="padding:.75rem 1rem">
+          <div class="flex flex-wrap gap-2 items-center">
+            <!-- Time range -->
+            <div class="flex gap-1 items-center">
+              <span class="text-xs font-semibold mr-1" style="color:#475569">Time:</span>
+              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="15m" onclick="setSecTimeRange('15m')">15m</button>
+              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="1h" onclick="setSecTimeRange('1h')">1h</button>
+              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="24h" onclick="setSecTimeRange('24h')">24h</button>
+              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="7d" onclick="setSecTimeRange('7d')">7d</button>
+              <button class="sf-time-btn btn btn-ghost btn-sm text-xs sf-time-active" data-range="" onclick="setSecTimeRange('')">All</button>
+            </div>
+            <div style="width:1px;height:1.25rem;background:#1e293b"></div>
+            <input id="sf-ns" type="text" class="form-input" placeholder="namespace" style="padding:.2rem .45rem;font-size:.72rem;width:7.5rem" oninput="applySecFilters()"/>
+            <input id="sf-pod" type="text" class="form-input" placeholder="pod" style="padding:.2rem .45rem;font-size:.72rem;width:7rem" oninput="applySecFilters()"/>
+            <input id="sf-container" type="text" class="form-input" placeholder="container" style="padding:.2rem .45rem;font-size:.72rem;width:6.5rem" oninput="applySecFilters()"/>
+            <select id="sf-action" class="form-input" style="padding:.2rem .45rem;font-size:.72rem" onchange="applySecFilters()">
+              <option value="">All</option>
               <option value="DENIED">DENIED</option>
               <option value="AUDIT">AUDIT</option>
               <option value="ALLOWED">ALLOWED</option>
             </select>
-            <button onclick="event.stopPropagation();loadViolationEvents()" class="btn btn-ghost btn-sm">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <select id="sf-enforcer" class="form-input" style="padding:.2rem .45rem;font-size:.72rem" onchange="applySecFilters()">
+              <option value="">Enforcer</option>
+              <option value="AppArmor">AppArmor</option>
+              <option value="BPF">BPF</option>
+              <option value="Seccomp">Seccomp</option>
+            </select>
+            <input id="sf-search" type="text" class="form-input" placeholder="search…" style="padding:.2rem .45rem;font-size:.72rem;width:8rem" oninput="applySecFilters()"/>
+            <div style="flex:1"></div>
+            <button id="btn-auto-refresh" onclick="toggleAutoRefresh()" class="btn btn-ghost btn-sm text-xs" title="Auto-refresh every 30s">
+              <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Auto
+            </button>
+            <button onclick="loadSecurityEvents()" class="btn btn-ghost btn-sm text-xs">
+              <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Refresh
             </button>
-            <span id="viol-log-arr" style="color:#64748b;font-size:.75rem">&#9658;</span>
           </div>
         </div>
-        <div id="viol-log-content" class="hidden mt-4">
-          <div id="viol-log-loading" class="hidden py-6 flex justify-center">
-            <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          </div>
-          <div id="viol-log-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No violation events found.</div>
-          <div id="viol-log-warn" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1404;border:1px solid #713f12;color:#fde68a"></div>
-          <div id="viol-log-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr style="border-bottom:1px solid #1e293b">
-                  <th class="th">Time</th><th class="th">Namespace</th><th class="th">Pod</th>
-                  <th class="th">Container</th><th class="th">Enforcer</th>
-                  <th class="th">Action</th><th class="th">Operation</th><th class="th">Name/Path</th>
-                </tr>
-              </thead>
-              <tbody id="viol-log-body"></tbody>
-            </table>
-          </div>
-          <p class="mt-3 text-xs" style="color:#475569">Reads <code>/var/log/varmor/violations.log</code> inside the pod. Requires hostPath volume mount.</p>
+
+        <div id="sec-loading" class="hidden py-8 flex justify-center">
+          <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
         </div>
-      </section>
+        <div id="sec-warn" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1404;border:1px solid #713f12;color:#fde68a"></div>
+        <div id="sec-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div id="sec-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No security events match current filters.</div>
+
+        <div class="card overflow-x-auto" style="padding:0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="th" style="min-width:7rem">Time</th>
+                <th class="th">Severity</th>
+                <th class="th">Src</th>
+                <th class="th">Namespace</th>
+                <th class="th">Pod</th>
+                <th class="th">Container</th>
+                <th class="th">Enforcer</th>
+                <th class="th">Operation</th>
+                <th class="th" style="min-width:10rem">Resource</th>
+                <th class="th">Profile</th>
+              </tr>
+            </thead>
+            <tbody id="sec-body"></tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs" style="color:#3a4a5c">Security Events = Violation Log (<code>/var/log/varmor/violations.log</code>) + AppArmor Kernel Events (<code>/var/log/kern.log</code>). Requires hostPath volume mounts.</p>
+      </div><!-- /lcv-security -->
+
+      <!-- ── VIEW: Console Audit ── -->
+      <div id="lcv-audit" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold" style="color:#94a3b8">Console actions by authenticated users</span>
+          <button onclick="loadAuditLogs()" class="btn btn-ghost btn-sm text-xs">
+            <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div id="audit-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+        <div id="audit-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No audit events recorded yet.</div>
+        <div id="audit-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div class="card overflow-x-auto" style="padding:0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="th">Time</th><th class="th">User</th><th class="th">Action</th>
+                <th class="th">Policy</th><th class="th">Namespace</th><th class="th">Status</th><th class="th">Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-body"></tbody>
+          </table>
+        </div>
+      </div><!-- /lcv-audit -->
+
+      <!-- ── VIEW: Profile Health ── -->
+      <div id="lcv-profiles" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold" style="color:#94a3b8">ArmorProfile per-node load status</span>
+          <button onclick="loadArmorProfiles()" class="btn btn-ghost btn-sm text-xs">
+            <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div id="ap-status-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+        <div id="ap-status-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfiles found in this namespace.</div>
+        <div id="ap-status-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div id="ap-status-body"></div>
+      </div><!-- /lcv-profiles -->
 
     </div>
 
@@ -1629,6 +1644,21 @@
     </div>
 
   </main>
+</div>
+
+<!-- EVENT DETAIL DRAWER -->
+<div id="ev-drawer" class="hidden fixed inset-y-0 right-0 z-40 flex flex-col" style="width:26rem;background:#0c1424;border-left:1px solid #1e293b;box-shadow:-6px 0 32px rgba(0,0,0,.6)">
+  <div class="flex items-center justify-between px-4 py-3 border-b flex-shrink-0" style="border-color:#1e293b">
+    <div class="flex items-center gap-2">
+      <span id="ev-drawer-sev" class="badge badge-gray">—</span>
+      <span class="text-sm font-semibold" style="color:#f1f5f9">Event Detail</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-copy-raw" onclick="copyEvRaw()" class="btn btn-ghost btn-sm text-xs">Copy Raw</button>
+      <button onclick="closeEvDrawer()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+  </div>
+  <div class="overflow-y-auto flex-1 px-4 py-3" id="ev-drawer-body"></div>
 </div>
 
 <!-- REJECT POLICY MODAL -->
@@ -2008,10 +2038,11 @@ function switchTab(tab){
   CURRENT_TAB=tab;
   if(tab==="dashboard"){loadDashboard();}
   if(tab==="logs"){
-    if(hasPerm("logs:audit"))      loadAuditLogs();
-    if(hasPerm("logs:apparmor"))   loadAaEvents();
-    if(hasPerm("logs:view"))       loadArmorProfiles();
-    if(hasPerm("logs:violations")) loadViolationEvents();
+    switchLogsView("security");
+    // load all 3 views in parallel so summary counters are populated
+    if(hasPerm("logs:violations")||hasPerm("logs:apparmor")) loadSecurityEvents();
+    if(hasPerm("logs:audit")) loadAuditLogs();
+    if(hasPerm("logs:view")) loadArmorProfiles();
   }
   if(tab==="users"){
     if(CURRENT_USER){
@@ -2124,9 +2155,9 @@ function ns(){return $("inp-ns").value.trim()||"default";}
 function loadAll(){
   loadDeployments();
   loadPolicies();
-  if(hasPerm("logs:audit"))    loadAuditLogs();
-  if(hasPerm("logs:apparmor")) loadAaEvents();
-  if(hasPerm("models:view"))   loadProfileModels();
+  if(hasPerm("logs:violations")||hasPerm("logs:apparmor")) loadSecurityEvents();
+  if(hasPerm("logs:audit"))  loadAuditLogs();
+  if(hasPerm("models:view")) loadProfileModels();
   loadPolicyQueue();
 }
 
@@ -3501,13 +3532,291 @@ async function exportPolicy(el){
 }
 
 // ── Audit Log ──
+// ════════════════════════════════════════════
+// LOGS TAB — unified Security Events + views
+// ════════════════════════════════════════════
+
+var _secEventsRaw=[];   // normalized, unfiltered security events
+var _auditRaw=[];       // raw audit events
+var _profilesRaw=[];    // raw armor profiles
+var _secTimeRange="";   // "15m"|"1h"|"24h"|"7d"|""
+var _autoRefreshActive=false;
+var _autoRefreshTimer=null;
+var _drawerEvent=null;  // currently shown event in drawer
+
+// ── Sub-nav ──
+function switchLogsView(view){
+  ["security","audit","profiles"].forEach(function(v){
+    var el=$("lcv-"+v);if(el)el.classList[v===view?"remove":"add"]("hidden");
+    var btn=$("lcnav-"+v);
+    if(btn){if(v===view){btn.style.background="#334155";btn.style.color="#f1f5f9";}
+      else{btn.style.background="";btn.style.color="#94a3b8";}}
+  });
+  if(view==="audit"&&_auditRaw.length===0) loadAuditLogs();
+  if(view==="profiles"&&_profilesRaw.length===0) loadArmorProfiles();
+  closeEvDrawer();
+}
+
+// ── Time range filter ──
+function setSecTimeRange(range){
+  _secTimeRange=range;
+  document.querySelectorAll(".sf-time-btn").forEach(function(b){
+    var active=b.dataset.range===range;
+    b.style.background=active?"#1e3a5f":"";
+    b.style.color=active?"#60a5fa":"";
+    if(active)b.classList.add("sf-time-active"); else b.classList.remove("sf-time-active");
+  });
+  applySecFilters();
+}
+
+// Set a filter programmatically (from summary chip clicks)
+function applySecFilter(field,value){
+  var el=$({"action":"sf-action","ns":"sf-ns","pod":"sf-pod","enforcer":"sf-enforcer"}[field]);
+  if(el)el.value=value;
+  applySecFilters();
+}
+
+// ── Parse timestamp → ms ──
+var _MONTHS={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+function _parseTsMs(s){
+  if(!s) return 0;
+  var d=new Date(s);
+  if(!isNaN(d.getTime())) return d.getTime();
+  // syslog: "Jun  7 12:34:56"
+  var m=/^(\w{3})\s+(\d+)\s+(\d+):(\d+):(\d+)/.exec(s);
+  if(m){
+    var mo=_MONTHS[m[1]];if(mo===undefined)return 0;
+    var now=new Date();
+    var d2=new Date(now.getFullYear(),mo,parseInt(m[2]),parseInt(m[3]),parseInt(m[4]),parseInt(m[5]));
+    if(d2.getTime()>Date.now()+60000) d2.setFullYear(now.getFullYear()-1);
+    return d2.getTime();
+  }
+  return 0;
+}
+
+// ── Normalize raw events into unified schema ──
+function _normalizeViolEvent(ev,idx){
+  var sev=(ev.action||"").toUpperCase()||"INFO";
+  return {
+    _idx:idx,_src:"viol",
+    ts:ev.ts||"",tsMs:_parseTsMs(ev.ts||""),
+    severity:sev,
+    namespace:ev.namespace||"",pod:ev.pod||"",container:ev.container||"",
+    enforcer:ev.enforcer||"",operation:ev.operation||"",
+    resource:ev.name||"",profile:ev.profile||"",
+    comm:"",pid:"",node:"",raw:ev.raw||JSON.stringify(ev),
+  };
+}
+
+function _parseAaLine(line){
+  var fields={};
+  var kv=/(\w+)=("([^"]*)"|(\S+))/g,m;
+  while((m=kv.exec(line))!==null){fields[m[1]]=m[3]!==undefined?m[3]:m[4];}
+  var tsM=/^(\w{3}\s+\d+\s+\d+:\d+:\d+)/.exec(line);
+  return {
+    ts:tsM?tsM[1]:"",disp:fields.apparmor||"",
+    op:fields.operation||fields.op||"",name:fields.name||fields.path||"",
+    prof:fields.profile||"",comm:fields.comm||"",pid:fields.pid||"",
+  };
+}
+
+function _normalizeAaEvent(line,idx){
+  var p=_parseAaLine(line);
+  var sev=p.disp.toUpperCase()||"INFO";
+  return {
+    _idx:idx,_src:"aa",
+    ts:p.ts,tsMs:_parseTsMs(p.ts),
+    severity:sev,
+    namespace:"",pod:"",container:"",
+    enforcer:"AppArmor",operation:p.op,
+    resource:p.name,profile:p.prof,
+    comm:p.comm,pid:p.pid,node:"",raw:line,
+  };
+}
+
+// ── Load Security Events (Violation + AppArmor merged) ──
+async function loadSecurityEvents(){
+  hide("sec-err");hide("sec-warn");hide("sec-empty");
+  var sb=$("sec-body");if(sb)sb.innerHTML="";
+  show("sec-loading");
+  var violEvts=[],aaLines=[],warnMsgs=[];
+  var nsF=(($("sf-ns")||{}).value||"").trim();
+  var actF=(($("sf-action")||{}).value||"").trim();
+  var p1=hasPerm("logs:violations")?api("/api/violation-events?limit=500"+(nsF?"&namespace="+encodeURIComponent(nsF):"")+(actF?"&action="+encodeURIComponent(actF):""))
+    .then(function(r){return r.json().then(function(d){if(r.ok){violEvts=d.events||[];if(d.warn)warnMsgs.push(d.warn);}});}).catch(function(){})
+    :Promise.resolve();
+  var p2=hasPerm("logs:apparmor")?api("/api/apparmor-events?limit=500")
+    .then(function(r){return r.json().then(function(d){if(r.ok){aaLines=d.events||[];if(d.warn)warnMsgs.push(d.warn);}});}).catch(function(){})
+    :Promise.resolve();
+  await Promise.all([p1,p2]);
+  hide("sec-loading");
+  var idx=0;
+  var all=violEvts.map(function(e){return _normalizeViolEvent(e,idx++);})
+    .concat(aaLines.map(function(l){return _normalizeAaEvent(l,idx++);}));
+  all.sort(function(a,b){return b.tsMs-a.tsMs;});
+  _secEventsRaw=all;
+  if(warnMsgs.length) showEl($("sec-warn"),warnMsgs.join(" | "));
+  updateLogsSummary();
+  applySecFilters();
+}
+
+// ── Apply filters to _secEventsRaw ──
+function applySecFilters(){
+  var ns=(($("sf-ns")||{}).value||"").trim().toLowerCase();
+  var pod=(($("sf-pod")||{}).value||"").trim().toLowerCase();
+  var cont=(($("sf-container")||{}).value||"").trim().toLowerCase();
+  var act=(($("sf-action")||{}).value||"").toUpperCase();
+  var enf=(($("sf-enforcer")||{}).value||"").toLowerCase();
+  var srch=(($("sf-search")||{}).value||"").toLowerCase();
+  var cutMs=_secTimeRange?Date.now()-{
+    "15m":15*60e3,"1h":60*60e3,"24h":24*3600e3,"7d":7*24*3600e3
+  }[_secTimeRange]:0;
+  var filtered=_secEventsRaw.filter(function(e){
+    if(cutMs&&e.tsMs&&e.tsMs<cutMs) return false;
+    if(ns&&e.namespace.toLowerCase().indexOf(ns)<0) return false;
+    if(pod&&e.pod.toLowerCase().indexOf(pod)<0) return false;
+    if(cont&&e.container.toLowerCase().indexOf(cont)<0) return false;
+    if(act&&e.severity!==act) return false;
+    if(enf&&e.enforcer.toLowerCase().indexOf(enf)<0) return false;
+    if(srch){
+      var haystack=(e.namespace+" "+e.pod+" "+e.container+" "+e.enforcer+" "+e.operation+" "+e.resource+" "+e.profile+" "+e.raw).toLowerCase();
+      if(haystack.indexOf(srch)<0) return false;
+    }
+    return true;
+  });
+  renderSecurityEvents(filtered);
+}
+
+// ── Render security events table ──
+var _SEV_BG={DENIED:"rgba(239,68,68,.07)",AUDIT:"rgba(251,191,36,.05)",ALLOWED:"rgba(74,222,128,.04)"};
+var _SEV_BADGE={DENIED:"badge-red",AUDIT:"badge-amber",ALLOWED:"badge-green"};
+function renderSecurityEvents(events){
+  var body=$("sec-body");if(!body)return;
+  if(!events.length){body.innerHTML="";show("sec-empty");return;}
+  hide("sec-empty");
+  var rows=events.map(function(e){
+    var bg=_SEV_BG[e.severity]||"";
+    var sev='<span class="badge '+(_SEV_BADGE[e.severity]||"badge-gray")+'" style="font-size:.62rem">'+esc(e.severity||"?")+'</span>';
+    var srcBadge=e._src==="aa"?'<span style="font-size:.62rem;color:#93c5fd;background:#1e3a5f;padding:1px 5px;border-radius:4px">AA</span>':'<span style="font-size:.62rem;color:#a78bfa;background:#2d1b69;padding:1px 5px;border-radius:4px">VL</span>';
+    var tsDisp=e.ts?(e.tsMs?new Date(e.tsMs).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):e.ts):"—";
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b;cursor:pointer;background:"+bg;
+    tr.onmouseover=function(){tr.style.filter="brightness(1.15)";};
+    tr.onmouseout=function(){tr.style.filter="";};
+    tr.onclick=function(){openEvDrawer(e);};
+    tr.innerHTML='<td class="td" style="font-size:.68rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(tsDisp)+'</td>'
+      +'<td class="td">'+sev+'</td>'
+      +'<td class="td">'+srcBadge+'</td>'
+      +'<td class="td" style="font-size:.72rem;color:#64748b">'+esc(e.namespace||"—")+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#93c5fd;max-width:8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.pod)+'">'+esc(e.pod||"—")+'</td>'
+      +'<td class="td" style="font-size:.7rem;color:#94a3b8">'+esc(e.container||"—")+'</td>'
+      +'<td class="td" style="font-size:.7rem;color:#38bdf8">'+esc(e.enforcer||"—")+'</td>'
+      +'<td class="td" style="font-size:.7rem;color:#94a3b8">'+esc(e.operation||"—")+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.68rem;color:#e2e8f0;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.resource)+'">'+esc(e.resource||"—")+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.68rem;color:#7dd3fc;max-width:10rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.profile)+'">'+esc(e.profile||"—")+'</td>';
+    return tr;
+  });
+  body.innerHTML="";
+  rows.forEach(function(r){body.appendChild(r);});
+}
+
+// ── Event detail drawer ──
+function openEvDrawer(ev){
+  _drawerEvent=ev;
+  var sevClass=_SEV_BADGE[ev.severity]||"badge-gray";
+  var sd=$("ev-drawer-sev");if(sd){sd.className="badge "+sevClass;sd.textContent=ev.severity||"?";}
+  var body=$("ev-drawer-body");if(!body)return;
+  var srcLabel=ev._src==="aa"?"AppArmor Kernel (kern.log)":"Violation Log (violations.log)";
+  var tsFormatted=ev.tsMs?new Date(ev.tsMs).toLocaleString("vi-VN"):ev.ts||"—";
+  function row(label,val,mono){
+    if(!val) return "";
+    return '<div class="flex gap-2 py-1 border-b" style="border-color:#1e293b">'
+      +'<span class="text-xs flex-shrink-0 w-20" style="color:#475569">'+esc(label)+'</span>'
+      +'<span class="text-xs break-all'+(mono?" font-mono":"")+'" style="color:#cbd5e1">'+esc(val)+'</span></div>';
+  }
+  function section(title){return '<div class="text-xs font-bold uppercase tracking-wider mt-3 mb-1" style="color:#334155;letter-spacing:.1em">'+title+'</div>';}
+  var html=section("Event")
+    +row("Source",srcLabel)
+    +row("Time",tsFormatted)
+    +section("K8s Context")
+    +row("Namespace",ev.namespace)
+    +row("Pod",ev.pod,true)
+    +row("Container",ev.container)
+    +row("Node",ev.node)
+    +section("Security")
+    +row("Enforcer",ev.enforcer)
+    +row("Profile",ev.profile,true)
+    +row("Operation",ev.operation)
+    +row("Resource",ev.resource,true)
+    +(ev.comm?row("Command",ev.comm,true):"")
+    +(ev.pid?row("PID",ev.pid):"")
+    +section("Raw Log")
+    +'<div class="mt-1 p-2 rounded text-xs font-mono break-all" style="background:#080f1a;color:#94a3b8;max-height:8rem;overflow-y:auto;border:1px solid #1e293b">'+esc(ev.raw||"")+'</div>'
+    +section("Actions")
+    +'<div class="flex flex-wrap gap-2 mt-1">'
+    +(ev.namespace&&ev.pod?'<button onclick="switchTab(\'policy\');switchLogsView(\'security\')" class="btn btn-ghost btn-sm text-xs">&#x1F50D; Check Policy</button>':'')
+    +(ev.profile?'<button onclick="switchLogsView(\'profiles\');switchTab(\'logs\')" class="btn btn-ghost btn-sm text-xs">&#x1F6E1; Profile Status</button>':'')
+    +'</div>';
+  body.innerHTML=html;
+  show("ev-drawer");
+}
+
+function closeEvDrawer(){hide("ev-drawer");_drawerEvent=null;}
+
+function copyEvRaw(){
+  if(!_drawerEvent)return;
+  navigator.clipboard.writeText(_drawerEvent.raw||"").then(function(){
+    var b=$("btn-copy-raw");if(!b)return;
+    var orig=b.textContent;b.textContent="Copied!";b.style.color="#4ade80";
+    setTimeout(function(){b.textContent=orig;b.style.color="";},1500);
+  }).catch(function(){});
+}
+
+// ── Auto-refresh ──
+function toggleAutoRefresh(){
+  _autoRefreshActive=!_autoRefreshActive;
+  var btn=$("btn-auto-refresh");
+  if(btn){
+    btn.style.background=_autoRefreshActive?"#1e3a5f":"";
+    btn.style.color=_autoRefreshActive?"#60a5fa":"";
+    btn.title=_autoRefreshActive?"Auto-refresh ON (30s) — click to disable":"Auto-refresh every 30s";
+  }
+  if(_autoRefreshActive){
+    if(_autoRefreshTimer) clearInterval(_autoRefreshTimer);
+    _autoRefreshTimer=setInterval(function(){
+      if(CURRENT_TAB==="logs"&&!$("lcv-security").classList.contains("hidden")) loadSecurityEvents();
+    },30000);
+  } else {
+    if(_autoRefreshTimer){clearInterval(_autoRefreshTimer);_autoRefreshTimer=null;}
+  }
+}
+
+// ── Summary counters ──
+function updateLogsSummary(){
+  var denied=0,audit=0,allowed=0,aa=0;
+  _secEventsRaw.forEach(function(e){
+    if(e.severity==="DENIED") denied++;
+    else if(e.severity==="AUDIT") audit++;
+    else if(e.severity==="ALLOWED") allowed++;
+    if(e._src==="aa") aa++;
+  });
+  var notReady=_profilesRaw.filter(function(p){return !p.ready;}).length;
+  var auditFail=_auditRaw.filter(function(e){return e.status!=="SUCCESS";}).length;
+  function sv(id,n){var el=$(id);if(el)el.textContent=n>=0?n:"—";}
+  sv("sval-denied",denied);sv("sval-audit-evt",audit);sv("sval-allowed",allowed);
+  sv("sval-aa",aa);sv("sval-not-ready",notReady);sv("sval-audit-fail",auditFail);
+}
+
+// ── Console Audit ──
 async function loadAuditLogs(){
   setLoading("audit",true);hide("audit-empty");hide("audit-err");$("audit-body").innerHTML="";
   try{
-    var r=await api("/api/audit-logs?limit=100"),data=await r.json();
+    var r=await api("/api/audit-logs?limit=200"),data=await r.json();
     setLoading("audit",false);
-    if(!r.ok){showEl($("audit-err"),data.error||"Failed to load audit logs");return;}
-    renderAuditLogs(data.events||[]);
+    if(!r.ok){showEl($("audit-err"),data.error||"Failed");return;}
+    _auditRaw=data.events||[];
+    updateLogsSummary();
+    renderAuditLogs(_auditRaw);
   }catch(err){setLoading("audit",false);showEl($("audit-err"),err.message);}
 }
 
@@ -3515,79 +3824,23 @@ function renderAuditLogs(events){
   $("audit-body").innerHTML="";
   if(!events.length){show("audit-empty");return;}
   hide("audit-empty");
+  var actionColor={CREATE:"#60a5fa",UPDATE:"#fbbf24",DELETE:"#f87171",CREATE_USER:"#60a5fa",
+    DELETE_USER:"#f87171",UPDATE_ROLE:"#a78bfa",UPDATE_ROLE_DEF:"#a78bfa",
+    ENABLE_PROTECTION:"#4ade80",DISABLE_PROTECTION:"#fb923c",APPROVE:"#4ade80",REJECT:"#f87171"};
   events.forEach(function(ev){
     var ok=ev.status==="SUCCESS";
-    var sb=ok?'<span class="badge badge-green">&#x25CF; OK</span>':'<span class="badge badge-red">&#x25CF; FAIL</span>';
-    var actionColor={CREATE:"#60a5fa",UPDATE:"#fbbf24",DELETE:"#f87171",
-      ENABLE_PROTECTION:"#4ade80",DISABLE_PROTECTION:"#fb923c"};
-    var ac='<span style="font-size:.75rem;font-weight:600;color:'+(actionColor[ev.action]||"#94a3b8")+'">'+esc(ev.action)+'</span>';
+    var sb=ok?'<span class="badge badge-green" style="font-size:.65rem">OK</span>':'<span class="badge badge-red" style="font-size:.65rem">FAIL</span>';
+    var ac='<span style="font-size:.72rem;font-weight:600;color:'+(actionColor[ev.action]||"#94a3b8")+'">'+esc(ev.action)+'</span>';
     var tr=document.createElement("tr");
-    tr.style.cssText="border-bottom:1px solid #1e293b";
-    tr.innerHTML='<td class="td" style="font-size:.7rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ev.ts)+'</td>'
-      +'<td class="td" style="font-size:.8rem;color:#94a3b8">'+esc(ev.user)+'</td>'
+    tr.style.cssText="border-bottom:1px solid #1e293b"+(ok?""  :";background:rgba(239,68,68,.05)");
+    tr.innerHTML='<td class="td" style="font-size:.68rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ev.ts)+'</td>'
+      +'<td class="td" style="font-size:.78rem;color:#94a3b8">'+esc(ev.user)+'</td>'
       +'<td class="td">'+ac+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.75rem;color:#93c5fd">'+esc(ev.policy)+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#64748b">'+esc(ev.namespace)+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.72rem;color:#93c5fd">'+esc(ev.policy)+'</td>'
+      +'<td class="td" style="font-size:.72rem;color:#64748b">'+esc(ev.namespace)+'</td>'
       +'<td class="td">'+sb+'</td>'
-      +'<td class="td" style="font-size:.7rem;color:#64748b;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.details||"")+'">'+esc(ev.details||"&#8212;")+'</td>';
+      +'<td class="td" style="font-size:.68rem;color:#64748b;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.details||"")+'">'+esc(ev.details||"—")+'</td>';
     $("audit-body").appendChild(tr);
-  });
-}
-
-// ── AppArmor kernel events ──
-async function loadAaEvents(){
-  setLoading("aa-events",true);hide("aa-events-empty");hide("aa-events-err");hide("aa-events-warn");$("aa-events-body").innerHTML="";
-  try{
-    var r=await api("/api/apparmor-events?limit=200"),data=await r.json();
-    setLoading("aa-events",false);
-    if(!r.ok){showEl($("aa-events-err"),data.error||"Failed to load events");return;}
-    if(data.warn){showEl($("aa-events-warn"),data.warn);}
-    renderAaEvents(data.events||[]);
-  }catch(err){setLoading("aa-events",false);showEl($("aa-events-err"),err.message);}
-}
-
-function _parseAaLine(line){
-  // Extract ALL key="value" and key=value pairs regardless of order
-  var fields={};
-  var kv=/(\w+)=("([^"]*)"|(\S+))/g,m;
-  while((m=kv.exec(line))!==null){
-    fields[m[1]]=m[3]!==undefined?m[3]:m[4];
-  }
-  // Syslog-style timestamp prefix: "Jun  7 12:34:56 hostname kernel: ..."
-  var tsM=/^(\w{3}\s+\d+\s+\d+:\d+:\d+)/.exec(line);
-  var ts=tsM?tsM[1]:(fields.msg||"");
-  return {
-    ts:   ts,
-    disp: fields.apparmor||"",
-    op:   fields.operation||fields.op||"",
-    name: fields.name||fields.path||"",
-    prof: fields.profile||"",
-    comm: fields.comm||"",
-    pid:  fields.pid||"",
-  };
-}
-
-function renderAaEvents(lines){
-  $("aa-events-body").innerHTML="";
-  if(!lines.length){show("aa-events-empty");return;}
-  hide("aa-events-empty");
-  lines.forEach(function(line){
-    var p=_parseAaLine(line);
-    var disp=p.disp.toUpperCase();
-    var dc=disp==="DENIED"?'<span class="badge badge-red">DENIED</span>'
-      :disp==="ALLOWED"?'<span class="badge badge-green">ALLOWED</span>'
-      :disp?'<span class="badge badge-gray">'+esc(disp)+'</span>'
-      :'<span class="badge badge-gray">?</span>';
-    var profLabel=p.prof||(p.comm?"["+p.comm+"]":"—");
-    var nameLabel=p.name||line;
-    var tr=document.createElement("tr");
-    tr.style.cssText="border-bottom:1px solid #1e293b";
-    tr.innerHTML='<td class="td" style="font-size:.7rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(p.ts)+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#93c5fd;max-width:10rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(p.prof||line)+'">'+esc(profLabel)+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#94a3b8">'+esc(p.op||"—")+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#e2e8f0;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(nameLabel)+'">'+esc(nameLabel)+'</td>'
-      +'<td class="td">'+dc+'</td>';
-    $("aa-events-body").appendChild(tr);
   });
 }
 
@@ -4436,13 +4689,16 @@ function collectUnconfinedContainers(){
 }
 
 // ── ArmorProfile Status ──
+// ── Profile Health ──
 async function loadArmorProfiles(){
   setLoading("ap-status",true);hide("ap-status-empty");hide("ap-status-err");$("ap-status-body").innerHTML="";
   try{
     var r=await api("/api/namespaces/"+ns()+"/armor-profiles"),data=await r.json();
     setLoading("ap-status",false);
     if(!r.ok){showEl($("ap-status-err"),data.error||"Failed");return;}
-    renderArmorProfiles(data.profiles||[]);
+    _profilesRaw=data.profiles||[];
+    updateLogsSummary();
+    renderArmorProfiles(_profilesRaw);
   }catch(err){setLoading("ap-status",false);showEl($("ap-status-err"),err.message);}
 }
 
@@ -4469,51 +4725,16 @@ function renderArmorProfiles(profiles){
       +'<div class="flex items-center gap-2">'
       +'<span class="badge badge-blue" style="font-size:.65rem">'+esc(p.enforcer||"")+'</span>'
       +'<span class="badge badge-gray" style="font-size:.65rem">'+esc(p.mode||"")+'</span>'
-      +'<span class="badge '+(ready?"badge-green":"badge-amber")+'" style="font-size:.65rem">'+(ready?"Ready":"Loading")+'</span></div></div>'
+      +'<span class="badge '+(ready?"badge-green":"badge-amber")+'" style="font-size:.65rem">'+(ready?"Ready":"Not Ready")+'</span></div></div>'
       +bar
       +(nodes?'<table class="w-full text-xs mt-2"><thead><tr style="border-bottom:1px solid #1e293b"><th class="th" style="font-size:.65rem">Node</th><th class="th" style="font-size:.65rem">Status</th><th class="th" style="font-size:.65rem">Reason</th></tr></thead><tbody>'+nodes+'</tbody></table>':"")
       +'</div>';
   }).join("");
 }
 
-// ── Violation Log ──
-async function loadViolationEvents(){
-  setLoading("viol-log",true);hide("viol-log-empty");hide("viol-log-err");hide("viol-log-warn");$("viol-log-body").innerHTML="";
-  var action=(($("viol-action-filter")||{}).value||"").trim();
-  var nsFilter=(($("viol-ns-filter")||{}).value||"").trim();
-  var params="limit=300"
-    +(nsFilter?"&namespace="+encodeURIComponent(nsFilter):"")
-    +(action?"&action="+encodeURIComponent(action):"");
-  try{
-    var r=await api("/api/violation-events?"+params),data=await r.json();
-    setLoading("viol-log",false);
-    if(!r.ok){showEl($("viol-log-err"),data.error||"Failed");return;}
-    if(data.warn) showEl($("viol-log-warn"),data.warn);
-    renderViolationEvents(data.events||[]);
-  }catch(err){setLoading("viol-log",false);showEl($("viol-log-err"),err.message);}
-}
-
-function renderViolationEvents(events){
-  $("viol-log-body").innerHTML="";
-  if(!events.length){show("viol-log-empty");return;}
-  hide("viol-log-empty");
-  var actionColors={DENIED:"badge-red",AUDIT:"badge-amber",ALLOWED:"badge-green"};
-  events.forEach(function(ev){
-    var ac='<span class="badge '+(actionColors[ev.action]||"badge-gray")+'" style="font-size:.65rem">'+esc(ev.action||"?")+'</span>';
-    var ts=ev.ts?new Date(ev.ts).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):esc(ev.ts||"");
-    var tr=document.createElement("tr");
-    tr.style.cssText="border-bottom:1px solid #1e293b";
-    tr.innerHTML='<td class="td" style="font-size:.68rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ts)+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#64748b">'+esc(ev.namespace||"")+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#93c5fd;max-width:8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(ev.pod||"")+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#94a3b8">'+esc(ev.container||"")+'</td>'
-      +'<td class="td" style="font-size:.7rem;color:#38bdf8">'+esc(ev.enforcer||"")+'</td>'
-      +'<td class="td">'+ac+'</td>'
-      +'<td class="td" style="font-size:.7rem;color:#94a3b8">'+esc(ev.operation||"")+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.68rem;color:#e2e8f0;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.name||ev.raw||"")+'">'+esc(ev.name||"")+'</td>';
-    $("viol-log-body").appendChild(tr);
-  });
-}
+// Legacy stubs — kept so old inline Refresh calls don't break
+function loadAaEvents(){loadSecurityEvents();}
+function loadViolationEvents(){loadSecurityEvents();}
 
 // ── YAML Import ──
 function openImportModal(){
