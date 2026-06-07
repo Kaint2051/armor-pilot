@@ -2140,10 +2140,22 @@ def _parse_violation_line(line: str) -> dict | None:
                 ts = datetime.datetime.utcfromtimestamp(ts_raw).strftime("%Y-%m-%dT%H:%M:%SZ")
             else:
                 ts = obj.get("time") or obj.get("ts") or obj.get("timestamp", "")
-            # "event" field contains the AppArmor/BPF event struct
+            # "event" field contains the AppArmor/BPF/Seccomp event struct
             ev_obj = obj.get("event") or {}
             if not isinstance(ev_obj, dict):
                 ev_obj = {}
+            # BPF network events nest address/socket inside the event
+            addr = ev_obj.get("address") or {}
+            sock = ev_obj.get("socket") or {}
+            if not isinstance(addr, dict):
+                addr = {}
+            if not isinstance(sock, dict):
+                sock = {}
+            # BPF path permissions is []string — join for display
+            perms = ev_obj.get("permissions", "")
+            if isinstance(perms, list):
+                perms = ",".join(perms)
+            pid_raw = obj.get("pid", "")
             return {
                 "ts": ts,
                 "namespace": obj.get("podNamespace", ""),
@@ -2152,8 +2164,28 @@ def _parse_violation_line(line: str) -> dict | None:
                 "profile": obj.get("profileName", ""),
                 "enforcer": obj.get("enforcer", ""),
                 "action": str(obj.get("action", "")).upper(),
+                "node": obj.get("nodeName", ""),
+                "pid": str(pid_raw) if pid_raw else "",
+                # AppArmor / generic
                 "operation": ev_obj.get("operation", ""),
                 "name": ev_obj.get("name", ev_obj.get("srcName", "")),
+                "comm": ev_obj.get("comm", ""),
+                "deniedMask": ev_obj.get("deniedMask", ""),
+                "requestedMask": ev_obj.get("requestedMask", ""),
+                # BPF path
+                "path": ev_obj.get("path", ""),
+                "permissions": perms,
+                # BPF capability
+                "capability": ev_obj.get("capability", ""),
+                # BPF network
+                "ip": addr.get("ip", ""),
+                "port": str(addr.get("port", "")) if addr.get("port") else "",
+                "domain": sock.get("domain", ""),
+                "protocol": sock.get("protocol", ""),
+                # Seccomp
+                "syscall": ev_obj.get("syscall", ""),
+                "exe": ev_obj.get("exe", ""),
+                "subj": ev_obj.get("subj", ""),
                 "raw": line,
             }
         except Exception:
@@ -2173,8 +2205,14 @@ def _parse_violation_line(line: str) -> dict | None:
         "profile": fields.get("profileName", fields.get("profile", "")),
         "enforcer": fields.get("enforcer", ""),
         "action": fields.get("action", fields.get("apparmor", "")).upper(),
+        "node": fields.get("nodeName", ""),
+        "pid": fields.get("pid", ""),
         "operation": fields.get("operation", fields.get("op", "")),
         "name": fields.get("name", fields.get("path", "")),
+        "comm": fields.get("comm", ""),
+        "deniedMask": "", "requestedMask": "", "path": "", "permissions": "",
+        "capability": "", "ip": "", "port": "", "domain": "", "protocol": "",
+        "syscall": "", "exe": "", "subj": "",
         "raw": line,
     }
 
