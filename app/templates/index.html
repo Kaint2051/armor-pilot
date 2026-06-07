@@ -2507,30 +2507,50 @@ function buildYamlPreview(){
   }
   if(containers.length) lines.push("    containers: ["+containers.join(", ")+"]");
   lines.push("  policy:","    enforcer: "+(enfs.length?enfs.join("|"):"(none — required)"),"    mode: "+mode);
-  if(mode==="EnhanceProtect"&&rules.length){
+  if(mode==="EnhanceProtect"){
     var hardening=rules.filter(function(r){return _yamlRuleCategory(r)==="hardening";});
     var attack=rules.filter(function(r){return _yamlRuleCategory(r)==="attack";});
     var vuln=rules.filter(function(r){return _yamlRuleCategory(r)==="vuln";});
-    lines.push("    enhanceProtect:");
-    if(hardening.length){lines.push("      hardeningRules:");hardening.forEach(function(r){lines.push("        - "+r);});}
-    if(attack.length){lines.push("      attackProtectionRules:");lines.push("        - rules: ["+attack.join(", ")+"]");}
-    if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
-  }
-  if(mode==="EnhanceProtect"){
     var scSysc=($("ta-seccomp")||{value:""}).value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
     var scAct=($("sel-seccomp-action")||{value:"SCMP_ACT_ERRNO"}).value;
-    if(scSysc.length){
-      lines.push("    seccomp:","      action: "+scAct,"      syscalls: ["+scSysc.slice(0,6).join(", ")+(scSysc.length>6?"…":"")+"]");
+    var _bpfF=$("bpf-files")?collectBpfRules("bpf-files"):[];
+    var _bpfP=$("bpf-procs")?collectBpfRules("bpf-procs"):[];
+    var _bpfM=$("bpf-mounts")?$("bpf-mounts").querySelectorAll(".mount-row").length:0;
+    var _atkGrps=collectAttackGroups();
+    var _npL4=[]; var _npH=$("np-http-rows")?$("np-http-rows").children.length:0;
+    try{_npL4=collectNpL4Rules();}catch(e){}
+    if(hardening.length||attack.length||vuln.length||scSysc.length
+       ||_bpfF.length||_bpfP.length||_bpfM||_atkGrps.length||_npL4.length||_npH){
+      lines.push("    enhanceProtect:");
+      if(hardening.length){lines.push("      hardeningRules:");hardening.forEach(function(r){lines.push("        - "+r);});}
+      if(_atkGrps.length){
+        lines.push("      attackProtectionRules:");
+        _atkGrps.forEach(function(g){
+          lines.push("        - rules: ["+g.rules.join(", ")+"]");
+          if(g.targets.length){lines.push("          targets:");g.targets.forEach(function(t){lines.push("            - "+t);});}
+        });
+        if(attack.length) lines.push("        # (checkbox attack rules also present: "+attack.join(", ")+")");
+      } else if(attack.length){
+        lines.push("      attackProtectionRules:");
+        lines.push("        - rules: ["+attack.join(", ")+"]");
+      }
+      if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
+      if(scSysc.length){lines.push("      syscallRawRules:","        - action: "+scAct,"          names: ["+scSysc.slice(0,6).join(", ")+(scSysc.length>6?"…":"")+"]");}
+      if(_bpfF.length||_bpfP.length||_bpfM){
+        lines.push("      bpfRawRules:");
+        if(_bpfF.length){lines.push("        files:");_bpfF.forEach(function(r){lines.push("          - pattern: "+r.pattern+"  # perms:["+r.permissions.join(",")+"] qual:"+r.qualifiers.join(","));});}
+        if(_bpfP.length){lines.push("        processes:");_bpfP.forEach(function(r){lines.push("          - pattern: "+r.pattern+"  # perms:["+r.permissions.join(",")+"]");});}
+        if(_bpfM) lines.push("        # mounts: "+_bpfM+" entries");
+      }
+      if(_npL4.length||_npH){
+        lines.push("      networkProxyRawRules:");
+        lines.push("        egress:");
+        var _npDef=($("sel-np-default-action")||{value:"deny"}).value||"deny";
+        lines.push("          defaultAction: "+_npDef);
+        _npL4.forEach(function(r){var p=[];if(r.cidr) p.push("cidr: "+r.cidr);else if(r.ip) p.push("ip: "+r.ip);if((r.ports||[]).length) p.push("ports:["+r.ports.map(function(x){return x.endPort?x.port+"-"+x.endPort:x.port;}).join(",")+"]");p.push("qualifiers:["+r.qualifiers.join(",")+"]");lines.push("          - "+p.join("  "));});
+        if(_npH) lines.push("          # httpRules: "+_npH+" entry(ies)");
+      }
     }
-    var bpfF=$("bpf-files")?$("bpf-files").querySelectorAll(".bpf-row").length:0;
-    var bpfP=$("bpf-procs")?$("bpf-procs").querySelectorAll(".bpf-row").length:0;
-    var bpfM=$("bpf-mounts")?$("bpf-mounts").querySelectorAll(".mount-row").length:0;
-    if(bpfF||bpfP||bpfM) lines.push("    # bpfRawRules: "+bpfF+" file / "+bpfP+" process / "+bpfM+" mount");
-    var atkGrps=$("attack-groups")?$("attack-groups").querySelectorAll(".attack-group").length:0;
-    if(atkGrps) lines.push("    # attackGroups: "+atkGrps+" group(s) with target constraints");
-    var npL4=$("np-l4-rows")?$("np-l4-rows").children.length:0;
-    var npHttp=$("np-http-rows")?$("np-http-rows").children.length:0;
-    if(npL4||npHttp) lines.push("    # networkProxy: "+npL4+" L4 + "+npHttp+" HTTP rule(s)");
   }
   if(mode==="BehaviorModeling"){
     var dur=parseInt(($("inp-duration")||{value:"60"}).value)||60;
@@ -5318,6 +5338,7 @@ function renderPolicyQueue(items){
   if(!items.length){show("queue-empty");el.innerHTML="";return;}
   hide("queue-empty");
   var canApprove=hasPerm("review:approve");
+  var canReject=hasPerm("review:reject");
   var canCancelAny=hasPerm("review:cancel");
   var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
   _queueItemsMap={};
@@ -5332,9 +5353,11 @@ function renderPolicyQueue(items){
     if(item.status==="pending"){
       if(canApprove){
         actions+='<button onclick="approveQueued(\''+esc(item.id)+'\')" class="btn btn-green btn-sm" style="margin-right:2px">&#10003;</button>';
+      }
+      if(canReject){
         actions+='<button onclick="openRejectModal(\''+esc(item.id)+'\',\''+esc(item.name)+'\')" class="btn btn-danger btn-sm" style="margin-right:2px">&#10005;</button>';
       }
-      if(canApprove||canCancelAny||item.submitted_by===CURRENT_USER){
+      if(canApprove||canReject||canCancelAny||item.submitted_by===CURRENT_USER){
         actions+='<button onclick="cancelQueued(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm">Cancel</button>';
       }
     }
@@ -5356,7 +5379,7 @@ function renderPolicyQueue(items){
 }
 
 async function approveQueued(id){
-  if(!isAdmin()){alert("Only admin can approve policies.");return;}
+  if(!hasPerm("review:approve")){alert("Permission denied: review:approve required.");return;}
   if(!confirm("Approve and apply this policy to the cluster?")) return;
   try{
     var r=await api("/api/policies/queue/"+encodeURIComponent(id)+"/approve",{method:"POST",body:JSON.stringify({})});
@@ -5368,7 +5391,7 @@ async function approveQueued(id){
 
 var _rejectTargetId=null;
 function openRejectModal(id,name){
-  if(!isAdmin()){alert("Only admin can reject policies.");return;}
+  if(!hasPerm("review:reject")){alert("Permission denied: review:reject required.");return;}
   _rejectTargetId=id;
   $("reject-policy-name").textContent=name;
   $("ta-reject-note").value="";
@@ -5518,7 +5541,7 @@ function _renderQueueDetail(item,p){
 
   // Footer buttons
   $("qd-btn-approve").classList.toggle("hidden",!admin||!isPending);
-  $("qd-btn-reject-toggle").classList.toggle("hidden",!admin||!isPending);
+  $("qd-btn-reject-toggle").classList.toggle("hidden",!hasPerm("review:reject")||!isPending);
   $("qd-btn-reject-confirm").classList.add("hidden");
   $("qd-reject-note-sec").classList.add("hidden");
   $("qd-spacer").classList.remove("hidden");
@@ -5545,7 +5568,10 @@ function _buildQueueItemYaml(p,scope){
     var hard=rules.filter(function(r){return _YAML_HARDENING.has(r)||/^disable-cap-/.test(r);});
     var atk=rules.filter(function(r){return !_YAML_HARDENING.has(r)&&!/^disable-cap-/.test(r)&&!_YAML_VULN.has(r);});
     var vuln=rules.filter(function(r){return _YAML_VULN.has(r);});
-    if(hard.length||atk.length||vuln.length||(p.apparmor_raw_rules||[]).length){
+    var _qHasBpf=(p.bpf_file_rules||[]).length||(p.bpf_process_rules||[]).length||(p.bpf_mounts||[]).length;
+    var _qHasNp=p.np_egress&&typeof p.np_egress==="object";
+    var _qHasSc=(p.seccomp_syscalls||[]).length;
+    if(hard.length||atk.length||vuln.length||(p.apparmor_raw_rules||[]).length||_qHasBpf||_qHasNp||_qHasSc){
       lines.push("    enhanceProtect:");
       if(hard.length){lines.push("      hardeningRules:");hard.forEach(function(r){lines.push("        - "+r);});}
       // Attack rules: prefer groups-with-targets over simple checkbox rules
@@ -5565,33 +5591,32 @@ function _buildQueueItemYaml(p,scope){
       }
       if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
       if((p.apparmor_raw_rules||[]).length) lines.push("      # appArmorRawRules: "+(p.apparmor_raw_rules||[]).length+" rule(s)");
-    }
-    if((p.bpf_file_rules||[]).length||(p.bpf_process_rules||[]).length||(p.bpf_mounts||[]).length){
-      lines.push("    bpfRawRules:");
-      if((p.bpf_file_rules||[]).length){
-        lines.push("      fileRules:");
-        (p.bpf_file_rules||[]).forEach(function(r){lines.push("        - pattern: "+r.pattern+"  # perms: ["+((r.permissions||[]).join(","))+"] qual: "+((r.qualifiers||["deny"]).join(",")));});
+      if(_qHasSc){
+        lines.push("      syscallRawRules:");
+        lines.push("        - action: "+(p.seccomp_action||"SCMP_ACT_ERRNO"));
+        lines.push("          names: ["+p.seccomp_syscalls.slice(0,8).join(", ")+(p.seccomp_syscalls.length>8?"…":"")+"]");
       }
-      if((p.bpf_process_rules||[]).length){
-        lines.push("      processRules:");
-        (p.bpf_process_rules||[]).forEach(function(r){lines.push("        - pattern: "+r.pattern+"  # perms: ["+((r.permissions||[]).join(","))+"]");});
+      if(_qHasBpf){
+        lines.push("      bpfRawRules:");
+        if((p.bpf_file_rules||[]).length){
+          lines.push("        files:");
+          (p.bpf_file_rules||[]).forEach(function(r){lines.push("          - pattern: "+r.pattern+"  # perms:["+((r.permissions||[]).join(","))+"] qual:"+((r.qualifiers||["deny"]).join(","));});
+        }
+        if((p.bpf_process_rules||[]).length){
+          lines.push("        processes:");
+          (p.bpf_process_rules||[]).forEach(function(r){lines.push("          - pattern: "+r.pattern+"  # perms:["+((r.permissions||[]).join(","))+"]");});
+        }
+        if((p.bpf_mounts||[]).length) lines.push("        # mounts: "+(p.bpf_mounts||[]).length+" entries");
       }
-      if((p.bpf_mounts||[]).length) lines.push("      # mountRules: "+(p.bpf_mounts||[]).length+" entries");
+      if(_qHasNp){
+        lines.push("      networkProxyRawRules:");
+        lines.push("        egress:");
+        lines.push("          defaultAction: "+(p.np_egress.defaultAction||"deny"));
+        if((p.np_egress.rules||[]).length) lines.push("          # rules: "+(p.np_egress.rules||[]).length+" L4 rule(s)");
+        if((p.np_egress.httpRules||[]).length) lines.push("          # httpRules: "+(p.np_egress.httpRules||[]).length+" HTTP rule(s)");
+      }
     }
-    if((p.seccomp_syscalls||[]).length){
-      lines.push("    seccomp:");
-      lines.push("      action: "+(p.seccomp_action||"SCMP_ACT_ERRNO"));
-      lines.push("      syscalls: ["+p.seccomp_syscalls.slice(0,8).join(", ")+(p.seccomp_syscalls.length>8?"…":"")+"]");
-    }
-    if(p.np_egress&&typeof p.np_egress==="object"){
-      lines.push("    networkProxyConfig:");
-      lines.push("      egress:");
-      lines.push("        defaultAction: "+(p.np_egress.defaultAction||"deny"));
-      if((p.np_egress.rules||[]).length) lines.push("        # rules: "+(p.np_egress.rules||[]).length+" L4 rule(s)");
-      if((p.np_egress.httpRules||[]).length) lines.push("        # httpRules: "+(p.np_egress.httpRules||[]).length+" HTTP rule(s)");
-    } else if(p.np_egress){
-      lines.push("    # networkProxy: egress configured");
-    }
+    if(!_qHasNp&&p.np_egress) lines.push("    # networkProxy: egress configured");
   }
   if(p.mode==="BehaviorModeling"&&p.modeling_duration) lines.push("    behaviorModeling:","      duration: "+p.modeling_duration+"s");
   if(p.mode==="DefenseInDepth"){
