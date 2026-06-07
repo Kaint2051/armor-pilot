@@ -5600,7 +5600,7 @@ function _buildQueueItemYaml(p,scope){
         lines.push("      bpfRawRules:");
         if((p.bpf_file_rules||[]).length){
           lines.push("        files:");
-          (p.bpf_file_rules||[]).forEach(function(r){lines.push("          - pattern: "+r.pattern+"  # perms:["+((r.permissions||[]).join(","))+"] qual:"+((r.qualifiers||["deny"]).join(","));});
+          (p.bpf_file_rules||[]).forEach(function(r){lines.push("          - pattern: "+r.pattern+"  # perms:["+((r.permissions||[]).join(","))+"] qual:"+((r.qualifiers||["deny"]).join(",")));});
         }
         if((p.bpf_process_rules||[]).length){
           lines.push("        processes:");
