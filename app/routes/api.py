@@ -231,22 +231,28 @@ def _parse_policy_item(item: dict, scope: str = "namespace", ns_fallback: str = 
 
 
 def _patch_unconfined_annotations(namespace: str, kind: str, name: str, containers: list[str]) -> None:
-    """Patch pod template annotations for container-level unconfined override."""
+    """Patch workload annotations for container-level unconfined AppArmor override."""
     if not name or not containers:
         return
     annotations = {
         f"container.apparmor.security.beta.varmor.org/{c}": "unconfined"
         for c in containers
     }
-    patch = {"spec": {"template": {"metadata": {"annotations": annotations}}}}
     try:
-        api = apps_v1()
-        if kind == "Deployment":
-            api.patch_namespaced_deployment(name=name, namespace=namespace, body=patch)
-        elif kind == "StatefulSet":
-            api.patch_namespaced_stateful_set(name=name, namespace=namespace, body=patch)
-        elif kind == "DaemonSet":
-            api.patch_namespaced_daemon_set(name=name, namespace=namespace, body=patch)
+        if kind == "Pod":
+            core_v1().patch_namespaced_pod(
+                name=name, namespace=namespace,
+                body={"metadata": {"annotations": annotations}},
+            )
+        else:
+            patch = {"spec": {"template": {"metadata": {"annotations": annotations}}}}
+            api = apps_v1()
+            if kind == "Deployment":
+                api.patch_namespaced_deployment(name=name, namespace=namespace, body=patch)
+            elif kind == "StatefulSet":
+                api.patch_namespaced_stateful_set(name=name, namespace=namespace, body=patch)
+            elif kind == "DaemonSet":
+                api.patch_namespaced_daemon_set(name=name, namespace=namespace, body=patch)
     except Exception as exc:
         logger.warning("Failed to patch unconfined annotations on %s/%s/%s: %s", kind, namespace, name, exc)
 
@@ -785,7 +791,7 @@ def get_policy(namespace: str, name: str):
 
 
 @api_bp.route("/namespaces/<namespace>/policies/<name>", methods=["PUT"])
-@require_admin
+@require_permission("policies:edit")
 def update_policy(namespace: str, name: str):
     user = get_current_user()
     body = request.get_json(silent=True)
@@ -826,7 +832,7 @@ def update_policy(namespace: str, name: str):
 
 
 @api_bp.route("/namespaces/<namespace>/policies/<name>", methods=["DELETE"])
-@require_admin
+@require_permission("policies:delete")
 def delete_policy(namespace: str, name: str):
     user = get_current_user()
     try:
@@ -886,7 +892,7 @@ def get_cluster_policy(name: str):
 
 
 @api_bp.route("/cluster-policies/<name>", methods=["PUT"])
-@require_admin
+@require_permission("policies:edit")
 def update_cluster_policy(name: str):
     user = get_current_user()
     body = request.get_json(silent=True)
@@ -927,7 +933,7 @@ def update_cluster_policy(name: str):
 
 
 @api_bp.route("/cluster-policies/<name>", methods=["DELETE"])
-@require_admin
+@require_permission("policies:delete")
 def delete_cluster_policy(name: str):
     user = get_current_user()
     try:
@@ -952,7 +958,7 @@ def delete_cluster_policy(name: str):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/policies", methods=["POST"])
-@require_admin
+@require_permission("policies:apply_direct")
 def create_policy():
     user = get_current_user()
     body = request.get_json(silent=True)
@@ -1903,11 +1909,13 @@ def submit_policy_for_review():
         return jsonify({"error": "Policy name is required"}), 400
     if scope not in ("namespace", "cluster"):
         return jsonify({"error": "scope must be 'namespace' or 'cluster'"}), 400
-    manifest, err = _build_manifest_from_body(body, scope, name, namespace)
+    _, err = _build_manifest_from_body(body, scope, name, namespace)
     if err:
         return jsonify({"error": err}), 400
     import json as _json
-    item_id = queue_policy(name, namespace, scope, _json.dumps(manifest), user)
+    # Store the original form body (not the built manifest) so the queue detail
+    # view can reconstruct field values correctly and unconfined_containers is preserved.
+    item_id = queue_policy(name, namespace, scope, _json.dumps(body), user)
     audit_logger.log(user, "SUBMIT_REVIEW", name, namespace, "SUCCESS", f"queue_id={item_id}")
     return jsonify({"ok": True, "id": item_id,
                     "message": f"Policy '{name}' submitted for review"}), 201
@@ -1943,7 +1951,7 @@ def get_queue_item_endpoint(item_id: str):
 
 
 @api_bp.route("/policies/queue/<item_id>/approve", methods=["POST"])
-@require_admin
+@require_permission("review:approve")
 def approve_queued_policy(item_id: str):
     user = get_current_user()
     body = request.get_json(silent=True) or {}
@@ -1953,11 +1961,21 @@ def approve_queued_policy(item_id: str):
     if item["status"] != "pending":
         return jsonify({"error": f"Cannot approve: item status is '{item['status']}'"}), 400
     import json as _json
-    manifest = _json.loads(item["manifest"])
+    stored = _json.loads(item["manifest"])
     name = item["name"]
     namespace = item["namespace"]
     scope = item["scope"]
     note = (body.get("note") or "").strip()
+    # Detect storage format: old entries stored the K8s manifest directly;
+    # new entries store the original form body so we can rebuild + get unconfined info.
+    if "apiVersion" in stored:
+        manifest = stored
+        unconfined_containers: list = []
+    else:
+        manifest, _merr = _build_manifest_from_body(stored, scope, name, namespace)
+        if _merr:
+            return jsonify({"error": f"Cannot rebuild policy manifest: {_merr}"}), 400
+        unconfined_containers = _clean_str_list(stored.get("unconfined_containers") or [])
     def _do_apply():
         """Create policy; if it already exists, patch-update it instead."""
         if scope == "cluster":
@@ -1990,6 +2008,9 @@ def approve_queued_policy(item_id: str):
 
     try:
         _do_apply()
+        if unconfined_containers and scope != "cluster":
+            _tgt = manifest.get("spec", {}).get("target", {})
+            _patch_unconfined_annotations(namespace, _tgt.get("kind", ""), _tgt.get("name", ""), unconfined_containers)
         update_queue_status(item_id, "approved", reviewed_by=user, review_note=note or "Approved")
         audit_logger.log(user, "APPROVE_POLICY", name, namespace, "SUCCESS",
                          f"queue_id={item_id}, submitter={item['submitted_by']}")
@@ -2007,7 +2028,7 @@ def approve_queued_policy(item_id: str):
 
 
 @api_bp.route("/policies/queue/<item_id>/reject", methods=["POST"])
-@require_admin
+@require_permission("review:reject")
 def reject_queued_policy(item_id: str):
     user = get_current_user()
     body = request.get_json(silent=True) or {}
@@ -2045,7 +2066,7 @@ VARMOR_CLUSTER_PLURAL_APPLY = "varmorclusterpolicies"
 
 
 @api_bp.route("/namespaces/<namespace>/models/<name>/apply", methods=["POST"])
-@require_admin
+@require_permission("models:apply")
 def apply_model_as_policy(namespace: str, name: str):
     user = get_current_user()
     body = request.get_json(silent=True) or {}
@@ -2399,7 +2420,7 @@ def create_secret(namespace: str):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/policies/import", methods=["POST"])
-@require_admin
+@require_permission("policies:import")
 def import_policy():
     import yaml as pyyaml
     user = get_current_user()
