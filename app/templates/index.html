@@ -2038,6 +2038,11 @@ function switchTab(tab){
   CURRENT_TAB=tab;
   if(tab==="dashboard"){loadDashboard();}
   if(tab==="logs"){
+    // hide sub-nav buttons the current user has no permission to access
+    var _auditNav=$("lcnav-audit");
+    if(_auditNav) _auditNav.style.display=hasPerm("logs:audit")?"":"none";
+    var _profilesNav=$("lcnav-profiles");
+    if(_profilesNav) _profilesNav.style.display=hasPerm("logs:view")?"":"none";
     switchLogsView("security");
     // load all 3 views in parallel so summary counters are populated
     if(hasPerm("logs:violations")||hasPerm("logs:apparmor")) loadSecurityEvents();
@@ -3755,7 +3760,7 @@ function openEvDrawer(ev){
     +section("Actions")
     +'<div class="flex flex-wrap gap-2 mt-1">'
     +(ev.namespace&&ev.pod?'<button onclick="switchTab(\'policy\');switchLogsView(\'security\')" class="btn btn-ghost btn-sm text-xs">&#x1F50D; Check Policy</button>':'')
-    +(ev.profile?'<button onclick="switchLogsView(\'profiles\');switchTab(\'logs\')" class="btn btn-ghost btn-sm text-xs">&#x1F6E1; Profile Status</button>':'')
+    +(ev.profile?'<button onclick="switchLogsView(\'profiles\')" class="btn btn-ghost btn-sm text-xs">&#x1F6E1; Profile Status</button>':'')
     +'</div>';
   body.innerHTML=html;
   show("ev-drawer");

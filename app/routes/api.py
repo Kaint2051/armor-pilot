@@ -2129,25 +2129,36 @@ def _parse_violation_line(line: str) -> dict | None:
     line = line.strip()
     if not line:
         return None
-    # Try JSON first
+    # Try JSON first (zerolog format emitted by vArmor auditor)
     if line.startswith("{"):
         try:
             obj = json.loads(line)
+            # vArmor uses camelCase: podNamespace, podName, containerName, profileName
+            # eventTimestamp is Unix epoch seconds (uint64 integer)
+            ts_raw = obj.get("eventTimestamp", 0)
+            if isinstance(ts_raw, (int, float)) and ts_raw > 0:
+                ts = datetime.datetime.utcfromtimestamp(ts_raw).strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                ts = obj.get("time") or obj.get("ts") or obj.get("timestamp", "")
+            # "event" field contains the AppArmor/BPF event struct
+            ev_obj = obj.get("event") or {}
+            if not isinstance(ev_obj, dict):
+                ev_obj = {}
             return {
-                "ts": obj.get("time") or obj.get("ts") or obj.get("timestamp", ""),
-                "namespace": obj.get("namespace", ""),
-                "pod": obj.get("pod", ""),
-                "container": obj.get("container", ""),
-                "profile": obj.get("profile", ""),
+                "ts": ts,
+                "namespace": obj.get("podNamespace", ""),
+                "pod": obj.get("podName", ""),
+                "container": obj.get("containerName", ""),
+                "profile": obj.get("profileName", ""),
                 "enforcer": obj.get("enforcer", ""),
                 "action": str(obj.get("action", "")).upper(),
-                "operation": obj.get("operation", ""),
-                "name": obj.get("name", ""),
+                "operation": ev_obj.get("operation", ""),
+                "name": ev_obj.get("name", ev_obj.get("srcName", "")),
                 "raw": line,
             }
         except Exception:
             pass
-    # Logrus key=value format: time="..." level=info msg="violation" namespace="..."
+    # zerolog key=value console fallback (unlikely in production)
     fields: dict[str, str] = {}
     for m in re.finditer(r'(\w+)=("([^"]*)"|\S+)', line):
         key = m.group(1)
@@ -2156,10 +2167,10 @@ def _parse_violation_line(line: str) -> dict | None:
         return None
     return {
         "ts": fields.get("time", fields.get("ts", "")),
-        "namespace": fields.get("namespace", ""),
-        "pod": fields.get("pod", ""),
-        "container": fields.get("container", ""),
-        "profile": fields.get("profile", ""),
+        "namespace": fields.get("podNamespace", fields.get("namespace", "")),
+        "pod": fields.get("podName", fields.get("pod", "")),
+        "container": fields.get("containerName", fields.get("container", "")),
+        "profile": fields.get("profileName", fields.get("profile", "")),
         "enforcer": fields.get("enforcer", ""),
         "action": fields.get("action", fields.get("apparmor", "")).upper(),
         "operation": fields.get("operation", fields.get("op", "")),
