@@ -1428,7 +1428,7 @@ def _collect_agent_health() -> dict:
 
 
 @api_bp.route("/agent-health", methods=["GET"])
-@require_permission("system:health")
+@require_permission("dashboard:view")
 def agent_health():
     try:
         return jsonify(_collect_agent_health())
