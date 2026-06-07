@@ -2251,8 +2251,12 @@ def get_violation_events():
             continue
         if namespace_filter and evt.get("namespace") != namespace_filter:
             continue
-        if action_filter and evt.get("action") != action_filter:
-            continue
+        # action=AUDIT also includes AUDIT|ALLOWED (both are audit-type events)
+        if action_filter:
+            ev_action = evt.get("action", "")
+            audit_match = action_filter == "AUDIT" and ev_action in ("AUDIT", "AUDIT|ALLOWED")
+            if not audit_match and ev_action != action_filter:
+                continue
         events.append(evt)
 
     return jsonify({"events": events, "total": len(events), "log_path": log_path})

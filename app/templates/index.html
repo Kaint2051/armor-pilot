@@ -1254,6 +1254,7 @@
         <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','AUDIT')">
           <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#fbbf24">Audit</div>
           <div id="sval-audit-evt" class="text-xl font-bold" style="color:#fbbf24">—</div>
+          <div class="text-xs mt-0.5" style="color:#78716c">incl. A|A</div>
         </div>
         <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','ALLOWED')">
           <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#4ade80">Allowed</div>
@@ -3776,7 +3777,13 @@ function applySecFilters(){
     if(ns&&e.namespace.toLowerCase().indexOf(ns)<0) return false;
     if(pod&&e.pod.toLowerCase().indexOf(pod)<0) return false;
     if(cont&&e.container.toLowerCase().indexOf(cont)<0) return false;
-    if(act&&e.severity!==act) return false;
+    if(act){
+      // AUDIT filter includes AUDIT|ALLOWED (both are audit-type events)
+      var actMatch=act==="AUDIT"
+        ?(e.severity==="AUDIT"||e.severity==="AUDIT|ALLOWED")
+        :e.severity===act;
+      if(!actMatch) return false;
+    }
     if(enf&&e.enforcer.toLowerCase().indexOf(enf)<0) return false;
     if(srch){
       var haystack=(e.namespace+" "+e.pod+" "+e.container+" "+e.enforcer
