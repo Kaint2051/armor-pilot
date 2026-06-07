@@ -1240,7 +1240,7 @@ def delete_role_endpoint(name: str):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/audit-logs", methods=["GET"])
-@require_auth
+@require_permission("logs:audit")
 def get_audit_logs():
     limit = _bounded_int_arg("limit", 100, 500)
     return jsonify({"events": audit_logger.get_events()[:limit]})
@@ -1251,7 +1251,7 @@ def get_audit_logs():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/apparmor-events", methods=["GET"])
-@require_auth
+@require_permission("logs:apparmor")
 def get_apparmor_events():
     log_path = os.environ.get("APPARMOR_LOG_PATH", "/var/log/kern.log")
     limit = _bounded_int_arg("limit", 200, 1000)
@@ -1289,7 +1289,7 @@ def get_apparmor_events():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/namespaces/<namespace>/profile-models", methods=["GET"])
-@require_auth
+@require_permission("models:view")
 def list_profile_models(namespace: str):
     try:
         raw = custom_objects().list_namespaced_custom_object(
@@ -1340,7 +1340,7 @@ def list_profile_models(namespace: str):
 
 
 @api_bp.route("/namespaces/<namespace>/profile-models/<name>", methods=["GET"])
-@require_auth
+@require_permission("models:view")
 def get_profile_model(namespace: str, name: str):
     try:
         item = custom_objects().get_namespaced_custom_object(
@@ -2073,7 +2073,7 @@ def apply_model_as_policy(namespace: str, name: str):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/namespaces/<namespace>/armor-profiles", methods=["GET"])
-@require_auth
+@require_permission("logs:view")
 def list_armor_profiles(namespace: str):
     try:
         raw = custom_objects().list_namespaced_custom_object(
@@ -2169,7 +2169,7 @@ def _parse_violation_line(line: str) -> dict | None:
 
 
 @api_bp.route("/violation-events", methods=["GET"])
-@require_auth
+@require_permission("logs:violations")
 def get_violation_events():
     log_path = _VIOL_LOG_PATH
     limit = _bounded_int_arg("limit", 200, 2000)

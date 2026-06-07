@@ -1349,7 +1349,8 @@
             <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
             Violation Log <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(violations.log — DENIED/AUDIT/ALLOWED)</span>
           </h2>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="viol-ns-filter" type="text" class="form-input" placeholder="namespace (blank = all)" style="padding:.2rem .5rem;font-size:.72rem;width:10rem" onchange="loadViolationEvents()"/>
             <select id="viol-action-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadViolationEvents()">
               <option value="">All actions</option>
               <option value="DENIED">DENIED</option>
@@ -2006,7 +2007,12 @@ function switchTab(tab){
   });
   CURRENT_TAB=tab;
   if(tab==="dashboard"){loadDashboard();}
-  if(tab==="logs"){loadAuditLogs();loadAaEvents();}
+  if(tab==="logs"){
+    if(hasPerm("logs:audit"))      loadAuditLogs();
+    if(hasPerm("logs:apparmor"))   loadAaEvents();
+    if(hasPerm("logs:view"))       loadArmorProfiles();
+    if(hasPerm("logs:violations")) loadViolationEvents();
+  }
   if(tab==="users"){
     if(CURRENT_USER){
       $("user-display-name").textContent=CURRENT_USER;
@@ -2115,7 +2121,14 @@ async function api(path,opts){
 }
 
 function ns(){return $("inp-ns").value.trim()||"default";}
-function loadAll(){loadDeployments();loadPolicies();loadAuditLogs();loadAaEvents();loadProfileModels();loadPolicyQueue();}
+function loadAll(){
+  loadDeployments();
+  loadPolicies();
+  if(hasPerm("logs:audit"))    loadAuditLogs();
+  if(hasPerm("logs:apparmor")) loadAaEvents();
+  if(hasPerm("models:view"))   loadProfileModels();
+  loadPolicyQueue();
+}
 
 // ── Scope / mode / target toggles ──
 function onScopeChange(){}
@@ -3533,25 +3546,46 @@ async function loadAaEvents(){
   }catch(err){setLoading("aa-events",false);showEl($("aa-events-err"),err.message);}
 }
 
+function _parseAaLine(line){
+  // Extract ALL key="value" and key=value pairs regardless of order
+  var fields={};
+  var kv=/(\w+)=("([^"]*)"|(\S+))/g,m;
+  while((m=kv.exec(line))!==null){
+    fields[m[1]]=m[3]!==undefined?m[3]:m[4];
+  }
+  // Syslog-style timestamp prefix: "Jun  7 12:34:56 hostname kernel: ..."
+  var tsM=/^(\w{3}\s+\d+\s+\d+:\d+:\d+)/.exec(line);
+  var ts=tsM?tsM[1]:(fields.msg||"");
+  return {
+    ts:   ts,
+    disp: fields.apparmor||"",
+    op:   fields.operation||fields.op||"",
+    name: fields.name||fields.path||"",
+    prof: fields.profile||"",
+    comm: fields.comm||"",
+    pid:  fields.pid||"",
+  };
+}
+
 function renderAaEvents(lines){
   $("aa-events-body").innerHTML="";
   if(!lines.length){show("aa-events-empty");return;}
   hide("aa-events-empty");
-  var RE=/(\S+\s+\S+\s+\S+).*apparmor="(\w+)".*operation="([^"]*)".*name="([^"]*)"(?:.*profile="([^"]*)")?/i;
   lines.forEach(function(line){
-    var m=RE.exec(line);
-    var ts=m?m[1]:"";
-    var disp=m?m[2]:"";
-    var op=m?m[3]:"";
-    var name=m?m[4]:"";
-    var prof=m?m[5]:"";
-    var dc=disp==="DENIED"?'<span class="badge badge-red">DENIED</span>':disp==="ALLOWED"?'<span class="badge badge-green">ALLOWED</span>':'<span class="badge badge-gray">'+esc(disp)+'</span>';
+    var p=_parseAaLine(line);
+    var disp=p.disp.toUpperCase();
+    var dc=disp==="DENIED"?'<span class="badge badge-red">DENIED</span>'
+      :disp==="ALLOWED"?'<span class="badge badge-green">ALLOWED</span>'
+      :disp?'<span class="badge badge-gray">'+esc(disp)+'</span>'
+      :'<span class="badge badge-gray">?</span>';
+    var profLabel=p.prof||(p.comm?"["+p.comm+"]":"—");
+    var nameLabel=p.name||line;
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b";
-    tr.innerHTML='<td class="td" style="font-size:.7rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ts||"")+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#93c5fd;max-width:10rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(prof||line)+'">'+esc(prof||"—")+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#94a3b8">'+esc(op||"—")+'</td>'
-      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#e2e8f0;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(name||line)+'">'+esc(name||line)+'</td>'
+    tr.innerHTML='<td class="td" style="font-size:.7rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(p.ts)+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#93c5fd;max-width:10rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(p.prof||line)+'">'+esc(profLabel)+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#94a3b8">'+esc(p.op||"—")+'</td>'
+      +'<td class="td" style="font-family:monospace;font-size:.7rem;color:#e2e8f0;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(nameLabel)+'">'+esc(nameLabel)+'</td>'
       +'<td class="td">'+dc+'</td>';
     $("aa-events-body").appendChild(tr);
   });
@@ -4445,8 +4479,11 @@ function renderArmorProfiles(profiles){
 // ── Violation Log ──
 async function loadViolationEvents(){
   setLoading("viol-log",true);hide("viol-log-empty");hide("viol-log-err");hide("viol-log-warn");$("viol-log-body").innerHTML="";
-  var action=($("viol-action-filter")||{value:""}).value;
-  var params="limit=300"+(action?"&action="+encodeURIComponent(action):"");
+  var action=(($("viol-action-filter")||{}).value||"").trim();
+  var nsFilter=(($("viol-ns-filter")||{}).value||"").trim();
+  var params="limit=300"
+    +(nsFilter?"&namespace="+encodeURIComponent(nsFilter):"")
+    +(action?"&action="+encodeURIComponent(action):"");
   try{
     var r=await api("/api/violation-events?"+params),data=await r.json();
     setLoading("viol-log",false);
