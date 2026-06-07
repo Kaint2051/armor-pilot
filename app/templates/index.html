@@ -5357,7 +5357,7 @@ function renderPolicyQueue(items){
       if(canReject){
         actions+='<button onclick="openRejectModal(\''+esc(item.id)+'\',\''+esc(item.name)+'\')" class="btn btn-danger btn-sm" style="margin-right:2px">&#10005;</button>';
       }
-      if(canApprove||canReject||canCancelAny||item.submitted_by===CURRENT_USER){
+      if(canCancelAny||item.submitted_by===CURRENT_USER){
         actions+='<button onclick="cancelQueued(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm">Cancel</button>';
       }
     }
