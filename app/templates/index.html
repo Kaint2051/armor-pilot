@@ -15,6 +15,7 @@
     .form-input{width:100%;background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:.5rem .75rem;color:#f1f5f9;font-size:.875rem;line-height:1.5;outline:none;box-sizing:border-box;transition:border-color 150ms,box-shadow 150ms}
     .form-input::placeholder{color:#475569}
     .form-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+    .input-error{border-color:#f87171!important;box-shadow:0 0 0 3px rgba(248,113,113,.2)!important}
     .form-input[readonly]{opacity:.65;cursor:not-allowed}
     .form-input:-webkit-autofill,.form-input:-webkit-autofill:hover,.form-input:-webkit-autofill:focus{-webkit-text-fill-color:#f1f5f9;-webkit-box-shadow:0 0 0 1000px #1e293b inset;caret-color:#f1f5f9;transition:background-color 5000s ease-in-out 0s}
     .form-input option{background:#1e293b;color:#f1f5f9}
@@ -590,7 +591,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label class="form-label">Policy Name <span style="color:#f87171">*</span></label>
-                <input id="inp-pname" type="text" placeholder="e.g. protect-nginx" class="form-input"/>
+                <input id="inp-pname" type="text" placeholder="e.g. protect-nginx" class="form-input" oninput="this.classList.remove('input-error');var h=$('tmpl-name-hint');if(h){h.classList.add('hidden');h.textContent='';}"/>
+                <p id="tmpl-name-hint" class="hidden" style="color:#f87171;font-size:.75rem;margin-top:.25rem"></p>
               </div>
               <div>
                 <label class="form-label">Target Kind</label>
@@ -2390,6 +2392,16 @@ var POLICY_TEMPLATES={
 
 function applyTemplate(name){
   var t=POLICY_TEMPLATES[name];if(!t) return;
+  var pname=$("inp-pname");
+  if(!pname||!pname.value.trim()){
+    var hint=$("tmpl-name-hint");
+    if(hint){hint.textContent="Please enter a policy name first.";hint.classList.remove("hidden");}
+    if(pname){pname.focus();pname.classList.add("input-error");}
+    return;
+  }
+  var hint=$("tmpl-name-hint");
+  if(hint){hint.textContent="";hint.classList.add("hidden");}
+  if(pname) pname.classList.remove("input-error");
   document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
   document.querySelectorAll(".tmpl-btn").forEach(function(b){
     if(b.getAttribute("onclick")==="applyTemplate('"+name+"')") b.classList.add("tmpl-active");
@@ -2605,6 +2617,8 @@ function resetWizard(){
   var btnSubmit=$("btn-submit-review");
   if(btnSubmit){btnSubmit.disabled=true;}
   document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
+  var _ph=$("tmpl-name-hint");if(_ph){_ph.textContent="";_ph.classList.add("hidden");}
+  var _pn=$("inp-pname");if(_pn) _pn.classList.remove("input-error");
   var tp=$("tmpl-picker");if(tp) tp.classList.remove("hidden");
   var eb=$("edit-banner");if(eb) eb.classList.add("hidden");
   var cancelBtn=$("btn-cancel-edit");if(cancelBtn) cancelBtn.classList.add("hidden");
