@@ -1596,35 +1596,15 @@
 
       <!-- VIEW: Roles -->
       <div id="acv-roles" class="hidden">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-          <!-- Viewer role card -->
-          <div class="card">
-            <div class="flex items-center gap-3 mb-4">
-              <span class="badge badge-gray text-sm px-3 py-1">viewer</span>
-              <span class="text-sm font-semibold" style="color:#94a3b8">Read-Only Access</span>
-            </div>
-            <div id="role-perms-viewer" class="space-y-1"></div>
-          </div>
-
-          <!-- Operator role card -->
-          <div class="card" style="border-color:#78350f33">
-            <div class="flex items-center gap-3 mb-4">
-              <span class="badge badge-amber text-sm px-3 py-1">operator</span>
-              <span class="text-sm font-semibold" style="color:#fbbf24">Policy Operator</span>
-            </div>
-            <div id="role-perms-operator" class="space-y-1"></div>
-          </div>
-
-          <!-- Admin role card -->
-          <div class="card" style="border-color:#1e3a5f">
-            <div class="flex items-center gap-3 mb-4">
-              <span class="badge badge-blue text-sm px-3 py-1">admin</span>
-              <span class="text-sm font-semibold" style="color:#60a5fa">Full Access</span>
-            </div>
-            <div id="role-perms-admin" class="space-y-1"></div>
-          </div>
-
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold" style="color:#94a3b8">Role Definitions</h3>
+          <button id="btn-new-role" onclick="openRoleModal(null)" class="btn btn-primary btn-sm hidden">
+            <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            New Role
+          </button>
+        </div>
+        <div id="roles-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="text-sm" style="color:#475569">Loading roles…</div>
         </div>
       </div><!-- /acv-roles -->
 
@@ -1777,6 +1757,42 @@
         <button type="submit" class="btn btn-primary">Create User</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- CREATE / EDIT ROLE MODAL -->
+<div id="modal-role" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:42rem;max-height:90vh;border-color:#1e3a5f">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <h3 id="role-modal-title" class="text-base font-semibold" style="color:#f1f5f9">New Role</h3>
+      <button onclick="closeRoleModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <div class="overflow-y-auto flex-1 pr-1">
+      <div class="grid grid-cols-1 gap-4 mb-4">
+        <div>
+          <label class="form-label">Role Name <span style="color:#f87171">*</span></label>
+          <input id="inp-role-name" type="text" class="form-input" placeholder="e.g. security_reviewer" maxlength="32"/>
+          <p class="text-xs mt-1" style="color:#475569">Lowercase letters, digits, underscores. Cannot shadow built-in roles.</p>
+        </div>
+        <div>
+          <label class="form-label">Description</label>
+          <input id="inp-role-desc" type="text" class="form-input" placeholder="Brief description of this role's purpose" maxlength="120"/>
+        </div>
+      </div>
+      <div class="mb-2 flex items-center justify-between">
+        <label class="form-label mb-0">Permissions</label>
+        <div class="flex gap-2">
+          <button onclick="_roleSelectAll(true)" class="btn btn-ghost btn-sm text-xs">Select All</button>
+          <button onclick="_roleSelectAll(false)" class="btn btn-ghost btn-sm text-xs">Clear All</button>
+        </div>
+      </div>
+      <div id="role-perm-checkboxes" class="space-y-3"></div>
+    </div>
+    <div id="role-modal-msg" class="hidden mt-3 p-3 rounded-lg text-sm flex-shrink-0"></div>
+    <div class="flex gap-3 justify-end mt-4 flex-shrink-0">
+      <button onclick="closeRoleModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-role-save" onclick="saveRole()" class="btn btn-primary">Save Role</button>
+    </div>
   </div>
 </div>
 
@@ -3869,11 +3885,9 @@ function relTime(iso){
 var _allUsers=[];
 
 // ── Access Control sub-views ──
-var _AC_PERMS={
-  viewer:["dashboard:view","policies:view","logs:view","logs:audit","logs:violations","logs:apparmor","models:view","secrets:view","system:view","system:health"],
-  operator:["dashboard:view","policies:view","policies:create","policies:validate","policies:submit","policies:export","review:view","logs:view","logs:audit","logs:violations","logs:apparmor","models:view","secrets:view","system:view","system:health"],
-  admin:["dashboard:view","policies:view","policies:create","policies:validate","policies:submit","policies:edit","policies:delete","policies:apply_direct","policies:import","policies:export","review:view","review:approve","review:reject","review:cancel","logs:view","logs:audit","logs:violations","logs:apparmor","models:view","models:advisor","models:apply","secrets:view","secrets:create","secrets:update","secrets:delete","users:view","users:create","users:update_role","users:reset_password","users:delete","system:view","system:health"]
-};
+var _rolesData=[];      // cache from /api/roles
+var _allPermsData=[];   // cache from /api/roles all_permissions
+var _editingRole=null;  // null = create, string = role name being edited
 
 function switchAcView(view){
   ["users","roles","matrix"].forEach(function(v){
@@ -3884,56 +3898,187 @@ function switchAcView(view){
       else{btn.style.background="";btn.style.color="#94a3b8";}
     }
   });
-  if(view==="roles") renderRolePerms();
-  if(view==="matrix") renderPermMatrix();
+  if(view==="roles") loadRoles();
+  if(view==="matrix") loadRolesForMatrix();
 }
 
-function renderRolePerms(){
-  var roleColors={viewer:"#94a3b8",operator:"#fbbf24",admin:"#60a5fa"};
-  ["viewer","operator","admin"].forEach(function(role){
-    var el=$("role-perms-"+role);if(!el)return;
-    var perms=_AC_PERMS[role]||[];
-    // group by module
-    var groups={};
-    perms.forEach(function(p){var parts=p.split(":");var mod=parts[0];var act=parts[1];if(!groups[mod])groups[mod]=[];groups[mod].push(act);});
-    var html="";
-    Object.keys(groups).sort().forEach(function(mod){
-      html+='<div class="mb-2"><div class="text-xs font-semibold uppercase mb-1" style="color:'+roleColors[role]+'66;letter-spacing:.06em">'+mod+'</div>';
-      groups[mod].forEach(function(act){
-        html+='<div class="flex items-center gap-1.5 text-xs py-0.5" style="color:#94a3b8"><span style="color:'+roleColors[role]+'">&#10003;</span> '+act+'</div>';
-      });
-      html+='</div>';
-    });
-    el.innerHTML=html||'<span class="text-xs" style="color:#475569">No permissions</span>';
+async function loadRoles(){
+  var grid=$("roles-grid");if(!grid)return;
+  grid.innerHTML='<div class="text-sm" style="color:#475569">Loading…</div>';
+  try{
+    var r=await api("/api/roles"),data=await r.json();
+    if(!r.ok){grid.innerHTML='<div class="text-sm" style="color:#f87171">'+( data.error||"Failed")+'</div>';return;}
+    _rolesData=data.roles||[];
+    _allPermsData=data.all_permissions||[];
+    if(hasPerm("users:view")){show("btn-new-role");}else{hide("btn-new-role");}
+    renderRolesGrid(_rolesData);
+  }catch(e){grid.innerHTML='<div class="text-sm" style="color:#f87171">'+e.message+'</div>';}
+}
+
+function _permGroupHtml(perms,color){
+  var groups={};
+  perms.forEach(function(p){var pts=p.split(":");var m=pts[0],a=pts[1];if(!groups[m])groups[m]=[];groups[m].push(a);});
+  var h="";
+  Object.keys(groups).sort().forEach(function(mod){
+    h+='<div class="mb-1.5"><div class="text-xs font-semibold uppercase mb-0.5" style="color:'+color+'55;letter-spacing:.06em">'+mod+'</div>';
+    groups[mod].forEach(function(act){h+='<div class="text-xs py-px" style="color:#94a3b8"><span style="color:'+color+'">&#10003;</span> '+act+'</div>';});
+    h+='</div>';
   });
+  return h||'<span class="text-xs" style="color:#475569">No permissions</span>';
 }
 
-function renderPermMatrix(){
-  var body=$("perm-matrix-body");if(!body)return;
-  // collect all unique permissions sorted
-  var allPerms=[];
-  Object.values(_AC_PERMS).forEach(function(arr){arr.forEach(function(p){if(allPerms.indexOf(p)<0)allPerms.push(p);});});
-  allPerms.sort();
-  // group by module for section headers
-  var lastMod="";
+function renderRolesGrid(roles){
+  var grid=$("roles-grid");if(!grid)return;
+  var builtinColors={admin:"#60a5fa",operator:"#fbbf24",viewer:"#94a3b8"};
+  var builtinBorders={admin:"#1e3a5f",operator:"#78350f33",viewer:"transparent"};
   var html="";
+  roles.forEach(function(role){
+    var color=builtinColors[role.name]||"#a78bfa";
+    var border=builtinBorders[role.name]||"#312e81";
+    var perms=role.permissions||[];
+    var editBtn=(!role.builtin&&hasPerm("users:view"))
+      ?'<button onclick="openRoleModal(\''+role.name+'\')" class="btn btn-ghost btn-sm text-xs" style="color:#a78bfa">Edit</button>'
+      :'';
+    var delBtn=(!role.builtin&&hasPerm("users:delete"))
+      ?'<button onclick="deleteRole(\''+role.name+'\')" class="btn btn-ghost btn-sm text-xs" style="color:#f87171">Delete</button>'
+      :'';
+    html+='<div class="card flex flex-col" style="border-color:'+border+'">';
+    html+='<div class="flex items-start justify-between gap-2 mb-1">';
+    html+='<div><span class="badge text-sm px-3 py-1" style="background:'+color+'22;color:'+color+'">'+role.name+'</span>';
+    if(!role.builtin)html+=' <span class="text-xs ml-1" style="color:#6366f1;background:#312e81;padding:1px 6px;border-radius:4px">custom</span>';
+    html+='</div>';
+    html+='<div class="flex gap-1">'+editBtn+delBtn+'</div>';
+    html+='</div>';
+    if(role.description)html+='<p class="text-xs mb-3" style="color:#64748b">'+role.description+'</p>';
+    html+='<div class="text-xs mb-2" style="color:#475569">'+perms.length+' permission'+(perms.length!==1?'s':'')+(role.user_count!=null?' · '+role.user_count+' user'+(role.user_count!==1?'s':''):'')+' </div>';
+    html+='<div class="flex-1 overflow-y-auto" style="max-height:220px">'+_permGroupHtml(perms,color)+'</div>';
+    html+='</div>';
+  });
+  grid.innerHTML=html||'<div class="text-sm" style="color:#475569">No roles defined.</div>';
+}
+
+async function loadRolesForMatrix(){
+  if(_rolesData.length===0){
+    var r=await api("/api/roles"),data=await r.json();
+    if(!r.ok)return;
+    _rolesData=data.roles||[];_allPermsData=data.all_permissions||[];
+  }
+  renderPermMatrix(_rolesData,_allPermsData);
+}
+
+function renderPermMatrix(roles,allPerms){
+  var body=$("perm-matrix-body");if(!body)return;
+  // Rebuild thead to include custom role columns
+  var thead=body.closest("table").querySelector("thead tr");
+  // rebuild header: first 4 cols fixed, append custom roles
+  thead.innerHTML='<th class="text-left py-2 pr-4 font-semibold" style="color:#94a3b8;min-width:200px">Permission</th>'
+    +'<th class="text-center py-2 px-3 font-semibold" style="color:#94a3b8">viewer</th>'
+    +'<th class="text-center py-2 px-3 font-semibold" style="color:#fbbf24">operator</th>'
+    +'<th class="text-center py-2 px-3 font-semibold" style="color:#60a5fa">admin</th>';
+  var customRoles=roles.filter(function(r){return !r.builtin;});
+  customRoles.forEach(function(r){
+    thead.innerHTML+='<th class="text-center py-2 px-3 font-semibold" style="color:#a78bfa">'+r.name+'</th>';
+  });
+
+  var rolePermMap={};
+  roles.forEach(function(r){var s=new Set(r.permissions||[]);rolePermMap[r.name]=s;});
+
+  var lastMod="",html="";
   allPerms.forEach(function(perm){
-    var parts=perm.split(":");var mod=parts[0];var act=parts[1];
+    var pts=perm.split(":");var mod=pts[0],act=pts[1];
     if(mod!==lastMod){
-      html+='<tr><td colspan="4" class="pt-3 pb-1 text-xs font-bold uppercase tracking-wider" style="color:#475569">'+mod+'</td></tr>';
+      var cols=4+customRoles.length;
+      html+='<tr><td colspan="'+cols+'" class="pt-3 pb-1 text-xs font-bold uppercase tracking-wider" style="color:#475569">'+mod+'</td></tr>';
       lastMod=mod;
     }
-    var vCheck=_AC_PERMS.viewer.indexOf(perm)>=0;
-    var oCheck=_AC_PERMS.operator.indexOf(perm)>=0;
-    var aCheck=_AC_PERMS.admin.indexOf(perm)>=0;
     html+='<tr style="border-bottom:1px solid #0f172a">';
     html+='<td class="py-1.5 pr-4 text-xs font-mono" style="color:#cbd5e1">'+act+'</td>';
-    html+='<td class="text-center py-1.5 text-sm">'+(vCheck?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
-    html+='<td class="text-center py-1.5 text-sm">'+(oCheck?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
-    html+='<td class="text-center py-1.5 text-sm">'+(aCheck?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
+    ["viewer","operator","admin"].forEach(function(rn){
+      var has=rolePermMap[rn]&&rolePermMap[rn].has(perm);
+      html+='<td class="text-center py-1.5 text-sm">'+(has?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
+    });
+    customRoles.forEach(function(r){
+      var has=rolePermMap[r.name]&&rolePermMap[r.name].has(perm);
+      html+='<td class="text-center py-1.5 text-sm">'+(has?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
+    });
     html+='</tr>';
   });
   body.innerHTML=html;
+}
+
+// ── Role create/edit modal ──
+function openRoleModal(roleName){
+  _editingRole=roleName;
+  var isEdit=!!roleName;
+  $("role-modal-title").textContent=isEdit?"Edit Role: "+roleName:"New Role";
+  $("inp-role-name").value=roleName||"";
+  $("inp-role-name").disabled=isEdit;
+  $("inp-role-desc").value="";
+  hideEl($("role-modal-msg"));
+  // Build permission checkboxes grouped by module
+  var existing=new Set();
+  if(isEdit){
+    var rd=_rolesData.find(function(r){return r.name===roleName;});
+    if(rd){$("inp-role-desc").value=rd.description||"";(rd.permissions||[]).forEach(function(p){existing.add(p);});}
+  }
+  var src=_allPermsData.length?_allPermsData:[];
+  var groups={};
+  src.forEach(function(p){var m=p.split(":")[0];if(!groups[m])groups[m]=[];groups[m].push(p);});
+  var html="";
+  Object.keys(groups).sort().forEach(function(mod){
+    html+='<div class="mb-3">';
+    html+='<div class="text-xs font-bold uppercase tracking-wider mb-2" style="color:#475569;letter-spacing:.08em">'+mod+'</div>';
+    html+='<div class="grid grid-cols-2 gap-1">';
+    groups[mod].forEach(function(perm){
+      var act=perm.split(":")[1];
+      var chk=existing.has(perm)?' checked':'';
+      html+='<label class="flex items-center gap-2 text-xs cursor-pointer p-1 rounded hover:bg-slate-800">';
+      html+='<input type="checkbox" class="role-perm-cb" value="'+perm+'"'+chk+' style="accent-color:#6366f1">';
+      html+='<span style="color:#cbd5e1">'+act+'</span></label>';
+    });
+    html+='</div></div>';
+  });
+  $("role-perm-checkboxes").innerHTML=html;
+  show("modal-role");
+}
+
+function closeRoleModal(){hide("modal-role");}
+$("modal-role").addEventListener("click",function(e){if(e.target===$("modal-role"))closeRoleModal();});
+
+function _roleSelectAll(checked){
+  document.querySelectorAll(".role-perm-cb").forEach(function(cb){cb.checked=checked;});
+}
+
+async function saveRole(){
+  var isEdit=!!_editingRole;
+  var name=isEdit?_editingRole:($("inp-role-name").value||"").trim().toLowerCase().replace(/\s+/g,"_");
+  var desc=($("inp-role-desc").value||"").trim();
+  var perms=Array.from(document.querySelectorAll(".role-perm-cb:checked")).map(function(cb){return cb.value;});
+  var msgEl=$("role-modal-msg");
+  hideEl(msgEl);
+  if(!name){showEl(msgEl,"Role name is required");return;}
+  var btn=$("btn-role-save");btn.disabled=true;btn.textContent="Saving…";
+  try{
+    var r=await api(isEdit?"/api/roles/"+encodeURIComponent(name):"/api/roles",{
+      method:isEdit?"PUT":"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:name,description:desc,permissions:perms})
+    });
+    var data=await r.json();
+    if(!r.ok){showEl(msgEl,data.error||"Failed");return;}
+    closeRoleModal();
+    _rolesData=[];
+    loadRoles();
+  }catch(e){showEl(msgEl,e.message);}
+  finally{btn.disabled=false;btn.textContent="Save Role";}
+}
+
+async function deleteRole(name){
+  if(!confirm('Delete role "'+name+'"? Users with this role will be demoted to viewer.'))return;
+  var r=await api("/api/roles/"+encodeURIComponent(name),{method:"DELETE"});
+  var data=await r.json();
+  if(!r.ok){alert(data.error||"Failed to delete role");return;}
+  _rolesData=[];loadRoles();
 }
 
 function _updateUsersTabForPermissions(){
@@ -3949,6 +4094,10 @@ function _updateUsersTabForPermissions(){
 
 async function loadUsers(){
   setLoading("users",true);hide("users-err");$("users-body").innerHTML="";
+  // Pre-load roles so user table dropdown and add-user modal are populated
+  if(_rolesData.length===0 && hasPerm("users:view")){
+    try{var rr=await api("/api/roles"),rd=await rr.json();if(rr.ok){_rolesData=rd.roles||[];_allPermsData=rd.all_permissions||[];}}catch(e){}
+  }
   try{
     var r=await api("/api/users"),data=await r.json();
     setLoading("users",false);
@@ -4031,8 +4180,11 @@ function renderUsers(users){
     // Role cell: dropdown if admin and not self, else badge only
     var roleCell;
     if(isAdmin()&&!isMe){
-      roleCell='<select class="form-input usr-role-sel" data-user="'+esc(u.username)+'" onchange="changeUserRole(this)" style="font-size:.72rem;padding:.2rem .45rem;background:#0f172a;border-color:#334155;color:#f1f5f9;width:7rem">'
-        +["admin","operator","viewer"].map(function(r){return '<option value="'+r+'"'+(r===u.role?" selected":"")+'>'+r+'</option>';}).join("")
+      var roleOptions=_rolesData.length
+        ? _rolesData.map(function(rd){return rd.name;})
+        : ["admin","operator","viewer"];
+      roleCell='<select class="form-input usr-role-sel" data-user="'+esc(u.username)+'" onchange="changeUserRole(this)" style="font-size:.72rem;padding:.2rem .45rem;background:#0f172a;border-color:#334155;color:#f1f5f9;width:9rem">'
+        +roleOptions.map(function(r){return '<option value="'+r+'"'+(r===u.role?" selected":"")+'>'+r+'</option>';}).join("")
         +'</select>';
     } else {
       roleCell='<span class="badge '+(roleColors[u.role]||"badge-gray")+'" style="font-size:.72rem">'+esc(u.role)+'</span>';
@@ -4089,8 +4241,18 @@ async function deleteUser(el){
 }
 
 function openAddUserModal(){
-  $("inp-new-uname").value="";$("inp-new-upass").value="";$("sel-new-role").value="viewer";
-  hideEl($("add-user-msg"));show("modal-add-user");
+  $("inp-new-uname").value="";$("inp-new-upass").value="";
+  hideEl($("add-user-msg"));
+  // Populate role dropdown with all roles (built-in + custom)
+  var sel=$("sel-new-role");
+  var roleDescs={viewer:"Read-only",operator:"Submit policies for review",admin:"Full access"};
+  var allRoles=_rolesData.length?_rolesData:[{name:"viewer"},{name:"operator"},{name:"admin"}];
+  sel.innerHTML=allRoles.map(function(r){
+    var desc=r.description||roleDescs[r.name]||"";
+    return '<option value="'+r.name+'">'+r.name+(desc?' — '+desc:'')+'</option>';
+  }).join("");
+  sel.value="viewer";
+  show("modal-add-user");
 }
 function closeAddUserModal(){hide("modal-add-user");}
 $("modal-add-user").addEventListener("click",function(e){if(e.target===$("modal-add-user"))closeAddUserModal();});
