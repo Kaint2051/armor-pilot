@@ -158,7 +158,7 @@
         </button>
         <button id="tab-btn-users" class="tab-btn" onclick="switchTab('users')">
           <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-          Users
+          Access Control
         </button>
         <div class="w-px h-5 mx-2" style="background:#334155"></div>
         <span id="lbl-user" class="text-sm hidden sm:block" style="color:#64748b"></span>
@@ -1391,6 +1391,25 @@
     <!-- ═══════════════ TAB: USERS ═══════════════ -->
     <div id="tab-users" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
 
+      <!-- Access Control sub-nav -->
+      <div id="ac-subnav" class="flex gap-2 mb-5 border-b pb-3" style="border-color:#1e293b">
+        <button id="acnav-users" onclick="switchAcView('users')" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors" style="background:#334155;color:#f1f5f9">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Users
+        </button>
+        <button id="acnav-roles" onclick="switchAcView('roles')" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Roles
+        </button>
+        <button id="acnav-matrix" onclick="switchAcView('matrix')" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18M3 6a3 3 0 013-3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3V6z"/></svg>
+          Permissions Matrix
+        </button>
+      </div>
+
+      <!-- VIEW: Users -->
+      <div id="acv-users">
+
       <!-- Summary cards -->
       <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         <div class="card" style="padding:.875rem 1rem">
@@ -1572,6 +1591,60 @@
 
         </div>
       </div>
+
+      </div><!-- /acv-users -->
+
+      <!-- VIEW: Roles -->
+      <div id="acv-roles" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+          <!-- Viewer role card -->
+          <div class="card">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="badge badge-gray text-sm px-3 py-1">viewer</span>
+              <span class="text-sm font-semibold" style="color:#94a3b8">Read-Only Access</span>
+            </div>
+            <div id="role-perms-viewer" class="space-y-1"></div>
+          </div>
+
+          <!-- Operator role card -->
+          <div class="card" style="border-color:#78350f33">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="badge badge-amber text-sm px-3 py-1">operator</span>
+              <span class="text-sm font-semibold" style="color:#fbbf24">Policy Operator</span>
+            </div>
+            <div id="role-perms-operator" class="space-y-1"></div>
+          </div>
+
+          <!-- Admin role card -->
+          <div class="card" style="border-color:#1e3a5f">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="badge badge-blue text-sm px-3 py-1">admin</span>
+              <span class="text-sm font-semibold" style="color:#60a5fa">Full Access</span>
+            </div>
+            <div id="role-perms-admin" class="space-y-1"></div>
+          </div>
+
+        </div>
+      </div><!-- /acv-roles -->
+
+      <!-- VIEW: Permissions Matrix -->
+      <div id="acv-matrix" class="hidden">
+        <div class="card overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="text-left py-2 pr-4 font-semibold" style="color:#94a3b8;min-width:200px">Permission</th>
+                <th class="text-center py-2 px-3 font-semibold" style="color:#94a3b8">viewer</th>
+                <th class="text-center py-2 px-3 font-semibold" style="color:#fbbf24">operator</th>
+                <th class="text-center py-2 px-3 font-semibold" style="color:#60a5fa">admin</th>
+              </tr>
+            </thead>
+            <tbody id="perm-matrix-body"></tbody>
+          </table>
+        </div>
+      </div><!-- /acv-matrix -->
+
     </div>
 
   </main>
@@ -1926,6 +1999,8 @@ function switchTab(tab){
       var _rc2={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
       if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(_rc2[CURRENT_ROLE]||"badge-gray");}
     }
+    switchAcView("users");
+    _updateUsersTabForPermissions();
     loadUsers();
   }
 }
@@ -1947,19 +2022,22 @@ function enterDashboard(){
   if($("user-display-name")){$("user-display-name").textContent=CURRENT_USER;$("user-avatar").textContent=(CURRENT_USER[0]||"U").toUpperCase();}
   api("/api/me").then(function(r){return r.json();}).then(function(d){
     CURRENT_ROLE=d.role||"viewer";
+    CURRENT_PERMISSIONS=d.permissions||[];
     var rb=$("user-role-badge");
     var roleColors={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
     if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(roleColors[CURRENT_ROLE]||"badge-gray");}
-  }).catch(function(){CURRENT_ROLE="viewer";}).then(function(){
+  }).catch(function(){CURRENT_ROLE="viewer";CURRENT_PERMISSIONS=[];}).then(function(){
     applyRoleUi();
     loadAll();
   });
 }
 function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();}
 
-function isAdmin(){return CURRENT_ROLE==="admin";}
-function canSubmit(){return CURRENT_ROLE==="admin"||CURRENT_ROLE==="operator";}
-function isViewer(){return CURRENT_ROLE==="viewer";}
+var CURRENT_PERMISSIONS=[];
+function hasPerm(p){return CURRENT_PERMISSIONS.indexOf(p)>=0;}
+function isAdmin(){return hasPerm("policies:apply_direct");}
+function canSubmit(){return hasPerm("policies:submit");}
+function isViewer(){return !hasPerm("policies:create");}
 
 var _validatedOk=false; // true after successful validate
 
@@ -3789,6 +3867,85 @@ function relTime(iso){
 }
 
 var _allUsers=[];
+
+// ── Access Control sub-views ──
+var _AC_PERMS={
+  viewer:["dashboard:view","policies:view","logs:view","logs:audit","logs:violations","logs:apparmor","models:view","secrets:view","system:view","system:health"],
+  operator:["dashboard:view","policies:view","policies:create","policies:validate","policies:submit","policies:export","review:view","logs:view","logs:audit","logs:violations","logs:apparmor","models:view","secrets:view","system:view","system:health"],
+  admin:["dashboard:view","policies:view","policies:create","policies:validate","policies:submit","policies:edit","policies:delete","policies:apply_direct","policies:import","policies:export","review:view","review:approve","review:reject","review:cancel","logs:view","logs:audit","logs:violations","logs:apparmor","models:view","models:advisor","models:apply","secrets:view","secrets:create","secrets:update","secrets:delete","users:view","users:create","users:update_role","users:reset_password","users:delete","system:view","system:health"]
+};
+
+function switchAcView(view){
+  ["users","roles","matrix"].forEach(function(v){
+    var el=$("acv-"+v);if(el)el.classList[v===view?"remove":"add"]("hidden");
+    var btn=$("acnav-"+v);
+    if(btn){
+      if(v===view){btn.style.background="#334155";btn.style.color="#f1f5f9";}
+      else{btn.style.background="";btn.style.color="#94a3b8";}
+    }
+  });
+  if(view==="roles") renderRolePerms();
+  if(view==="matrix") renderPermMatrix();
+}
+
+function renderRolePerms(){
+  var roleColors={viewer:"#94a3b8",operator:"#fbbf24",admin:"#60a5fa"};
+  ["viewer","operator","admin"].forEach(function(role){
+    var el=$("role-perms-"+role);if(!el)return;
+    var perms=_AC_PERMS[role]||[];
+    // group by module
+    var groups={};
+    perms.forEach(function(p){var parts=p.split(":");var mod=parts[0];var act=parts[1];if(!groups[mod])groups[mod]=[];groups[mod].push(act);});
+    var html="";
+    Object.keys(groups).sort().forEach(function(mod){
+      html+='<div class="mb-2"><div class="text-xs font-semibold uppercase mb-1" style="color:'+roleColors[role]+'66;letter-spacing:.06em">'+mod+'</div>';
+      groups[mod].forEach(function(act){
+        html+='<div class="flex items-center gap-1.5 text-xs py-0.5" style="color:#94a3b8"><span style="color:'+roleColors[role]+'">&#10003;</span> '+act+'</div>';
+      });
+      html+='</div>';
+    });
+    el.innerHTML=html||'<span class="text-xs" style="color:#475569">No permissions</span>';
+  });
+}
+
+function renderPermMatrix(){
+  var body=$("perm-matrix-body");if(!body)return;
+  // collect all unique permissions sorted
+  var allPerms=[];
+  Object.values(_AC_PERMS).forEach(function(arr){arr.forEach(function(p){if(allPerms.indexOf(p)<0)allPerms.push(p);});});
+  allPerms.sort();
+  // group by module for section headers
+  var lastMod="";
+  var html="";
+  allPerms.forEach(function(perm){
+    var parts=perm.split(":");var mod=parts[0];var act=parts[1];
+    if(mod!==lastMod){
+      html+='<tr><td colspan="4" class="pt-3 pb-1 text-xs font-bold uppercase tracking-wider" style="color:#475569">'+mod+'</td></tr>';
+      lastMod=mod;
+    }
+    var vCheck=_AC_PERMS.viewer.indexOf(perm)>=0;
+    var oCheck=_AC_PERMS.operator.indexOf(perm)>=0;
+    var aCheck=_AC_PERMS.admin.indexOf(perm)>=0;
+    html+='<tr style="border-bottom:1px solid #0f172a">';
+    html+='<td class="py-1.5 pr-4 text-xs font-mono" style="color:#cbd5e1">'+act+'</td>';
+    html+='<td class="text-center py-1.5 text-sm">'+(vCheck?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
+    html+='<td class="text-center py-1.5 text-sm">'+(oCheck?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
+    html+='<td class="text-center py-1.5 text-sm">'+(aCheck?'<span style="color:#22c55e">&#10003;</span>':'<span style="color:#334155">—</span>')+'</td>';
+    html+='</tr>';
+  });
+  body.innerHTML=html;
+}
+
+function _updateUsersTabForPermissions(){
+  // show/hide Add User button based on permission
+  if(hasPerm("users:create")){show("btn-add-user");}else{hide("btn-add-user");}
+  // show/hide access control sub-nav based on users:view permission
+  var nav=$("ac-subnav");if(nav)nav.classList[hasPerm("users:view")?"remove":"add"]("hidden");
+  // hide roles/matrix nav if no users:view (viewer role won't have it)
+  ["acnav-roles","acnav-matrix"].forEach(function(id){
+    var el=$(id);if(el)el.style.display=hasPerm("users:view")?"":"none";
+  });
+}
 
 async function loadUsers(){
   setLoading("users",true);hide("users-err");$("users-body").innerHTML="";

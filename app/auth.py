@@ -6,6 +6,52 @@ from flask import Response, request
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Permission catalogue
+# ---------------------------------------------------------------------------
+
+ALL_PERMISSIONS: frozenset = frozenset({
+    "dashboard:view",
+    "policies:view", "policies:create", "policies:validate",
+    "policies:submit", "policies:edit", "policies:delete",
+    "policies:apply_direct", "policies:import", "policies:export",
+    "review:view", "review:approve", "review:reject", "review:cancel",
+    "logs:view", "logs:audit", "logs:violations", "logs:apparmor",
+    "models:view", "models:advisor", "models:apply",
+    "secrets:view", "secrets:create", "secrets:update", "secrets:delete",
+    "users:view", "users:create", "users:update_role",
+    "users:reset_password", "users:delete",
+    "system:view", "system:health",
+})
+
+_VIEWER_PERMS: frozenset = frozenset({
+    "dashboard:view",
+    "policies:view",
+    "logs:view", "logs:audit", "logs:violations", "logs:apparmor",
+    "models:view",
+    "secrets:view",
+    "system:view", "system:health",
+})
+
+_OPERATOR_PERMS: frozenset = _VIEWER_PERMS | frozenset({
+    "policies:create", "policies:validate", "policies:submit", "policies:export",
+    "review:view",
+})
+
+ROLE_PERMISSIONS: dict = {
+    "viewer":   _VIEWER_PERMS,
+    "operator": _OPERATOR_PERMS,
+    "admin":    ALL_PERMISSIONS,
+}
+
+
+def get_permissions_for_role(role: str) -> frozenset:
+    return ROLE_PERMISSIONS.get(role, _VIEWER_PERMS)
+
+
+# ---------------------------------------------------------------------------
+# Auth helpers
+# ---------------------------------------------------------------------------
 
 def _parse_basic_auth():
     auth = request.headers.get("Authorization", "")
@@ -46,6 +92,19 @@ def get_current_role() -> str:
     return get_user_role(username)
 
 
+def current_user_has_permission(perm: str) -> bool:
+    """Check if the currently authenticated user has a given permission."""
+    username, _ = _parse_basic_auth()
+    if not username:
+        return False
+    from .db import get_user_role
+    return perm in get_permissions_for_role(get_user_role(username))
+
+
+# ---------------------------------------------------------------------------
+# Decorators
+# ---------------------------------------------------------------------------
+
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -63,40 +122,43 @@ def require_auth(f):
     return decorated
 
 
+def require_permission(perm: str):
+    """Decorator factory — require a specific permission (checks auth too)."""
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            username, password = _parse_basic_auth()
+            if not username or not _credentials_valid(username, password):
+                return Response(
+                    '{"error": "Unauthorized"}', status=401,
+                    headers={
+                        "WWW-Authenticate": 'Basic realm="vArmor Console"',
+                        "Content-Type": "application/json",
+                    },
+                )
+            from .db import get_user_role
+            role = get_user_role(username)
+            if perm not in get_permissions_for_role(role):
+                return Response(
+                    f'{{"error": "Forbidden: permission \\"{perm}\\" required"}}',
+                    status=403,
+                    headers={"Content-Type": "application/json"},
+                )
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+# Legacy decorators — kept for endpoints not yet migrated; internally they
+# map to the equivalent permission check so behaviour is identical.
+
 def require_admin(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        username, password = _parse_basic_auth()
-        if not username or not _credentials_valid(username, password):
-            return Response(
-                '{"error": "Unauthorized"}', status=401,
-                headers={"Content-Type": "application/json"},
-            )
-        from .db import get_user_role
-        if get_user_role(username) != "admin":
-            return Response(
-                '{"error": "Forbidden: admin role required"}', status=403,
-                headers={"Content-Type": "application/json"},
-            )
-        return f(*args, **kwargs)
-    return decorated
+    """Legacy: equivalent to require_permission('policies:apply_direct')
+    for policy endpoints, but any admin-only permission works as the gate.
+    Admin is the only role that has users:view, so that's the safest gate."""
+    return require_permission("users:view")(f)
 
 
 def require_operator(f):
-    """Allow admin and operator roles (can submit policies for review)."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        username, password = _parse_basic_auth()
-        if not username or not _credentials_valid(username, password):
-            return Response(
-                '{"error": "Unauthorized"}', status=401,
-                headers={"Content-Type": "application/json"},
-            )
-        from .db import get_user_role
-        if get_user_role(username) not in ("admin", "operator"):
-            return Response(
-                '{"error": "Forbidden: operator or admin role required"}', status=403,
-                headers={"Content-Type": "application/json"},
-            )
-        return f(*args, **kwargs)
-    return decorated
+    """Legacy: allow admin and operator — equivalent to policies:submit."""
+    return require_permission("policies:submit")(f)
