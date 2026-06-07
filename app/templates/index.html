@@ -417,7 +417,7 @@
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                   Refresh
                 </button>
-                <button onclick="switchPolicyView('create')" class="btn btn-primary btn-sm">+ New Policy</button>
+                <button id="btn-new-policy" onclick="switchPolicyView('create')" class="btn btn-primary btn-sm">+ New Policy</button>
               </div>
             </div>
             <div class="mb-3">
@@ -793,7 +793,7 @@
               <div class="mb-4">
                 <div class="flex items-center justify-between mb-1">
                   <label class="form-label" style="margin:0">Attack Protection Groups <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor only — per-group executable targets)</span></label>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="addAttackGroup()">+ Add Group</button>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="addAttackGroup();_onFormChange()">+ Add Group</button>
                 </div>
                 <div id="attack-groups" class="space-y-2"></div>
                 <p class="mt-1 text-xs" style="color:#475569">Each group restricts specific rules to listed executables. Checked rules not in any group apply to all processes.</p>
@@ -850,14 +850,14 @@
                   <div>
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-semibold" style="color:#94a3b8">FILE RULES</span>
-                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-files')">+ Add File Rule</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-files');_onFormChange()">+ Add File Rule</button>
                     </div>
                     <div id="bpf-files" class="space-y-1"></div>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-semibold" style="color:#94a3b8">PROCESS RULES</span>
-                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-procs')">+ Add Process Rule</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-procs');_onFormChange()">+ Add Process Rule</button>
                     </div>
                     <div id="bpf-procs" class="space-y-1"></div>
                   </div>
@@ -897,7 +897,7 @@
                   <div>
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-semibold" style="color:#94a3b8">MOUNT RULES <span style="color:#475569;font-weight:400">(source pattern | fstype | flags | qualifier)</span></span>
-                      <button type="button" class="btn btn-ghost btn-sm" onclick="addMountRow()">+ Add Mount Rule</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addMountRow();_onFormChange()">+ Add Mount Rule</button>
                     </div>
                     <div id="bpf-mounts" class="space-y-1"></div>
                   </div>
@@ -966,7 +966,7 @@
                     <label class="form-label" style="margin:0">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(inject HTTP headers when MITM is active)</span></label>
                     <div class="flex items-center gap-2">
                       <button type="button" class="btn btn-ghost btn-sm" onclick="openSecretPickerForHeader()" title="Pick a K8s Secret key">&#128273; Secret</button>
-                      <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHeaderRow()">+ Header</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHeaderRow();_onFormChange()">+ Header</button>
                     </div>
                   </div>
                   <div style="display:grid;grid-template-columns:1fr 1fr 5rem 1fr auto;gap:.375rem;font-size:.65rem;color:#475569;margin-bottom:.2rem;padding:0 .1rem">
@@ -990,7 +990,7 @@
                 <div>
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-semibold" style="color:#94a3b8">L4 EGRESS RULES <span style="color:#475569;font-weight:400">(connection-level: IP/CIDR + ports)</span></span>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpL4Row()">+ L4 Rule</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpL4Row();_onFormChange()">+ L4 Rule</button>
                   </div>
                   <div style="display:grid;grid-template-columns:5.5rem 4.5rem 1fr 7rem 1fr auto;gap:.375rem;font-size:.65rem;color:#475569;margin-bottom:.2rem;padding:0 .1rem">
                     <span>Qualifier</span><span>Type</span><span>IP / CIDR</span><span>Ports (80,443)</span><span>Description</span><span></span>
@@ -1003,7 +1003,7 @@
                 <div>
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-semibold" style="color:#94a3b8">L7 HTTP RULES <span style="color:#475569;font-weight:400">(request-level: host, path, method)</span></span>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHttpRow()">+ HTTP Rule</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHttpRow();_onFormChange()">+ HTTP Rule</button>
                   </div>
                   <div id="np-http-rows" class="space-y-2"></div>
                   <p class="mt-1 text-xs" style="color:#475569">Deny/allow by domain (SNI), path, and method. Path/method matching requires MITM for HTTPS.</p>
@@ -1136,7 +1136,7 @@
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="form-label" style="margin:0">Container Unconfined Overrides <span style="color:#475569;font-size:.75rem;font-weight:400">(exclude specific containers from enforcement)</span></label>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="addUnconfinedRow()">+ Add Container</button>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="addUnconfinedRow();_onFormChange()">+ Add Container</button>
                 </div>
                 <div id="unconfined-rows" class="space-y-1"></div>
                 <p class="mt-1 text-xs" style="color:#475569">Adds <code style="color:#7dd3fc">container.apparmor.security.beta.varmor.org/&lt;name&gt;=unconfined</code> annotation to the workload pod template.</p>
@@ -2112,6 +2112,10 @@ function hasPerm(p){return CURRENT_PERMISSIONS.indexOf(p)>=0;}
 function isAdmin(){return hasPerm("policies:apply_direct");}
 function canSubmit(){return hasPerm("policies:submit");}
 function isViewer(){return !hasPerm("policies:create");}
+function canEdit(){return hasPerm("policies:edit");}
+function canDelete(){return hasPerm("policies:delete");}
+function canImport(){return hasPerm("policies:import");}
+function canApplyModel(){return hasPerm("models:apply");}
 
 var _validatedOk=false; // true after successful validate
 
@@ -2132,6 +2136,8 @@ function applyRoleUi(){
   // pv-create nav: only show create if submit-capable
   var pnCreate=$("pnav-create");
   if(pnCreate) pnCreate.classList.toggle("hidden",!submit);
+  var btnNewPol=$("btn-new-policy");
+  if(btnNewPol) btnNewPol.classList.toggle("hidden",!hasPerm("policies:create"));
   toggleVis("btn-add-user", admin);
   var all=$("chk-all");
   if(all){all.disabled=!admin;all.checked=false;all.indeterminate=false;}
@@ -2510,11 +2516,43 @@ function buildYamlPreview(){
     if(attack.length){lines.push("      attackProtectionRules:");lines.push("        - rules: ["+attack.join(", ")+"]");}
     if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
   }
+  if(mode==="EnhanceProtect"){
+    var scSysc=($("ta-seccomp")||{value:""}).value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+    var scAct=($("sel-seccomp-action")||{value:"SCMP_ACT_ERRNO"}).value;
+    if(scSysc.length){
+      lines.push("    seccomp:","      action: "+scAct,"      syscalls: ["+scSysc.slice(0,6).join(", ")+(scSysc.length>6?"…":"")+"]");
+    }
+    var bpfF=$("bpf-files")?$("bpf-files").querySelectorAll(".bpf-row").length:0;
+    var bpfP=$("bpf-procs")?$("bpf-procs").querySelectorAll(".bpf-row").length:0;
+    var bpfM=$("bpf-mounts")?$("bpf-mounts").querySelectorAll(".mount-row").length:0;
+    if(bpfF||bpfP||bpfM) lines.push("    # bpfRawRules: "+bpfF+" file / "+bpfP+" process / "+bpfM+" mount");
+    var atkGrps=$("attack-groups")?$("attack-groups").querySelectorAll(".attack-group").length:0;
+    if(atkGrps) lines.push("    # attackGroups: "+atkGrps+" group(s) with target constraints");
+    var npL4=$("np-l4-rows")?$("np-l4-rows").children.length:0;
+    var npHttp=$("np-http-rows")?$("np-http-rows").children.length:0;
+    if(npL4||npHttp) lines.push("    # networkProxy: "+npL4+" L4 + "+npHttp+" HTTP rule(s)");
+  }
   if(mode==="BehaviorModeling"){
     var dur=parseInt(($("inp-duration")||{value:"60"}).value)||60;
     lines.push("    behaviorModeling:","      duration: "+(dur*60)+"s");
   }
-  if(mode==="DefenseInDepth") lines.push("    defenseInDepth:","      # Configure allowlist profiles in the DefenseInDepth tab");
+  if(mode==="DefenseInDepth"){
+    lines.push("    defenseInDepth:");
+    var didAa=document.querySelector('input[name="did-aa-type"]:checked');
+    var didSc=document.querySelector('input[name="did-sc-type"]:checked');
+    if(didAa) lines.push("      appArmor:","        profileType: "+didAa.value);
+    if(didSc) lines.push("      seccomp:","        profileType: "+didSc.value);
+    if(!didAa&&!didSc) lines.push("      # Configure allowlist profiles in the DefenseInDepth tab");
+  }
+  var auditViol=$("chk-audit-viol")&&$("chk-audit-viol").checked;
+  var allowViol=$("chk-allow-viol")&&$("chk-allow-viol").checked;
+  var privil=$("chk-privileged")&&$("chk-privileged").checked;
+  if(auditViol||allowViol||privil){
+    lines.push("  # options:");
+    if(auditViol) lines.push("  #   auditViolations: true");
+    if(allowViol) lines.push("  #   allowViolations: true");
+    if(privil) lines.push("  #   privileged: true");
+  }
   return lines.join("\n");
 }
 
@@ -2591,7 +2629,7 @@ function addBpfRow(containerId,pattern,permissions,qualifiers){
     +'<label class="perm-check"><input type="checkbox" value="exec" '+chk("exec")+'>e</label>'
     +'<label class="perm-check"><input type="checkbox" value="all" '+chk("all")+'>*</label>'
     +'</div>'
-    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove()">&#10005;</button>';
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove();_onFormChange()">&#10005;</button>';
   $(containerId).appendChild(div);
 }
 
@@ -2653,7 +2691,7 @@ function addMountRow(sp,ft,flags,qual){
     +'<option value="deny"'+(!qual||qual==="deny"?" selected":"")+'>deny</option>'
     +'<option value="audit"'+(qual==="audit"?" selected":"")+'>audit</option>'
     +'</select>'
-    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove()">&#10005;</button>';
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.parentElement.remove();_onFormChange()">&#10005;</button>';
   $("bpf-mounts").appendChild(div);
 }
 
@@ -2710,7 +2748,7 @@ function onDidScTypeChange(){
 
 // ── Edit mode ──
 async function loadPolicyForEdit(el){
-  if(!isAdmin()){alert("Viewer role cannot edit policies.");return;}
+  if(!canEdit()){alert("Insufficient permissions to edit policies.");return;}
   var name=el.dataset.name,namespace=el.dataset.ns,scope=el.dataset.scope||"namespace";
   var path=scope==="cluster"?"/api/cluster-policies/"+encodeURIComponent(name)
     :"/api/namespaces/"+namespace+"/policies/"+encodeURIComponent(name);
@@ -3469,7 +3507,7 @@ async function loadEnforcementEvents(){
 
 // ── Apply Model as Policy ──
 async function applyModel(name,namespace){
-  if(!isAdmin()){alert("Viewer role cannot apply behavior models.");return;}
+  if(!canApplyModel()){alert("Insufficient permissions to apply behavior models.");return;}
   if(!confirm('Apply model "'+name+'" as DefenseInDepth policy?\nThis changes the originating BehaviorModeling policy to DefenseInDepth mode.'))return;
   try{
     var r=await api("/api/namespaces/"+encodeURIComponent(namespace)+"/models/"+encodeURIComponent(name)+"/apply",{
@@ -3493,7 +3531,7 @@ function getCheckedPolicies(){
 function updateBatchBar(){
   var items=getCheckedPolicies();
   var bar=$("batch-bar"),cnt=$("batch-count"),all=$("chk-all");
-  if(!isAdmin()){
+  if(!canDelete()){
     if(bar) hide("batch-bar");
     if(all){all.checked=false;all.indeterminate=false;all.disabled=true;}
     return;
@@ -3508,7 +3546,7 @@ function updateBatchBar(){
   }
 }
 function toggleSelectAll(){
-  if(!isAdmin()) return;
+  if(!canDelete()) return;
   var checked=$("chk-all").checked;
   document.querySelectorAll(".pol-chk").forEach(function(el){el.checked=checked;});
   updateBatchBar();
@@ -3519,14 +3557,14 @@ function clearSelection(){
   updateBatchBar();
 }
 function confirmBatchDelete(){
-  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
+  if(!canDelete()){alert("Insufficient permissions to delete policies.");return;}
   var items=getCheckedPolicies();
   if(!items.length) return;
   if(!confirm("Delete "+items.length+" selected polic"+(items.length===1?"y":"ies")+"? This cannot be undone.")) return;
   doBatchDelete(items);
 }
 async function doBatchDelete(items){
-  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
+  if(!canDelete()){alert("Insufficient permissions to delete policies.");return;}
   var errs=[];
   for(var i=0;i<items.length;i++){
     var p=items[i];
@@ -4063,7 +4101,7 @@ $("form-create").addEventListener("submit",async function(e){
   e.preventDefault();
   var msgEl=$("create-msg"),progEl=$("create-progress");
   hideEl(msgEl);
-  if(!isAdmin()){showMsg(msgEl,"error","Viewer role cannot change policies.");return;}
+  if(!canSubmit()){showMsg(msgEl,"error","Insufficient permissions to create or edit policies.");return;}
   if(!_validatedOk){showMsg(msgEl,"error","Please run Validate first — policy spec must pass validation before applying.");return;}
   var name=$("inp-pname").value.trim();
   var scope=document.querySelector('input[name="scope"]:checked').value;
@@ -4242,14 +4280,14 @@ function updateRuleCounts(){
 
 // ── Delete modal ──
 function openDelModal(el){
-  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
+  if(!canDelete()){alert("Insufficient permissions to delete policies.");return;}
   pendingDel={name:el.dataset.name,ns:el.dataset.ns,scope:el.dataset.scope||"namespace"};
   $("del-pname").textContent=(pendingDel.scope==="cluster"?"[cluster] ":"")+pendingDel.name;
   show("modal-del");
 }
 function closeDelModal(){pendingDel={name:null,ns:null,scope:null};hide("modal-del");}
 $("btn-del-confirm").addEventListener("click",async function(){
-  if(!isAdmin()){alert("Viewer role cannot delete policies.");return;}
+  if(!canDelete()){alert("Insufficient permissions to delete policies.");return;}
   var name=pendingDel.name,namespace=pendingDel.ns,scope=pendingDel.scope;
   if(!name) return;
   closeDelModal();
@@ -4832,7 +4870,7 @@ function addAttackGroup(rules, targets){
     +'<input type="text" class="form-input" value="'+esc(rulesVal)+'" placeholder="disable-shell, disable-wget" style="font-family:monospace;font-size:.78rem"/></div>'
     +'<div><label style="font-size:.7rem;color:#64748b;display:block;margin-bottom:.25rem">Restrict to executables (one per line)</label>'
     +'<textarea class="form-input" rows="2" placeholder="/usr/bin/python3&#10;/bin/bash" style="font-family:monospace;font-size:.78rem;resize:vertical">'+esc(targetsVal)+'</textarea></div>'
-    +'<div style="display:flex;align-items:flex-end"><button type="button" class="btn btn-ghost btn-sm" style="color:#f87171" onclick="this.closest(\'.attack-group\').remove()">&#10005;</button></div>';
+    +'<div style="display:flex;align-items:flex-end"><button type="button" class="btn btn-ghost btn-sm" style="color:#f87171" onclick="this.closest(\'.attack-group\').remove();_onFormChange()">&#10005;</button></div>';
   $("attack-groups").appendChild(div);
 }
 
@@ -4852,7 +4890,7 @@ function addUnconfinedRow(containerName){
   var div=document.createElement("div");
   div.style.cssText="display:flex;gap:.5rem;align-items:center";
   div.innerHTML='<input type="text" class="form-input unconfined-container" value="'+esc(containerName||'')+'" placeholder="container-name" style="font-family:monospace;font-size:.85rem"/>'
-    +'<button type="button" class="btn btn-ghost btn-sm" style="color:#f87171;flex-shrink:0" onclick="this.parentElement.remove()">&#10005;</button>';
+    +'<button type="button" class="btn btn-ghost btn-sm" style="color:#f87171;flex-shrink:0" onclick="this.parentElement.remove();_onFormChange()">&#10005;</button>';
   $("unconfined-rows").appendChild(div);
 }
 
@@ -4910,7 +4948,7 @@ function loadViolationEvents(){loadSecurityEvents();}
 
 // ── YAML Import ──
 function openImportModal(){
-  if(!isAdmin()){alert("Viewer role cannot import policies.");return;}
+  if(!canImport()){alert("Insufficient permissions to import policies.");return;}
   $("ta-import-yaml").value="";hideEl($("import-msg"));show("modal-import");
 }
 function closeImportModal(){hide("modal-import");}
@@ -5526,8 +5564,15 @@ function _buildQueueItemYaml(p,scope){
   if(p.mode==="BehaviorModeling"&&p.modeling_duration) lines.push("    behaviorModeling:","      duration: "+p.modeling_duration+"s");
   if(p.mode==="DefenseInDepth"){
     lines.push("    defenseInDepth:");
-    if(p.did_apparmor_type) lines.push("      appArmorProfile:","        mode: "+p.did_apparmor_type);
-    if(p.did_seccomp_type) lines.push("      seccompProfile:","        mode: "+p.did_seccomp_type);
+    if(p.did_apparmor_type) lines.push("      appArmor:","        profileType: "+p.did_apparmor_type);
+    if(p.did_seccomp_type) lines.push("      seccomp:","        profileType: "+p.did_seccomp_type);
+    if(!p.did_apparmor_type&&!p.did_seccomp_type) lines.push("      # (no profile configured)");
+  }
+  if(p.audit_violations||p.allow_violations||p.privileged){
+    lines.push("  # options:");
+    if(p.audit_violations) lines.push("  #   auditViolations: true");
+    if(p.allow_violations) lines.push("  #   allowViolations: true");
+    if(p.privileged) lines.push("  #   privileged: true");
   }
   return lines.join("\n");
 }
@@ -5607,7 +5652,7 @@ function addNpHeaderRow(domain,headerName,valueType,val1,val2){
     +    '<input type="text" class="form-input np-h-secret-key" value="'+esc(type==="secret"?val2||"":"")+'" placeholder="key" style="font-family:monospace;font-size:.75rem">'
     +  '</div>'
     +'</div>'
-    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.closest(\'.np-header-row\').remove()">&#10005;</button>';
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.closest(\'.np-header-row\').remove();_onFormChange()">&#10005;</button>';
   $("np-header-rows").appendChild(div);
 }
 
@@ -5667,7 +5712,7 @@ function addNpL4Row(qualifier,addrType,addr,ports,description){
     +'<input type="text" class="form-input np-l4-addr" value="'+esc(addr||'')+'" placeholder="10.0.0.0/8 or 1.2.3.4" style="font-family:monospace;font-size:.78rem"/>'
     +'<input type="text" class="form-input np-l4-ports" value="'+esc(ports||'')+'" placeholder="80,443" style="font-size:.78rem"/>'
     +'<input type="text" class="form-input np-l4-desc" value="'+esc(description||'')+'" placeholder="description" style="font-size:.78rem"/>'
-    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.closest(\'.np-l4-row\').remove()">&#10005;</button>';
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171" onclick="this.closest(\'.np-l4-row\').remove();_onFormChange()">&#10005;</button>';
   $("np-l4-rows").appendChild(div);
 }
 
@@ -5771,7 +5816,7 @@ function addNpHttpRow(qualifier,description,hosts,paths,methods,ports){
     +'</select>'
     +'<input type="text" class="form-input np-http-desc" value="'+esc(desc)+'" placeholder="description (optional)" style="flex:1;font-size:.78rem"/>'
     +'</div>'
-    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171;flex-shrink:0" onclick="this.closest(\'.np-http-row\').remove()">&#10005;</button></div>'
+    +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171;flex-shrink:0" onclick="this.closest(\'.np-http-row\').remove();_onFormChange()">&#10005;</button></div>'
     +'<div class="grid grid-cols-2 gap-2">'
     +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Hosts <span style="color:#475569">(wildcards: *.openai.com)</span></label>'
     +'<input type="text" class="form-input np-http-hosts" value="'+esc(hostsVal)+'" placeholder="api.openai.com, *.internal" style="font-family:monospace;font-size:.78rem"/></div>'
