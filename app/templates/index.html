@@ -1294,33 +1294,30 @@
 
         <!-- Filter bar -->
         <div class="card mb-4" style="padding:.75rem 1rem">
+          <!-- Row 1: primary controls -->
           <div class="flex flex-wrap gap-2 items-center">
-            <!-- Time range -->
-            <div class="flex gap-1 items-center">
-              <span class="text-xs font-semibold mr-1" style="color:#475569">Time:</span>
-              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="15m" onclick="setSecTimeRange('15m')">15m</button>
-              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="1h" onclick="setSecTimeRange('1h')">1h</button>
-              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="24h" onclick="setSecTimeRange('24h')">24h</button>
-              <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="7d" onclick="setSecTimeRange('7d')">7d</button>
-              <button class="sf-time-btn btn btn-ghost btn-sm text-xs sf-time-active" data-range="" onclick="setSecTimeRange('')">All</button>
+            <div style="position:relative;flex:1 1 15rem;min-width:11rem">
+              <svg class="w-3.5 h-3.5" style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);color:#64748b" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z"/></svg>
+              <input id="sf-search" type="text" class="form-input" placeholder="Search logs..." style="padding:.42rem .65rem .42rem 2rem;font-size:.78rem;width:100%" oninput="debounceSecFilter()"/>
             </div>
-            <div style="width:1px;height:1.25rem;background:#1e293b"></div>
-            <input id="sf-ns" type="text" class="form-input" placeholder="namespace" style="padding:.2rem .45rem;font-size:.72rem;width:7.5rem" oninput="applySecFilters()"/>
-            <input id="sf-pod" type="text" class="form-input" placeholder="pod" style="padding:.2rem .45rem;font-size:.72rem;width:7rem" oninput="applySecFilters()"/>
-            <input id="sf-container" type="text" class="form-input" placeholder="container" style="padding:.2rem .45rem;font-size:.72rem;width:6.5rem" oninput="applySecFilters()"/>
-            <select id="sf-action" class="form-input" style="padding:.2rem .45rem;font-size:.72rem" onchange="applySecFilters()">
-              <option value="">All</option>
+            <select id="sf-action" class="form-input" style="padding:.38rem .55rem;font-size:.75rem;width:9.5rem" onchange="applySecFilters()">
+              <option value="">All actions</option>
               <option value="DENIED">DENIED</option>
               <option value="AUDIT">AUDIT</option>
               <option value="ALLOWED">ALLOWED</option>
+              <option value="AUDIT|ALLOWED">AUDIT|ALLOWED</option>
             </select>
-            <select id="sf-enforcer" class="form-input" style="padding:.2rem .45rem;font-size:.72rem" onchange="applySecFilters()">
-              <option value="">Enforcer</option>
+            <select id="sf-enforcer" class="form-input" style="padding:.38rem .55rem;font-size:.75rem;width:8rem" onchange="applySecFilters()">
+              <option value="">All enforcers</option>
               <option value="AppArmor">AppArmor</option>
               <option value="BPF">BPF</option>
               <option value="Seccomp">Seccomp</option>
             </select>
-            <input id="sf-search" type="text" class="form-input" placeholder="search…" style="padding:.2rem .45rem;font-size:.72rem;width:8rem" oninput="applySecFilters()"/>
+            <button id="btn-adv-filters" onclick="toggleAdvFilters()" class="btn btn-ghost btn-sm text-xs" title="Namespace / Pod / Container / Time range">
+              <svg class="w-3 h-3 inline-block mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+              Filters<span id="adv-filter-dot" class="hidden ml-1" style="color:#f59e0b;font-size:.65rem">●</span>
+            </button>
+            <button onclick="clearSecFilters()" class="btn btn-ghost btn-sm text-xs" title="Clear all filters">Clear</button>
             <div style="flex:1"></div>
             <button id="btn-auto-refresh" onclick="toggleAutoRefresh()" class="btn btn-ghost btn-sm text-xs" title="Auto-refresh every 30s">
               <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1331,6 +1328,23 @@
               Refresh
             </button>
           </div>
+          <!-- Row 2: advanced filters (collapsible) -->
+          <div id="adv-filters-panel" class="hidden mt-2 pt-2" style="border-top:1px solid #1e293b">
+            <div class="flex flex-wrap gap-2 items-center">
+              <div class="flex gap-1 items-center" style="background:#0f172a;border:1px solid #1e293b;border-radius:.5rem;padding:.18rem">
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="15m" onclick="setSecTimeRange('15m')">15m</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="1h" onclick="setSecTimeRange('1h')">1h</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="24h" onclick="setSecTimeRange('24h')">24h</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="7d" onclick="setSecTimeRange('7d')">7d</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs sf-time-active" data-range="" onclick="setSecTimeRange('')">All</button>
+              </div>
+              <input id="sf-ns" type="text" class="form-input" placeholder="Namespace" style="padding:.32rem .5rem;font-size:.74rem;width:9rem" oninput="applySecFilters()"/>
+              <input id="sf-pod" type="text" class="form-input" placeholder="Pod" style="padding:.32rem .5rem;font-size:.74rem;width:9rem" oninput="applySecFilters()"/>
+              <input id="sf-container" type="text" class="form-input" placeholder="Container" style="padding:.32rem .5rem;font-size:.74rem;width:9rem" oninput="applySecFilters()"/>
+            </div>
+          </div>
+          <!-- Row 3: active filter chips -->
+          <div id="filter-chips" class="hidden mt-2 flex flex-wrap gap-1"></div>
         </div>
 
         <div id="sec-loading" class="hidden py-8 flex justify-center">
@@ -3574,6 +3588,72 @@ function setSecTimeRange(range){
   applySecFilters();
 }
 
+// ── Advanced filters panel toggle ──
+var _advFiltersOpen=false;
+function toggleAdvFilters(){
+  _advFiltersOpen=!_advFiltersOpen;
+  var panel=$("adv-filters-panel");
+  var btn=$("btn-adv-filters");
+  if(panel)panel.classList[_advFiltersOpen?"remove":"add"]("hidden");
+  if(btn){btn.style.background=_advFiltersOpen?"#1e3a5f":"";btn.style.color=_advFiltersOpen?"#60a5fa":"";}
+}
+
+// ── Search debounce ──
+var _debounceTimer=null;
+function debounceSecFilter(){
+  if(_debounceTimer)clearTimeout(_debounceTimer);
+  _debounceTimer=setTimeout(applySecFilters,250);
+}
+
+// ── Clear all filters ──
+function clearSecFilters(){
+  var el;
+  if(el=$("sf-search"))el.value="";
+  if(el=$("sf-action"))el.value="";
+  if(el=$("sf-enforcer"))el.value="";
+  if(el=$("sf-ns"))el.value="";
+  if(el=$("sf-pod"))el.value="";
+  if(el=$("sf-container"))el.value="";
+  setSecTimeRange(""); // resets _secTimeRange, re-styles buttons, calls applySecFilters
+}
+
+// ── Remove a single filter chip ──
+function clearSecFilter(field){
+  if(field==="time"){setSecTimeRange("");return;}
+  var map={action:"sf-action",enforcer:"sf-enforcer",ns:"sf-ns",pod:"sf-pod",container:"sf-container"};
+  var el=$(map[field]);if(el)el.value="";
+  applySecFilters();
+}
+
+// ── Render active filter chips ──
+function _renderFilterChips(){
+  var chips=[];
+  var action=(($("sf-action")||{}).value||"");
+  var enforcer=(($("sf-enforcer")||{}).value||"");
+  var ns=(($("sf-ns")||{}).value||"").trim();
+  var pod=(($("sf-pod")||{}).value||"").trim();
+  var cont=(($("sf-container")||{}).value||"").trim();
+  if(_secTimeRange) chips.push({label:_secTimeRange,clear:"time"});
+  if(ns) chips.push({label:"ns="+ns,clear:"ns"});
+  if(pod) chips.push({label:"pod="+pod,clear:"pod"});
+  if(cont) chips.push({label:"ctr="+cont,clear:"container"});
+  if(action) chips.push({label:"action="+action,clear:"action"});
+  if(enforcer) chips.push({label:"enforcer="+enforcer,clear:"enforcer"});
+  // Orange dot on Filters button when any advanced filter is active
+  var dot=$("adv-filter-dot");
+  var hasAdv=!!(_secTimeRange||ns||pod||cont);
+  if(dot)dot.classList[hasAdv?"remove":"add"]("hidden");
+  var fc=$("filter-chips");
+  if(!fc)return;
+  if(!chips.length){fc.innerHTML="";fc.classList.add("hidden");return;}
+  fc.classList.remove("hidden");
+  fc.innerHTML=chips.map(function(c){
+    return '<span style="display:inline-flex;align-items:center;gap:.2rem;background:#1e293b;color:#94a3b8;font-size:.68rem;padding:.12rem .45rem;border-radius:999px;border:1px solid #334155">'
+      +esc(c.label)
+      +'<button onclick="clearSecFilter(\''+c.clear+'\')" style="color:#64748b;cursor:pointer;background:none;border:none;padding:0;font-size:.85rem;line-height:1" title="Remove">&#x2715;</button></span>';
+  }).join("");
+}
+
 // Set a filter programmatically (from summary chip clicks)
 function applySecFilter(field,value){
   var el=$({"action":"sf-action","ns":"sf-ns","pod":"sf-pod","enforcer":"sf-enforcer"}[field]);
@@ -3602,14 +3682,29 @@ function _parseTsMs(s){
 // ── Normalize raw events into unified schema ──
 function _normalizeViolEvent(ev,idx){
   var sev=(ev.action||"").toUpperCase()||"INFO";
+  // resource: AppArmor uses name, BPF path uses path
+  var resource=ev.name||ev.path||"";
   return {
     _idx:idx,_src:"viol",
     ts:ev.ts||"",tsMs:_parseTsMs(ev.ts||""),
     severity:sev,
     namespace:ev.namespace||"",pod:ev.pod||"",container:ev.container||"",
+    node:ev.node||"",
     enforcer:ev.enforcer||"",operation:ev.operation||"",
-    resource:ev.name||"",profile:ev.profile||"",
-    comm:"",pid:"",node:"",raw:ev.raw||JSON.stringify(ev),
+    resource:resource,profile:ev.profile||"",
+    // AppArmor
+    comm:ev.comm||"",deniedMask:ev.deniedMask||"",requestedMask:ev.requestedMask||"",
+    // BPF path
+    path:ev.path||"",permissions:ev.permissions||"",
+    // BPF capability
+    capability:ev.capability||"",
+    // BPF network
+    ip:ev.ip||"",port:ev.port||"",domain:ev.domain||"",protocol:ev.protocol||"",
+    // Seccomp
+    syscall:ev.syscall||"",exe:ev.exe||"",subj:ev.subj||"",
+    // Process
+    pid:ev.pid||"",
+    raw:ev.raw||JSON.stringify(ev),
   };
 }
 
@@ -3684,24 +3779,35 @@ function applySecFilters(){
     if(act&&e.severity!==act) return false;
     if(enf&&e.enforcer.toLowerCase().indexOf(enf)<0) return false;
     if(srch){
-      var haystack=(e.namespace+" "+e.pod+" "+e.container+" "+e.enforcer+" "+e.operation+" "+e.resource+" "+e.profile+" "+e.raw).toLowerCase();
+      var haystack=(e.namespace+" "+e.pod+" "+e.container+" "+e.enforcer
+        +" "+e.operation+" "+e.resource+" "+e.profile
+        +" "+e.syscall+" "+e.capability+" "+e.path+" "+e.comm
+        +" "+e.raw).toLowerCase();
       if(haystack.indexOf(srch)<0) return false;
     }
     return true;
   });
+  _renderFilterChips();
   renderSecurityEvents(filtered);
 }
 
 // ── Render security events table ──
-var _SEV_BG={DENIED:"rgba(239,68,68,.07)",AUDIT:"rgba(251,191,36,.05)",ALLOWED:"rgba(74,222,128,.04)"};
-var _SEV_BADGE={DENIED:"badge-red",AUDIT:"badge-amber",ALLOWED:"badge-green"};
+var _SEV_BG={DENIED:"rgba(239,68,68,.07)",AUDIT:"rgba(251,191,36,.05)",ALLOWED:"rgba(74,222,128,.04)","AUDIT|ALLOWED":"rgba(251,191,36,.04)"};
+var _SEV_BADGE={DENIED:"badge-red",AUDIT:"badge-amber",ALLOWED:"badge-green","AUDIT|ALLOWED":"badge-amber"};
+function _sevBadgeHtml(severity,small){
+  var fs=small?"font-size:.58rem":"font-size:.62rem";
+  if(severity==="AUDIT|ALLOWED"){
+    return '<span class="badge badge-amber" style="'+fs+'">AUDIT</span><span class="badge badge-green" style="'+fs+';margin-left:2px">ALLOWED</span>';
+  }
+  return '<span class="badge '+(_SEV_BADGE[severity]||"badge-gray")+'" style="'+fs+'">'+esc(severity||"?")+'</span>';
+}
 function renderSecurityEvents(events){
   var body=$("sec-body");if(!body)return;
   if(!events.length){body.innerHTML="";show("sec-empty");return;}
   hide("sec-empty");
   var rows=events.map(function(e){
     var bg=_SEV_BG[e.severity]||"";
-    var sev='<span class="badge '+(_SEV_BADGE[e.severity]||"badge-gray")+'" style="font-size:.62rem">'+esc(e.severity||"?")+'</span>';
+    var sev=_sevBadgeHtml(e.severity,true);
     var srcBadge=e._src==="aa"?'<span style="font-size:.62rem;color:#93c5fd;background:#1e3a5f;padding:1px 5px;border-radius:4px">AA</span>':'<span style="font-size:.62rem;color:#a78bfa;background:#2d1b69;padding:1px 5px;border-radius:4px">VL</span>';
     var tsDisp=e.ts?(e.tsMs?new Date(e.tsMs).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):e.ts):"—";
     var tr=document.createElement("tr");
@@ -3728,36 +3834,80 @@ function renderSecurityEvents(events){
 // ── Event detail drawer ──
 function openEvDrawer(ev){
   _drawerEvent=ev;
-  var sevClass=_SEV_BADGE[ev.severity]||"badge-gray";
-  var sd=$("ev-drawer-sev");if(sd){sd.className="badge "+sevClass;sd.textContent=ev.severity||"?";}
+  var sd=$("ev-drawer-sev");
+  if(sd){
+    if(ev.severity==="AUDIT|ALLOWED"){
+      sd.className="";
+      sd.innerHTML='<span class="badge badge-amber" style="font-size:.65rem">AUDIT</span><span class="badge badge-green ml-1" style="font-size:.65rem">ALLOWED</span>';
+    } else {
+      sd.className="badge "+(_SEV_BADGE[ev.severity]||"badge-gray");
+      sd.textContent=ev.severity||"?";
+    }
+  }
   var body=$("ev-drawer-body");if(!body)return;
   var srcLabel=ev._src==="aa"?"AppArmor Kernel (kern.log)":"Violation Log (violations.log)";
   var tsFormatted=ev.tsMs?new Date(ev.tsMs).toLocaleString("vi-VN"):ev.ts||"—";
   function row(label,val,mono){
-    if(!val) return "";
+    if(val===null||val===undefined||val==="") return "";
     return '<div class="flex gap-2 py-1 border-b" style="border-color:#1e293b">'
-      +'<span class="text-xs flex-shrink-0 w-20" style="color:#475569">'+esc(label)+'</span>'
-      +'<span class="text-xs break-all'+(mono?" font-mono":"")+'" style="color:#cbd5e1">'+esc(val)+'</span></div>';
+      +'<span class="text-xs flex-shrink-0" style="color:#475569;width:5.5rem">'+esc(label)+'</span>'
+      +'<span class="text-xs break-all'+(mono?" font-mono":"")+'" style="color:#cbd5e1">'+esc(String(val))+'</span></div>';
   }
-  function section(title){return '<div class="text-xs font-bold uppercase tracking-wider mt-3 mb-1" style="color:#334155;letter-spacing:.1em">'+title+'</div>';}
+  function section(title){
+    return '<div class="text-xs font-semibold uppercase tracking-wider mt-3 mb-1" style="color:#475569;letter-spacing:.08em">'+title+'</div>';
+  }
+  // ── Event ──
   var html=section("Event")
-    +row("Source",srcLabel)
+    +'<div class="flex gap-2 py-1 border-b" style="border-color:#1e293b">'
+    +'<span class="text-xs flex-shrink-0" style="color:#475569;width:5.5rem">Action</span>'
+    +'<span>'+_sevBadgeHtml(ev.severity,false)+'</span></div>'
     +row("Time",tsFormatted)
-    +section("K8s Context")
+    +row("Source",srcLabel);
+  // ── Workload ──
+  html+=section("Workload")
     +row("Namespace",ev.namespace)
     +row("Pod",ev.pod,true)
     +row("Container",ev.container)
-    +row("Node",ev.node)
-    +section("Security")
+    +row("Node",ev.node);
+  // ── Security (enforcer-specific) ──
+  html+=section("Security")
     +row("Enforcer",ev.enforcer)
     +row("Profile",ev.profile,true)
-    +row("Operation",ev.operation)
-    +row("Resource",ev.resource,true)
-    +(ev.comm?row("Command",ev.comm,true):"")
-    +(ev.pid?row("PID",ev.pid):"")
-    +section("Raw Log")
-    +'<div class="mt-1 p-2 rounded text-xs font-mono break-all" style="background:#080f1a;color:#94a3b8;max-height:8rem;overflow-y:auto;border:1px solid #1e293b">'+esc(ev.raw||"")+'</div>'
-    +section("Actions")
+    +row("Operation",ev.operation);
+  var enf=(ev.enforcer||"").toLowerCase();
+  if(enf==="apparmor"||ev._src==="aa"){
+    html+=row("Resource",ev.resource||ev.name,true)
+      +row("Denied",ev.deniedMask,true)
+      +row("Requested",ev.requestedMask,true);
+  } else if(enf==="bpf"){
+    html+=row("Path",ev.path||ev.resource,true)
+      +row("Permissions",ev.permissions,true)
+      +row("Capability",ev.capability)
+      +row("IP",ev.ip)
+      +(ev.port?row("Port",String(ev.port)):"")
+      +row("Domain",ev.domain)
+      +row("Protocol",ev.protocol);
+  } else if(enf==="seccomp"){
+    html+=row("Syscall",ev.syscall,true)
+      +row("Executable",ev.exe,true)
+      +row("Subject",ev.subj,true);
+  } else {
+    html+=row("Resource",ev.resource||ev.name,true);
+  }
+  // ── Process ──
+  if(ev.pid||ev.comm||(enf!=="seccomp"&&ev.exe)){
+    html+=section("Process")
+      +row("PID",ev.pid)
+      +row("Command",ev.comm,true)
+      +(enf==="seccomp"?"":row("Executable",ev.exe,true));
+  }
+  // ── Raw JSON (collapsed by default) ──
+  html+=section("Raw Log")
+    +'<details style="margin-top:.25rem"><summary class="text-xs cursor-pointer select-none" style="color:#475569;padding:.2rem 0">Show raw ▸</summary>'
+    +'<div class="mt-1 p-2 rounded text-xs font-mono break-all" style="background:#080f1a;color:#94a3b8;max-height:10rem;overflow-y:auto;border:1px solid #1e293b">'+esc(ev.raw||"")+'</div>'
+    +'</details>';
+  // ── Actions ──
+  html+=section("Actions")
     +'<div class="flex flex-wrap gap-2 mt-1">'
     +(ev.namespace&&ev.pod?'<button onclick="switchTab(\'policy\');switchLogsView(\'security\')" class="btn btn-ghost btn-sm text-xs">&#x1F50D; Check Policy</button>':'')
     +(ev.profile?'<button onclick="switchLogsView(\'profiles\')" class="btn btn-ghost btn-sm text-xs">&#x1F6E1; Profile Status</button>':'')
@@ -3801,7 +3951,7 @@ function updateLogsSummary(){
   var denied=0,audit=0,allowed=0,aa=0;
   _secEventsRaw.forEach(function(e){
     if(e.severity==="DENIED") denied++;
-    else if(e.severity==="AUDIT") audit++;
+    else if(e.severity==="AUDIT"||e.severity==="AUDIT|ALLOWED") audit++;
     else if(e.severity==="ALLOWED") allowed++;
     if(e._src==="aa") aa++;
   });
