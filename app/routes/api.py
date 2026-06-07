@@ -9,7 +9,10 @@ from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
 
 from ..audit import audit_logger
-from ..auth import get_current_user, require_admin, require_auth, require_operator
+from ..auth import (
+    get_current_user, get_current_role, get_permissions_for_role,
+    require_admin, require_auth, require_operator, require_permission,
+)
 from ..db import (get_queue_item, list_queue, queue_policy,
                   update_queue_status, VALID_ROLES)
 from ..k8s_client import (
@@ -1025,27 +1028,25 @@ def create_policy():
 @api_bp.route("/me", methods=["GET"])
 @require_auth
 def get_me():
-    from ..auth import get_current_role
     username = get_current_user()
-    return jsonify({"username": username, "role": get_current_role()})
+    role = get_current_role()
+    return jsonify({
+        "username": username,
+        "role": role,
+        "permissions": sorted(get_permissions_for_role(role)),
+    })
 
 
 @api_bp.route("/users", methods=["GET"])
-@require_auth
+@require_permission("users:view")
 def list_users_endpoint():
-    from ..auth import get_current_role
-    if get_current_role() != "admin":
-        return jsonify({"error": "Admin role required"}), 403
     from ..db import list_users
     return jsonify({"users": list_users()})
 
 
 @api_bp.route("/users", methods=["POST"])
-@require_auth
+@require_permission("users:create")
 def create_user_endpoint():
-    from ..auth import get_current_role
-    if get_current_role() != "admin":
-        return jsonify({"error": "Admin role required"}), 403
     body = request.get_json(silent=True) or {}
     username = (body.get("username") or "").strip()
     password = body.get("password") or ""
@@ -1068,11 +1069,8 @@ def create_user_endpoint():
 
 
 @api_bp.route("/users/<username>", methods=["DELETE"])
-@require_auth
+@require_permission("users:delete")
 def delete_user_endpoint(username: str):
-    from ..auth import get_current_role
-    if get_current_role() != "admin":
-        return jsonify({"error": "Admin role required"}), 403
     if username == get_current_user():
         return jsonify({"error": "Cannot delete your own account"}), 400
     from ..db import delete_user, get_user
@@ -1086,11 +1084,11 @@ def delete_user_endpoint(username: str):
 @api_bp.route("/users/<username>/password", methods=["PUT"])
 @require_auth
 def change_user_password(username: str):
-    from ..auth import get_current_role
+    from ..auth import current_user_has_permission
     current = get_current_user()
-    role = get_current_role()
-    if current != username and role != "admin":
-        return jsonify({"error": "Forbidden"}), 403
+    # Own password: any authenticated user; other user's password: needs users:reset_password
+    if current != username and not current_user_has_permission("users:reset_password"):
+        return jsonify({"error": "Forbidden: permission \"users:reset_password\" required"}), 403
     body = request.get_json(silent=True) or {}
     new_password = body.get("new_password") or ""
     if len(new_password) < 8:
@@ -1109,11 +1107,8 @@ def change_user_password(username: str):
 
 
 @api_bp.route("/users/<username>/role", methods=["PUT"])
-@require_auth
+@require_permission("users:update_role")
 def change_user_role(username: str):
-    from ..auth import get_current_role
-    if get_current_role() != "admin":
-        return jsonify({"error": "Admin role required"}), 403
     if username == get_current_user():
         return jsonify({"error": "Cannot change your own role"}), 400
     body = request.get_json(silent=True) or {}
@@ -1743,7 +1738,6 @@ def submit_policy_for_review():
 @api_bp.route("/policies/queue", methods=["GET"])
 @require_auth
 def list_policy_queue():
-    from ..auth import get_current_role
     role = get_current_role()
     user = get_current_user()
     status_filter = request.args.get("status") or None
@@ -1760,7 +1754,6 @@ def list_policy_queue():
 @api_bp.route("/policies/queue/<item_id>", methods=["GET"])
 @require_auth
 def get_queue_item_endpoint(item_id: str):
-    from ..auth import get_current_role
     role = get_current_role()
     user = get_current_user()
     item = get_queue_item(item_id)
@@ -1855,7 +1848,6 @@ def reject_queued_policy(item_id: str):
 @api_bp.route("/policies/queue/<item_id>", methods=["DELETE"])
 @require_auth
 def cancel_queued_policy(item_id: str):
-    from ..auth import get_current_role
     user = get_current_user()
     role = get_current_role()
     item = get_queue_item(item_id)
