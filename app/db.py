@@ -11,7 +11,11 @@ logger = logging.getLogger(__name__)
 
 DB_PATH = os.environ.get("DB_PATH", "/app/data/users.db")
 
-VALID_ROLES = frozenset(["admin", "operator", "viewer"])
+BUILTIN_ROLES = frozenset(["admin", "operator", "viewer"])
+
+# kept for backward compat — callers that just want built-in names use this;
+# use get_all_valid_roles() when custom roles must be included.
+VALID_ROLES = BUILTIN_ROLES
 
 ROLE_DESCRIPTIONS = {
     "admin":    "Full access: create, approve, reject, delete policies; manage users",
@@ -44,38 +48,48 @@ def get_db():
 def init_db() -> None:
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     with get_db() as conn:
-        # Users table — CHECK constraint uses Python-level validation for operator
+        # Users table — no CHECK on role so custom roles can be stored.
+        # Migration: recreate if old schema still has the CHECK constraint.
         conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 username      TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                role          TEXT NOT NULL DEFAULT 'viewer'
-                                  CHECK(role IN ('admin','operator','viewer')),
+                role          TEXT NOT NULL DEFAULT 'viewer',
                 created_at    TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
                 last_login    TEXT
             )
         """)
-        # Migrate existing DBs: add operator to CHECK via recreate if needed
+        # Drop old CHECK constraint if it exists (SQLite requires table rebuild)
         try:
-            conn.execute("INSERT OR IGNORE INTO users(username,password_hash,role) VALUES('__probe__','x','operator')")
+            conn.execute("INSERT OR IGNORE INTO users(username,password_hash,role) VALUES('__probe__','x','custom_test_role')")
             conn.execute("DELETE FROM users WHERE username='__probe__'")
         except sqlite3.IntegrityError:
-            # Old schema without operator — recreate table
             conn.execute("ALTER TABLE users RENAME TO users_old")
             conn.execute("""
                 CREATE TABLE users (
                     id            INTEGER PRIMARY KEY AUTOINCREMENT,
                     username      TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
-                    role          TEXT NOT NULL DEFAULT 'viewer'
-                                      CHECK(role IN ('admin','operator','viewer')),
+                    role          TEXT NOT NULL DEFAULT 'viewer',
                     created_at    TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
                     last_login    TEXT
                 )
             """)
             conn.execute("INSERT INTO users SELECT * FROM users_old")
             conn.execute("DROP TABLE users_old")
+
+        # Custom roles
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS custom_roles (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT UNIQUE NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                permissions TEXT NOT NULL DEFAULT '[]',
+                created_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                created_by  TEXT NOT NULL DEFAULT 'system'
+            )
+        """)
 
         # Policy review queue
         conn.execute("""
@@ -147,8 +161,14 @@ def list_users() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_all_valid_roles() -> frozenset:
+    """Built-in roles + names of all custom roles."""
+    custom = {r["name"] for r in list_custom_roles()}
+    return BUILTIN_ROLES | frozenset(custom)
+
+
 def create_user(username: str, password: str, role: str = "viewer") -> None:
-    if role not in VALID_ROLES:
+    if role not in get_all_valid_roles():
         raise ValueError(f"Invalid role '{role}'")
     with get_db() as conn:
         conn.execute(
@@ -166,7 +186,7 @@ def update_user_password(username: str, new_password: str) -> None:
 
 
 def update_user_role(username: str, role: str) -> None:
-    if role not in VALID_ROLES:
+    if role not in get_all_valid_roles():
         raise ValueError(f"Invalid role '{role}'")
     with get_db() as conn:
         conn.execute(
@@ -246,3 +266,55 @@ def update_queue_status(item_id: str, status: str,
                WHERE id=?""",
             (status, reviewed_by, review_note, item_id),
         )
+
+
+# ---------------------------------------------------------------------------
+# Custom roles CRUD
+# ---------------------------------------------------------------------------
+
+def list_custom_roles() -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM custom_roles ORDER BY name"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_custom_role(name: str) -> dict | None:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM custom_roles WHERE name=?", (name,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def create_custom_role(name: str, description: str,
+                       permissions: list, created_by: str) -> None:
+    import json
+    if name in BUILTIN_ROLES:
+        raise ValueError(f"Cannot shadow built-in role '{name}'")
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO custom_roles (name, description, permissions, created_by) VALUES (?, ?, ?, ?)",
+            (name, description, json.dumps(sorted(permissions)), created_by),
+        )
+
+
+def update_custom_role(name: str, description: str, permissions: list) -> None:
+    import json
+    if name in BUILTIN_ROLES:
+        raise ValueError(f"Cannot modify built-in role '{name}'")
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE custom_roles SET description=?, permissions=? WHERE name=?",
+            (description, json.dumps(sorted(permissions)), name),
+        )
+
+
+def delete_custom_role(name: str) -> None:
+    if name in BUILTIN_ROLES:
+        raise ValueError(f"Cannot delete built-in role '{name}'")
+    with get_db() as conn:
+        # Demote any users who had this role to viewer
+        conn.execute("UPDATE users SET role='viewer' WHERE role=?", (name,))
+        conn.execute("DELETE FROM custom_roles WHERE name=?", (name,))

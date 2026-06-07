@@ -46,7 +46,18 @@ ROLE_PERMISSIONS: dict = {
 
 
 def get_permissions_for_role(role: str) -> frozenset:
-    return ROLE_PERMISSIONS.get(role, _VIEWER_PERMS)
+    if role in ROLE_PERMISSIONS:
+        return ROLE_PERMISSIONS[role]
+    # custom role — look up permissions from DB
+    try:
+        import json
+        from .db import get_custom_role
+        cr = get_custom_role(role)
+        if cr:
+            return frozenset(json.loads(cr["permissions"]))
+    except Exception:
+        pass
+    return _VIEWER_PERMS
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ from ..auth import (
     require_admin, require_auth, require_operator, require_permission,
 )
 from ..db import (get_queue_item, list_queue, queue_policy,
-                  update_queue_status, VALID_ROLES)
+                  update_queue_status, VALID_ROLES, BUILTIN_ROLES)
 from ..k8s_client import (
     VARMOR_GROUP,
     VARMOR_PLURAL,
@@ -1055,8 +1055,10 @@ def create_user_endpoint():
         return jsonify({"error": "username and password are required"}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
-    if role not in VALID_ROLES:
-        return jsonify({"error": f"role must be one of: {', '.join(sorted(VALID_ROLES))}"}), 400
+    from ..db import get_all_valid_roles
+    all_roles = get_all_valid_roles()
+    if role not in all_roles:
+        return jsonify({"error": f"role must be one of: {', '.join(sorted(all_roles))}"}), 400
     try:
         from ..db import create_user
         create_user(username, password, role)
@@ -1113,11 +1115,123 @@ def change_user_role(username: str):
         return jsonify({"error": "Cannot change your own role"}), 400
     body = request.get_json(silent=True) or {}
     role = body.get("role")
-    if role not in VALID_ROLES:
-        return jsonify({"error": f"role must be one of: {', '.join(sorted(VALID_ROLES))}"}), 400
+    from ..db import get_all_valid_roles
+    all_roles = get_all_valid_roles()
+    if role not in all_roles:
+        return jsonify({"error": f"role must be one of: {', '.join(sorted(all_roles))}"}), 400
     from ..db import update_user_role
     update_user_role(username, role)
     audit_logger.log(get_current_user(), "UPDATE_ROLE", username, "system", "SUCCESS", f"role={role}")
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Custom roles CRUD
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/roles", methods=["GET"])
+@require_auth
+def list_roles_endpoint():
+    """Return built-in roles (with their permissions) + custom roles."""
+    from ..auth import get_permissions_for_role, ALL_PERMISSIONS
+    from ..db import list_custom_roles, BUILTIN_ROLES
+    import json
+
+    roles = []
+    for r in sorted(BUILTIN_ROLES):
+        roles.append({
+            "name": r,
+            "description": {
+                "admin":    "Full access — all permissions",
+                "operator": "Policy submit + review view",
+                "viewer":   "Read-only",
+            }.get(r, ""),
+            "permissions": sorted(get_permissions_for_role(r)),
+            "builtin": True,
+            "user_count": None,
+        })
+    for cr in list_custom_roles():
+        roles.append({
+            "name": cr["name"],
+            "description": cr["description"],
+            "permissions": json.loads(cr["permissions"]),
+            "builtin": False,
+            "created_at": cr["created_at"],
+            "created_by": cr["created_by"],
+        })
+    # Attach user counts
+    from ..db import list_users
+    users = list_users()
+    count_map: dict = {}
+    for u in users:
+        count_map[u["role"]] = count_map.get(u["role"], 0) + 1
+    for r in roles:
+        r["user_count"] = count_map.get(r["name"], 0)
+
+    return jsonify({"roles": roles, "all_permissions": sorted(ALL_PERMISSIONS)})
+
+
+@api_bp.route("/roles", methods=["POST"])
+@require_permission("users:view")  # admin-only gate (same as users:view)
+def create_role_endpoint():
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip().lower().replace(" ", "_")
+    description = (body.get("description") or "").strip()
+    permissions = body.get("permissions") or []
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    if not re.match(r'^[a-z][a-z0-9_-]{0,31}$', name):
+        return jsonify({"error": "name must be lowercase letters/digits/underscores, 1-32 chars"}), 400
+    if name in BUILTIN_ROLES:
+        return jsonify({"error": f"'{name}' is a built-in role and cannot be created"}), 409
+    from ..auth import ALL_PERMISSIONS
+    invalid = [p for p in permissions if p not in ALL_PERMISSIONS]
+    if invalid:
+        return jsonify({"error": f"Unknown permissions: {', '.join(invalid)}"}), 400
+    try:
+        from ..db import create_custom_role
+        create_custom_role(name, description, permissions, get_current_user())
+    except Exception as exc:
+        if "UNIQUE" in str(exc):
+            return jsonify({"error": f"Role '{name}' already exists"}), 409
+        return jsonify({"error": str(exc)}), 500
+    audit_logger.log(get_current_user(), "CREATE_ROLE", name, "system", "SUCCESS",
+                     f"perms={len(permissions)}")
+    return jsonify({"ok": True}), 201
+
+
+@api_bp.route("/roles/<name>", methods=["PUT"])
+@require_permission("users:view")
+def update_role_endpoint(name: str):
+    if name in BUILTIN_ROLES:
+        return jsonify({"error": "Cannot modify built-in roles"}), 400
+    body = request.get_json(silent=True) or {}
+    description = (body.get("description") or "").strip()
+    permissions = body.get("permissions") or []
+    from ..auth import ALL_PERMISSIONS
+    invalid = [p for p in permissions if p not in ALL_PERMISSIONS]
+    if invalid:
+        return jsonify({"error": f"Unknown permissions: {', '.join(invalid)}"}), 400
+    from ..db import get_custom_role, update_custom_role
+    if not get_custom_role(name):
+        return jsonify({"error": "Role not found"}), 404
+    update_custom_role(name, description, permissions)
+    audit_logger.log(get_current_user(), "UPDATE_ROLE_DEF", name, "system", "SUCCESS",
+                     f"perms={len(permissions)}")
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/roles/<name>", methods=["DELETE"])
+@require_permission("users:delete")
+def delete_role_endpoint(name: str):
+    if name in BUILTIN_ROLES:
+        return jsonify({"error": "Cannot delete built-in roles"}), 400
+    from ..db import get_custom_role, delete_custom_role
+    if not get_custom_role(name):
+        return jsonify({"error": "Role not found"}), 404
+    delete_custom_role(name)
+    audit_logger.log(get_current_user(), "DELETE_ROLE", name, "system", "SUCCESS",
+                     "affected users demoted to viewer")
     return jsonify({"ok": True})
 
 
