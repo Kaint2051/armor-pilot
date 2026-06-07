@@ -1390,9 +1390,98 @@
 
     <!-- ═══════════════ TAB: USERS ═══════════════ -->
     <div id="tab-users" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
+
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        <div class="card" style="padding:.875rem 1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#475569">Total Users</div>
+          <div id="usr-stat-total" class="text-2xl font-bold" style="color:#f1f5f9">—</div>
+        </div>
+        <div class="card" style="padding:.875rem 1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#475569">Admins</div>
+          <div id="usr-stat-admin" class="text-2xl font-bold" style="color:#60a5fa">—</div>
+        </div>
+        <div class="card" style="padding:.875rem 1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#475569">Operators</div>
+          <div id="usr-stat-operator" class="text-2xl font-bold" style="color:#fbbf24">—</div>
+        </div>
+        <div class="card" style="padding:.875rem 1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#475569">Viewers</div>
+          <div id="usr-stat-viewer" class="text-2xl font-bold" style="color:#94a3b8">—</div>
+        </div>
+        <div class="card" style="padding:.875rem 1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#475569">Never Logged In</div>
+          <div id="usr-stat-never" class="text-2xl font-bold" style="color:#f87171">—</div>
+        </div>
+      </div>
+
+      <!-- Main grid -->
       <div class="grid grid-cols-12 gap-6">
 
-        <!-- LEFT: My Profile + Change Password -->
+        <!-- LEFT: User Management (wider) -->
+        <div class="col-span-12 lg:col-span-8 space-y-5">
+
+          <!-- User Management table -->
+          <section class="card">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                User Management
+              </h2>
+              <div class="flex items-center gap-2">
+                <button onclick="loadUsers()" class="btn btn-ghost btn-sm">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Refresh
+                </button>
+                <button id="btn-add-user" onclick="openAddUserModal()" class="btn btn-primary btn-sm hidden">+ Add User</button>
+              </div>
+            </div>
+            <!-- Search + Role filter -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              <input id="usr-search" type="text" placeholder="Search username…" class="form-input" style="width:13rem;padding:.35rem .6rem;font-size:.8rem" oninput="filterUsers()"/>
+              <select id="usr-role-filter" class="form-input" style="width:9.5rem;padding:.35rem .6rem;font-size:.8rem" onchange="filterUsers()">
+                <option value="">All roles</option>
+                <option value="admin">Admin</option>
+                <option value="operator">Operator</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+            <div id="users-admin-notice" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1a05;border:1px solid #713f12;color:#fde68a">Only admins can manage users.</div>
+            <div id="users-loading" class="hidden py-6 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="users-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th">User</th>
+                    <th class="th">Role</th>
+                    <th class="th">Last Login</th>
+                    <th class="th">Created</th>
+                    <th class="th th-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-body"></tbody>
+              </table>
+              <p id="usr-no-match" class="hidden text-sm text-center py-5" style="color:#475569">No users match the filter.</p>
+            </div>
+          </section>
+
+          <!-- Recent User Activity -->
+          <section class="card">
+            <h2 class="text-base font-semibold flex items-center gap-2 mb-4" style="color:#f1f5f9">
+              <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Recent User Activity
+            </h2>
+            <div id="usr-activity" class="space-y-0">
+              <p class="text-sm text-center py-3" style="color:#475569">Load users to see activity.</p>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- RIGHT: Profile + Change Pwd + Role Permissions -->
         <div class="col-span-12 lg:col-span-4 space-y-5">
 
           <!-- My Profile card -->
@@ -1401,7 +1490,7 @@
               <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
               My Profile
             </h2>
-            <div class="flex items-center gap-3 p-3 rounded-xl mb-4" style="background:#0f172a;border:1px solid #334155">
+            <div class="flex items-center gap-3 p-3 rounded-xl mb-2" style="background:#0f172a;border:1px solid #334155">
               <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0" style="background:#1d4ed8;color:#fff" id="user-avatar">A</div>
               <div class="min-w-0">
                 <p id="user-display-name" class="font-semibold truncate" style="color:#f1f5f9">admin</p>
@@ -1435,46 +1524,53 @@
             </form>
           </section>
 
-        </div>
-
-        <!-- RIGHT: User Management table (admin only) -->
-        <div class="col-span-12 lg:col-span-8">
+          <!-- Role Permissions Panel -->
           <section class="card">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
-                <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                User Management
-              </h2>
-              <div class="flex items-center gap-2">
-                <button onclick="loadUsers()" class="btn btn-ghost btn-sm">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  Refresh
-                </button>
-                <button id="btn-add-user" onclick="openAddUserModal()" class="btn btn-primary btn-sm hidden">+ Add User</button>
+            <h2 class="text-base font-semibold flex items-center gap-2 mb-4" style="color:#f1f5f9">
+              <svg class="w-5 h-5" style="color:#f472b6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              Role Permissions
+            </h2>
+            <div class="space-y-3">
+              <div class="p-3 rounded-lg" style="background:#060f2e;border:1px solid #1e3a8a">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="badge badge-blue" style="font-size:.7rem">admin</span>
+                  <span class="text-xs font-semibold" style="color:#93c5fd">Full Access</span>
+                </div>
+                <ul class="text-xs space-y-0.5" style="color:#64748b">
+                  <li>&#10003; View all resources</li>
+                  <li>&#10003; Create &amp; apply policies directly</li>
+                  <li>&#10003; Approve / reject queue submissions</li>
+                  <li>&#10003; Manage users (add, delete, reset pwd)</li>
+                  <li>&#10003; Restart workloads, import YAML</li>
+                </ul>
+              </div>
+              <div class="p-3 rounded-lg" style="background:#1c1200;border:1px solid #713f12">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="badge badge-amber" style="font-size:.7rem">operator</span>
+                  <span class="text-xs font-semibold" style="color:#fde68a">Submit &amp; Monitor</span>
+                </div>
+                <ul class="text-xs space-y-0.5" style="color:#64748b">
+                  <li>&#10003; View all resources</li>
+                  <li>&#10003; Submit policies for admin review</li>
+                  <li>&#10007; Cannot approve/apply policies</li>
+                  <li>&#10007; Cannot manage users</li>
+                </ul>
+              </div>
+              <div class="p-3 rounded-lg" style="background:#0c0c0c;border:1px solid #334155">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="badge badge-gray" style="font-size:.7rem">viewer</span>
+                  <span class="text-xs font-semibold" style="color:#94a3b8">Read Only</span>
+                </div>
+                <ul class="text-xs space-y-0.5" style="color:#64748b">
+                  <li>&#10003; View policies, logs, dashboard</li>
+                  <li>&#10007; Cannot create or modify anything</li>
+                  <li>&#10007; Cannot submit for review</li>
+                </ul>
               </div>
             </div>
-            <div id="users-admin-notice" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1a05;border:1px solid #713f12;color:#fde68a">Only admins can manage users.</div>
-            <div id="users-loading" class="hidden py-6 flex justify-center">
-              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            </div>
-            <div id="users-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr style="border-bottom:1px solid #1e293b">
-                    <th class="th">Username</th>
-                    <th class="th">Role</th>
-                    <th class="th">Created</th>
-                    <th class="th">Last Login</th>
-                    <th class="th th-r">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="users-body"></tbody>
-              </table>
-            </div>
           </section>
-        </div>
 
+        </div>
       </div>
     </div>
 
@@ -1613,16 +1709,39 @@
 
 <!-- RESET PASSWORD MODAL -->
 <div id="modal-reset-pwd" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
-  <div class="card w-full mx-4" style="max-width:24rem;border-color:#475569">
-    <div class="flex items-center justify-between mb-4">
+  <div class="card w-full mx-4" style="max-width:26rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-3">
       <h3 class="text-base font-semibold" style="color:#f1f5f9">Reset Password</h3>
       <button onclick="closeResetPwdModal()" class="btn btn-ghost btn-sm">&#10005;</button>
     </div>
-    <p class="text-sm mb-1" style="color:#94a3b8">User:</p>
-    <p id="reset-pwd-uname" class="font-mono font-semibold text-sm mb-4" style="color:#93c5fd"></p>
+    <div class="flex items-center gap-3 mb-4 p-3 rounded-xl" style="background:#0f172a;border:1px solid #334155">
+      <div id="reset-pwd-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style="background:#334155;color:#f1f5f9">?</div>
+      <div>
+        <p id="reset-pwd-uname" class="font-mono font-semibold text-sm" style="color:#93c5fd"></p>
+        <span id="reset-pwd-role-badge" class="badge badge-gray" style="font-size:.65rem">viewer</span>
+      </div>
+    </div>
+    <!-- Generate random password -->
+    <div class="mb-3 p-3 rounded-lg" style="background:#071a07;border:1px solid #166534">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold" style="color:#4ade80">Generate Random Password</span>
+        <button type="button" onclick="generateAndFillPwd()" class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:.2rem .5rem;color:#4ade80;border-color:#166534">&#9881; Generate</button>
+      </div>
+      <div id="reset-gen-box" class="hidden">
+        <div class="flex items-center gap-2 mt-1">
+          <code id="reset-gen-display" class="flex-1 text-xs font-mono rounded px-2 py-1.5" style="background:#0a1a0a;border:1px solid #166534;color:#86efac;word-break:break-all"></code>
+          <button type="button" onclick="copyGenPwd()" class="btn btn-ghost btn-sm shrink-0" style="font-size:.7rem;padding:.2rem .45rem" title="Copy">&#128203;</button>
+        </div>
+        <p class="text-xs mt-1" style="color:#475569">Copy and share this password securely.</p>
+      </div>
+    </div>
     <div class="mb-3">
       <label class="form-label">New Password <span style="color:#f87171">*</span></label>
       <input id="inp-reset-pass" type="password" autocomplete="new-password" class="form-input" placeholder="Min 8 characters"/>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Confirm Password <span style="color:#f87171">*</span></label>
+      <input id="inp-reset-confirm" type="password" autocomplete="new-password" class="form-input" placeholder="Repeat new password"/>
     </div>
     <div id="reset-pwd-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
     <div class="flex gap-3 justify-end">
@@ -3656,6 +3775,21 @@ function closeModelModal(){hide("modal-model");}
 $("modal-model").addEventListener("click",function(e){if(e.target===$("modal-model"))closeModelModal();});
 
 // ── User management ──
+// ── User management helpers ──
+function relTime(iso){
+  if(!iso) return null;
+  var sec=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(sec<60) return "just now";
+  var m=Math.floor(sec/60);if(m<60) return m+"m ago";
+  var h=Math.floor(m/60);if(h<24) return h+"h ago";
+  var d=Math.floor(h/24);if(d<7) return d+"d ago";
+  if(d<30) return Math.floor(d/7)+"w ago";
+  if(d<365) return Math.floor(d/30)+"mo ago";
+  return Math.floor(d/365)+"y ago";
+}
+
+var _allUsers=[];
+
 async function loadUsers(){
   setLoading("users",true);hide("users-err");$("users-body").innerHTML="";
   try{
@@ -3664,46 +3798,126 @@ async function loadUsers(){
     if(r.status===403){show("users-admin-notice");hide("btn-add-user");return;}
     if(!r.ok){showEl($("users-err"),data.error||"Failed to load users");return;}
     hide("users-admin-notice");show("btn-add-user");
-    renderUsers(data.users||[]);
+    _allUsers=data.users||[];
+    _updateUserStats(_allUsers);
+    renderUsers(_allUsers);
+    _renderUserActivity(_allUsers);
   }catch(err){setLoading("users",false);showEl($("users-err"),err.message);}
+}
+
+function _updateUserStats(users){
+  var total=users.length;
+  var admins=users.filter(function(u){return u.role==="admin";}).length;
+  var ops=users.filter(function(u){return u.role==="operator";}).length;
+  var viewers=users.filter(function(u){return u.role==="viewer";}).length;
+  var never=users.filter(function(u){return !u.last_login;}).length;
+  ["total","admin","operator","viewer","never"].forEach(function(k,i){
+    var el=$("usr-stat-"+k);
+    if(el) el.textContent=[total,admins,ops,viewers,never][i];
+  });
+}
+
+function _renderUserActivity(users){
+  var el=$("usr-activity");if(!el) return;
+  var sorted=users.slice().sort(function(a,b){
+    if(!a.last_login&&!b.last_login) return 0;
+    if(!a.last_login) return 1;
+    if(!b.last_login) return -1;
+    return new Date(b.last_login)-new Date(a.last_login);
+  });
+  var roleColors={admin:"#60a5fa",operator:"#fbbf24",viewer:"#94a3b8"};
+  var roleBg={admin:"#060f2e",operator:"#1c1200",viewer:"#0c0c0c"};
+  var html=sorted.map(function(u){
+    var rt=u.last_login?relTime(u.last_login):"Never logged in";
+    var dot=u.last_login?"#4ade80":"#475569";
+    var initials=(u.username[0]||"?").toUpperCase();
+    var avatarBg={admin:"#1d4ed8",operator:"#92400e",viewer:"#334155"}[u.role]||"#334155";
+    return '<div style="display:flex;align-items:center;gap:.625rem;padding:.45rem 0;border-bottom:1px solid #1e293b">'
+      +'<div style="width:.45rem;height:.45rem;border-radius:50%;background:'+dot+';flex-shrink:0"></div>'
+      +'<div style="width:1.6rem;height:1.6rem;border-radius:50%;background:'+avatarBg+';color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+esc(initials)+'</div>'
+      +'<span style="font-family:monospace;font-size:.78rem;color:#f1f5f9;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(u.username)+'</span>'
+      +'<span class="badge" style="font-size:.65rem;padding:.1rem .4rem;border-radius:.25rem;background:'+roleBg[u.role]+';color:'+roleColors[u.role]+';border:1px solid;border-color:'+roleColors[u.role]+'40">'+esc(u.role)+'</span>'
+      +'<span style="font-size:.72rem;color:#475569;white-space:nowrap;flex-shrink:0">'+esc(rt)+'</span>'
+      +'</div>';
+  }).join("");
+  el.innerHTML=html||'<p class="text-sm text-center py-3" style="color:#475569">No users found.</p>';
+}
+
+function filterUsers(){
+  var q=($("usr-search")||{}).value.toLowerCase().trim();
+  var rf=($("usr-role-filter")||{}).value;
+  var rows=$("users-body").querySelectorAll("tr");
+  var vis=0;
+  rows.forEach(function(tr){
+    var uname=(tr.dataset.username||"").toLowerCase();
+    var role=(tr.dataset.role||"");
+    var matchQ=!q||uname.includes(q);
+    var matchR=!rf||role===rf;
+    tr.style.display=(matchQ&&matchR)?"":"none";
+    if(matchQ&&matchR) vis++;
+  });
+  toggleVis("usr-no-match",vis===0&&rows.length>0);
 }
 
 function renderUsers(users){
   $("users-body").innerHTML="";
+  var roleAvatarBg={admin:"#1d4ed8",operator:"#92400e",viewer:"#334155"};
+  var roleColors={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
   users.forEach(function(u){
     var isMe=u.username===CURRENT_USER;
-    var roleColors={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
-    var roleBadge='<span class="badge '+(roleColors[u.role]||"badge-gray")+'">'+esc(u.role)+'</span>';
-    var roleOpts=["admin","operator","viewer"].filter(function(r){return r!==u.role;});
-    var altRole=roleOpts[0]||"viewer";
+    var initials=(u.username[0]||"?").toUpperCase();
+    var avatarBg=roleAvatarBg[u.role]||"#334155";
+    var avatar='<div style="width:2rem;height:2rem;border-radius:50%;background:'+avatarBg+';color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+esc(initials)+'</div>';
     var cr=u.created_at?new Date(u.created_at).toLocaleDateString("vi-VN"):"—";
-    var ll=u.last_login?new Date(u.last_login).toLocaleDateString("vi-VN"):"Never";
-    var roleBtn=isMe?"":roleOpts.map(function(r){
-      return '<button onclick="toggleUserRole(this)" data-user="'+esc(u.username)+'" data-role="'+esc(r)+'" class="btn btn-ghost btn-sm" style="margin-right:2px" title="Set role to '+r+'">→'+r+'</button>';
-    }).join("");
-    var resetBtn=isMe?"":'<button onclick="openResetPwdModal(this)" data-user="'+esc(u.username)+'" class="btn btn-ghost btn-sm" style="margin-right:2px">Reset pwd</button>';
-    var delBtn=isMe?"":'<button onclick="deleteUser(this)" data-user="'+esc(u.username)+'" class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Delete</button>';
+    var ll=u.last_login?(relTime(u.last_login)||new Date(u.last_login).toLocaleDateString("vi-VN")):"Never";
+    var llColor=u.last_login?"#94a3b8":"#f87171";
+    // Role cell: dropdown if admin and not self, else badge only
+    var roleCell;
+    if(isAdmin()&&!isMe){
+      roleCell='<select class="form-input usr-role-sel" data-user="'+esc(u.username)+'" onchange="changeUserRole(this)" style="font-size:.72rem;padding:.2rem .45rem;background:#0f172a;border-color:#334155;color:#f1f5f9;width:7rem">'
+        +["admin","operator","viewer"].map(function(r){return '<option value="'+r+'"'+(r===u.role?" selected":"")+'>'+r+'</option>';}).join("")
+        +'</select>';
+    } else {
+      roleCell='<span class="badge '+(roleColors[u.role]||"badge-gray")+'" style="font-size:.72rem">'+esc(u.role)+'</span>';
+    }
+    var resetBtn=isMe?"":'<button onclick="openResetPwdModal(this)" data-user="'+esc(u.username)+'" data-role="'+esc(u.role)+'" class="btn btn-ghost btn-sm" style="padding:.2rem .45rem;font-size:.7rem" title="Reset password">&#128272;</button>';
+    var delBtn=isMe?"":'<button onclick="deleteUser(this)" data-user="'+esc(u.username)+'" class="btn btn-sm" style="padding:.2rem .45rem;font-size:.7rem;border:1px solid #7f1d1d;color:#f87171;background:transparent" title="Delete user">&#128465;</button>';
     var tr=document.createElement("tr");
+    tr.dataset.username=u.username;
+    tr.dataset.role=u.role;
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
-    tr.onmouseover=function(){tr.style.background="#243552"};tr.onmouseout=function(){tr.style.background=""};
-    tr.innerHTML='<td class="td" style="font-family:monospace;font-size:.8rem;color:#f1f5f9">'+esc(u.username)+(isMe?' <span style="color:#475569;font-size:.7rem">(you)</span>':'')+'</td>'
-      +'<td class="td">'+roleBadge+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#64748b">'+cr+'</td>'
-      +'<td class="td" style="font-size:.75rem;color:#64748b">'+ll+'</td>'
-      +'<td class="td th-r" style="white-space:nowrap">'+roleBtn+resetBtn+delBtn+'</td>';
+    tr.onmouseover=function(){tr.style.background="#0f1d33"};tr.onmouseout=function(){tr.style.background=""};
+    tr.innerHTML='<td class="td"><div style="display:flex;align-items:center;gap:.5rem">'+avatar
+      +'<div><span style="font-family:monospace;font-size:.82rem;color:#f1f5f9">'+esc(u.username)+'</span>'
+      +(isMe?'<span style="display:block;font-size:.65rem;color:#475569">(you)</span>':'')+'</div></div></td>'
+      +'<td class="td">'+roleCell+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:'+llColor+'">'+esc(ll)+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#475569">'+esc(cr)+'</td>'
+      +'<td class="td th-r" style="white-space:nowrap">'+resetBtn+delBtn+'</td>';
     $("users-body").appendChild(tr);
   });
 }
 
-async function toggleUserRole(el){
-  var username=el.dataset.user,role=el.dataset.role;
-  el.disabled=true;
+async function changeUserRole(sel){
+  var username=sel.dataset.user,role=sel.value;
+  var prev=sel.options[Array.from(sel.options).findIndex(function(o){return!o.selected&&!o.disabled;})];
+  // Find previous selected value
+  var prevRole=_allUsers.find(function(u){return u.username===username;});
+  prevRole=prevRole?prevRole.role:"viewer";
+  if(role==="admin"&&prevRole!=="admin"){
+    if(!confirm("Grant admin to '"+username+"'?\n\nAdmins have full access including user management. Continue?")){
+      sel.value=prevRole;return;
+    }
+  } else if(prevRole==="admin"&&role!=="admin"){
+    if(!confirm("Revoke admin from '"+username+"' and set to '"+role+"'? Continue?")){sel.value=prevRole;return;}
+  }
+  sel.disabled=true;
   try{
     var r=await api("/api/users/"+encodeURIComponent(username)+"/role",{method:"PUT",body:JSON.stringify({role:role})});
     var d=await r.json();
-    if(!r.ok){alert(d.error||"Failed");el.disabled=false;return;}
+    if(!r.ok){alert(d.error||"Failed");sel.value=prevRole;sel.disabled=false;return;}
     loadUsers();
-  }catch(e){alert(e.message);el.disabled=false;}
+  }catch(e){alert(e.message);sel.value=prevRole;sel.disabled=false;}
 }
 
 async function deleteUser(el){
@@ -3746,14 +3960,38 @@ var resetPwdTarget=null;
 function openResetPwdModal(el){
   resetPwdTarget=el.dataset.user;
   $("reset-pwd-uname").textContent=resetPwdTarget;
-  $("inp-reset-pass").value="";hideEl($("reset-pwd-msg"));show("modal-reset-pwd");
+  var role=el.dataset.role||"viewer";
+  var avatarBg={admin:"#1d4ed8",operator:"#92400e",viewer:"#334155"}[role]||"#334155";
+  $("reset-pwd-avatar").style.background=avatarBg;
+  $("reset-pwd-avatar").textContent=(resetPwdTarget[0]||"?").toUpperCase();
+  $("reset-pwd-role-badge").textContent=role;
+  $("reset-pwd-role-badge").className="badge "+({admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"}[role]||"badge-gray");
+  $("inp-reset-pass").value="";$("inp-reset-confirm").value="";
+  hide("reset-gen-box");hideEl($("reset-pwd-msg"));show("modal-reset-pwd");
 }
 function closeResetPwdModal(){hide("modal-reset-pwd");resetPwdTarget=null;}
 $("modal-reset-pwd").addEventListener("click",function(e){if(e.target===$("modal-reset-pwd"))closeResetPwdModal();});
+
+function generateAndFillPwd(){
+  var chars="ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
+  var pwd=Array.from({length:16},function(){return chars[Math.floor(Math.random()*chars.length)];}).join("");
+  $("inp-reset-pass").value=pwd;$("inp-reset-confirm").value=pwd;
+  $("reset-gen-display").textContent=pwd;show("reset-gen-box");
+}
+function copyGenPwd(){
+  var txt=$("reset-gen-display").textContent;
+  navigator.clipboard&&navigator.clipboard.writeText(txt).then(function(){
+    var b=$("reset-gen-display");var old=b.style.color;b.style.color="#4ade80";
+    setTimeout(function(){b.style.color=old;},800);
+  });
+}
+
 $("btn-reset-pwd-confirm").addEventListener("click",async function(){
   var msgEl=$("reset-pwd-msg");hideEl(msgEl);
   var pass=$("inp-reset-pass").value;
+  var conf=$("inp-reset-confirm").value;
   if(!pass||pass.length<8){showMsg(msgEl,"error","Password must be at least 8 characters.");return;}
+  if(pass!==conf){showMsg(msgEl,"error","Passwords do not match.");return;}
   this.disabled=true;
   try{
     var r=await api("/api/users/"+encodeURIComponent(resetPwdTarget)+"/password",{method:"PUT",body:JSON.stringify({new_password:pass})});
