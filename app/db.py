@@ -60,11 +60,14 @@ def init_db() -> None:
                 last_login    TEXT
             )
         """)
-        # Drop old CHECK constraint if it exists (SQLite requires table rebuild)
+        # Drop old CHECK constraint if it exists (SQLite requires table rebuild).
+        # Must use plain INSERT (not OR IGNORE) so IntegrityError is raised when
+        # the old CHECK(role IN ('admin','viewer')) is still present.
         try:
-            conn.execute("INSERT OR IGNORE INTO users(username,password_hash,role) VALUES('__probe__','x','custom_test_role')")
+            conn.execute("INSERT INTO users(username,password_hash,role) VALUES('__probe__','x','custom_test_role')")
             conn.execute("DELETE FROM users WHERE username='__probe__'")
         except sqlite3.IntegrityError:
+            conn.execute("DROP TABLE IF EXISTS users_old")
             conn.execute("ALTER TABLE users RENAME TO users_old")
             conn.execute("""
                 CREATE TABLE users (
