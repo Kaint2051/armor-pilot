@@ -3091,7 +3091,7 @@ function renderPolicies(pols){
   updateBatchBar();
   if(!pols.length){show("pol-empty");return;}
   hide("pol-empty");
-  var admin=isAdmin();
+  var cEdit=canEdit(),cDel=canDelete();
   pols.forEach(function(p){
     var rdy=p.status==="Ready";
     var isPending=p.status==="Pending";
@@ -3116,11 +3116,11 @@ function renderPolicies(pols){
     var enfs=(p.enforcer||"").split("|").filter(Boolean);
     var enfBadges=enfs.length?enfs.map(function(e){return'<span class="badge badge-blue" style="margin-right:2px">'+esc(e)+'</span>';}).join(""):'<span class="badge badge-gray">&#8212;</span>';
     var chkAttrs='data-name="'+esc(p.name)+'" data-ns="'+esc(p.namespace||"")+'" data-scope="'+esc(p.scope||"namespace")+'"';
-    var chk=admin?'<input type="checkbox" class="pol-chk" '+chkAttrs+' onchange="updateBatchBar()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer">':"";
-    var editBtn=admin?'<button onclick="loadPolicyForEdit(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>':"";
+    var chk=cDel?'<input type="checkbox" class="pol-chk" '+chkAttrs+' onchange="updateBatchBar()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer">':"";
+    var editBtn=cEdit?'<button onclick="loadPolicyForEdit(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Edit">&#9998;</button>':"";
     var viewBtn='<button onclick="openDetailModal(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px">View</button>';
     var exportBtn='<button onclick="exportPolicy(this)" '+chkAttrs+' class="btn btn-ghost btn-sm" style="margin-right:2px" title="Export YAML">&#11123;</button>';
-    var delBtn=admin?'<button onclick="openDelModal(this)" '+chkAttrs+' class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Del</button>':"";
+    var delBtn=cDel?'<button onclick="openDelModal(this)" '+chkAttrs+' class="btn btn-sm" style="border:1px solid #7f1d1d;color:#f87171;background:transparent">Del</button>':"";
     var tr=document.createElement("tr");
     tr.style.cssText="border-bottom:1px solid #1e293b;transition:background 100ms";
     tr.onmouseover=function(){tr.style.background="#243552";};
@@ -4073,9 +4073,9 @@ function renderProfileModels(models){
     var phaseColors={Completed:"badge-green",Ready:"badge-green",Modeling:"badge-purple",Unknown:"badge-gray"};
     var phBadge='<span class="badge '+(phaseColors[m.phase]||"badge-gray")+'">'+esc(m.phase)+'</span>';
     var cr=m.created_at?new Date(m.created_at).toLocaleDateString("vi-VN"):"&#8212;";
-    var applyBtn=(isAdmin()&&m.phase==="Completed")
+    var applyBtn=(canApplyModel()&&m.phase==="Completed")
       ?'<button onclick="applyModel(\''+esc(m.name)+'\',\''+esc(m.namespace)+'\')" class="btn btn-sm ml-1" style="background:#166534;color:#86efac;border:1px solid #166534" title="Apply as DefenseInDepth policy">Apply Armor</button>'
-      :'<button disabled class="btn btn-ghost btn-sm ml-1" style="opacity:.4" title="'+(m.phase==="Completed"?"Admin required":"Modeling not yet complete")+'">Apply Armor</button>';
+      :'<button disabled class="btn btn-ghost btn-sm ml-1" style="opacity:.4" title="'+(m.phase==="Completed"?"Insufficient permissions":"Modeling not yet complete")+'">Apply Armor</button>';
     var adviseBtn=m.phase==="Completed"
       ?'<button onclick="openAdvisorModal(\''+esc(m.name)+'\',\''+esc(m.namespace)+'\')" class="btn btn-ghost btn-sm ml-1" title="Get rule suggestions from behavior data">&#129302; Suggest Rules</button>'
       :'';
@@ -5317,7 +5317,8 @@ function renderPolicyQueue(items){
   var el=$("queue-body");
   if(!items.length){show("queue-empty");el.innerHTML="";return;}
   hide("queue-empty");
-  var admin=isAdmin();
+  var canApprove=hasPerm("review:approve");
+  var canCancelAny=hasPerm("review:cancel");
   var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
   _queueItemsMap={};
   el.innerHTML="";
@@ -5329,11 +5330,11 @@ function renderPolicyQueue(items){
     var note=item.review_note?('<span title="'+esc(item.review_note)+'" style="cursor:help;color:#64748b">'+esc(item.review_note.slice(0,30))+(item.review_note.length>30?"…":"")+'</span>'):'<span style="color:#475569">—</span>';
     var actions='<button onclick="openQueueDetail(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm" style="margin-right:2px">Detail</button>';
     if(item.status==="pending"){
-      if(admin){
+      if(canApprove){
         actions+='<button onclick="approveQueued(\''+esc(item.id)+'\')" class="btn btn-green btn-sm" style="margin-right:2px">&#10003;</button>';
         actions+='<button onclick="openRejectModal(\''+esc(item.id)+'\',\''+esc(item.name)+'\')" class="btn btn-danger btn-sm" style="margin-right:2px">&#10005;</button>';
       }
-      if(admin||item.submitted_by===CURRENT_USER){
+      if(canApprove||canCancelAny||item.submitted_by===CURRENT_USER){
         actions+='<button onclick="cancelQueued(\''+esc(item.id)+'\')" class="btn btn-ghost btn-sm">Cancel</button>';
       }
     }
@@ -5423,7 +5424,8 @@ function closeQueueDetail(){
 function _renderQueueDetail(item,p){
   var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
   var isPending=item.status==="pending";
-  var admin=isAdmin();
+  var canApproveItem=hasPerm("review:approve");
+  var admin=canApproveItem;
 
   // Header
   $("qd-title").textContent=item.name;
@@ -5520,7 +5522,7 @@ function _renderQueueDetail(item,p){
   $("qd-btn-reject-confirm").classList.add("hidden");
   $("qd-reject-note-sec").classList.add("hidden");
   $("qd-spacer").classList.remove("hidden");
-  $("qd-btn-cancel-sub").classList.toggle("hidden",!isPending||(!isAdmin()&&item.submitted_by!==CURRENT_USER));
+  $("qd-btn-cancel-sub").classList.toggle("hidden",!isPending||(!hasPerm("review:cancel")&&item.submitted_by!==CURRENT_USER));
   $("qd-btn-reject-toggle").textContent="✗ Reject";
   hideEl($("qd-msg"));
   var rn=$("qd-reject-note");if(rn) rn.value="";
@@ -5546,20 +5548,50 @@ function _buildQueueItemYaml(p,scope){
     if(hard.length||atk.length||vuln.length||(p.apparmor_raw_rules||[]).length){
       lines.push("    enhanceProtect:");
       if(hard.length){lines.push("      hardeningRules:");hard.forEach(function(r){lines.push("        - "+r);});}
-      if(atk.length){lines.push("      attackProtectionRules:");lines.push("        - rules: ["+atk.join(", ")+"]");}
+      // Attack rules: prefer groups-with-targets over simple checkbox rules
+      var atkGrps=p.attack_protection_groups||[];
+      if(atkGrps.length){
+        lines.push("      attackProtectionRules:");
+        atkGrps.forEach(function(g){
+          lines.push("        - rules: ["+(g.rules||[]).join(", ")+"]");
+          if((g.targets||[]).length){
+            lines.push("          targets:");
+            (g.targets||[]).forEach(function(t){lines.push("            - "+t);});
+          }
+        });
+      } else if(atk.length){
+        lines.push("      attackProtectionRules:");
+        lines.push("        - rules: ["+atk.join(", ")+"]");
+      }
       if(vuln.length){lines.push("      vulMitigationRules:");vuln.forEach(function(r){lines.push("        - "+r);});}
       if((p.apparmor_raw_rules||[]).length) lines.push("      # appArmorRawRules: "+(p.apparmor_raw_rules||[]).length+" rule(s)");
     }
-    if((p.bpf_file_rules||[]).length||(p.bpf_process_rules||[]).length){
-      lines.push("    # bpfRawRules:");
-      if((p.bpf_file_rules||[]).length) lines.push("    #   fileRules: ["+(p.bpf_file_rules||[]).length+" entries]");
-      if((p.bpf_process_rules||[]).length) lines.push("    #   processRules: ["+(p.bpf_process_rules||[]).length+" entries]");
+    if((p.bpf_file_rules||[]).length||(p.bpf_process_rules||[]).length||(p.bpf_mounts||[]).length){
+      lines.push("    bpfRawRules:");
+      if((p.bpf_file_rules||[]).length){
+        lines.push("      fileRules:");
+        (p.bpf_file_rules||[]).forEach(function(r){lines.push("        - pattern: "+r.pattern+"  # perms: ["+((r.permissions||[]).join(","))+"] qual: "+((r.qualifiers||["deny"]).join(",")));});
+      }
+      if((p.bpf_process_rules||[]).length){
+        lines.push("      processRules:");
+        (p.bpf_process_rules||[]).forEach(function(r){lines.push("        - pattern: "+r.pattern+"  # perms: ["+((r.permissions||[]).join(","))+"]");});
+      }
+      if((p.bpf_mounts||[]).length) lines.push("      # mountRules: "+(p.bpf_mounts||[]).length+" entries");
     }
     if((p.seccomp_syscalls||[]).length){
       lines.push("    seccomp:");
-      lines.push("      syscalls: ["+p.seccomp_syscalls.slice(0,6).join(", ")+(p.seccomp_syscalls.length>6?"…":"")+"]\n      action: "+(p.seccomp_action||"SCMP_ACT_ERRNO"));
+      lines.push("      action: "+(p.seccomp_action||"SCMP_ACT_ERRNO"));
+      lines.push("      syscalls: ["+p.seccomp_syscalls.slice(0,8).join(", ")+(p.seccomp_syscalls.length>8?"…":"")+"]");
     }
-    if(p.np_egress) lines.push("    # networkProxy: egress configured");
+    if(p.np_egress&&typeof p.np_egress==="object"){
+      lines.push("    networkProxyConfig:");
+      lines.push("      egress:");
+      lines.push("        defaultAction: "+(p.np_egress.defaultAction||"deny"));
+      if((p.np_egress.rules||[]).length) lines.push("        # rules: "+(p.np_egress.rules||[]).length+" L4 rule(s)");
+      if((p.np_egress.httpRules||[]).length) lines.push("        # httpRules: "+(p.np_egress.httpRules||[]).length+" HTTP rule(s)");
+    } else if(p.np_egress){
+      lines.push("    # networkProxy: egress configured");
+    }
   }
   if(p.mode==="BehaviorModeling"&&p.modeling_duration) lines.push("    behaviorModeling:","      duration: "+p.modeling_duration+"s");
   if(p.mode==="DefenseInDepth"){
@@ -5588,7 +5620,7 @@ function toggleQdRejectNote(){
 }
 
 async function approveFromDetail(){
-  if(!_qdItem||!isAdmin()) return;
+  if(!_qdItem||!hasPerm("review:approve")) return;
   if(!confirm("Approve and apply this policy to the cluster?")) return;
   $("qd-btn-approve").disabled=true;
   try{
@@ -5602,7 +5634,7 @@ async function approveFromDetail(){
 }
 
 async function confirmQdReject(){
-  if(!_qdItem||!isAdmin()) return;
+  if(!_qdItem||!hasPerm("review:reject")) return;
   var note=($("qd-reject-note").value||"").trim();
   if(!note){showMsg($("qd-msg"),"error","Rejection note is required.");return;}
   $("qd-btn-reject-confirm").disabled=true;
