@@ -3959,7 +3959,7 @@ function _renderFilterChips(){
   if(enforcer) chips.push({label:"enforcer="+enforcer,clear:"enforcer"});
   // Orange dot on Filters button when any advanced filter is active
   var dot=$("adv-filter-dot");
-  var hasAdv=!!(_secTimeRange||ns||pod||cont);
+  var hasAdv=!!(_secTimeRange||ns||pod||cont||enforcer);
   if(dot)dot.classList[hasAdv?"remove":"add"]("hidden");
   var fc=$("filter-chips");
   if(!fc)return;
