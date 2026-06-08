@@ -4348,6 +4348,8 @@ $("form-create").addEventListener("submit",async function(e){
     }else{
       setStep("restart","skip");await sleep(300);progEl.classList.add("hidden");
       var okMsg=editMode?("Policy \""+name+"\" updated successfully."):"Policy \""+name+"\" applied successfully.";
+      var hasAppArmor=enforcers.indexOf("AppArmor")>=0;
+      if(hasAppArmor&&!editMode){okMsg+=" AppArmor enforcement applies to new/restarted pods — restart the target deployment to enforce immediately.";}
       showMsg(msgEl,"success",okMsg);
     }
     setTimeout(function(){cancelEdit();loadAll();if(!statusPollTimer){statusPollTimer=setInterval(loadPolicies,5000);show("auto-refresh-badge");}},1500);
