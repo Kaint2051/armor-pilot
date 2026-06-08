@@ -34,7 +34,8 @@ _VIEWER_PERMS: frozenset = frozenset({
 })
 
 _OPERATOR_PERMS: frozenset = _VIEWER_PERMS | frozenset({
-    "policies:create", "policies:validate", "policies:submit", "policies:export",
+    "policies:create", "policies:validate", "policies:submit",
+    "policies:export", "policies:import",
     "review:view",
 })
 

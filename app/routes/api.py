@@ -670,6 +670,15 @@ def _strip_policy_manifest(raw: dict) -> tuple[dict | None, str | None]:
     if not isinstance(spec, dict) or not spec:
         return None, "spec is required"
 
+    # Validate enforcer if present — catches garbage before it reaches the cluster.
+    policy = spec.get("policy") or {}
+    enforcer_str = str(policy.get("enforcer") or "").strip()
+    if enforcer_str:
+        enf_set = frozenset(e.strip() for e in enforcer_str.split("|") if e.strip())
+        if enf_set not in VALID_ENFORCER_COMBOS:
+            valid_strs = ", ".join("+".join(sorted(s)) for s in sorted(VALID_ENFORCER_COMBOS, key=len))
+            return None, f"invalid enforcer '{enforcer_str}'. Valid: {valid_strs}"
+
     clean_meta: dict = {"name": name}
     if kind == "VarmorPolicy":
         clean_meta["namespace"] = str(meta.get("namespace") or "default").strip() or "default"
@@ -2275,13 +2284,17 @@ def backup_policies():
         return jsonify({"error": str(exc)}), 500
 
     audit_logger.log(user, "BACKUP_POLICIES", "policies", namespace, "SUCCESS", f"count={len(items)}")
-    return jsonify({
+    ts = _utc_backup_timestamp().replace(":", "").replace("-", "")[:15]
+    filename = f"varmor-backup-{namespace}-{ts}.json"
+    resp = jsonify({
         "version": POLICY_BACKUP_VERSION,
         "created_at": _utc_backup_timestamp(),
         "namespace": namespace,
         "items": items,
         "total": len(items),
     })
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
 
 
 @api_bp.route("/policies/restore/preview", methods=["POST"])
