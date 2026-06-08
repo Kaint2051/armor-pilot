@@ -2063,7 +2063,7 @@ def dashboard_summary():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/policies/validate", methods=["POST"])
-@require_auth
+@require_permission("policies:validate")
 def validate_policy_endpoint():
     """Dry-run: build and validate manifest without writing to cluster."""
     body = request.get_json(silent=True)
