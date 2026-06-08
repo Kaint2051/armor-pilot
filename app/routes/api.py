@@ -23,6 +23,7 @@ from ..k8s_client import (
     core_v1,
     custom_objects,
 )
+from ..policy_templates import get_policy_templates_payload
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -1221,6 +1222,12 @@ def get_me():
         "role": role,
         "permissions": sorted(get_permissions_for_role(role)),
     })
+
+
+@api_bp.route("/policy-templates", methods=["GET"])
+@require_permission("policies:view")
+def list_policy_templates_endpoint():
+    return jsonify(get_policy_templates_payload())
 
 
 @api_bp.route("/users", methods=["GET"])
