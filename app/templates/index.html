@@ -78,10 +78,16 @@
     .rtab-active{color:#93c5fd!important;background:#0c1a3b!important;border-color:#1d4ed8!important}
     .rtab-btn[disabled]{opacity:.35;cursor:not-allowed}
     .wiz-sticky-bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:.75rem;padding:.75rem 1.5rem;margin-top:1.5rem;background:#0a0f1a;border-top:1px solid #1e293b}
-    .tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));gap:.5rem;margin-bottom:.875rem}
-    .tmpl-btn{padding:.5rem .75rem;border-radius:.5rem;border:1px solid #334155;background:#0f172a;color:#94a3b8;cursor:pointer;font-size:.78rem;font-weight:500;text-align:left;line-height:1.45;transition:all 120ms;width:100%}
+    .tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:.6rem;margin-bottom:.875rem}
+    .tmpl-toolbar{display:grid;grid-template-columns:minmax(10rem,14rem) minmax(7rem,9rem) 1fr auto;gap:.5rem;align-items:center;margin-bottom:.75rem}
+    .tmpl-btn{padding:.65rem .75rem;border-radius:.5rem;border:1px solid #334155;background:#0f172a;color:#94a3b8;cursor:pointer;font-size:.78rem;font-weight:500;text-align:left;line-height:1.45;transition:all 120ms;width:100%;min-height:7.25rem;display:flex;flex-direction:column;gap:.35rem}
     .tmpl-btn:hover{border-color:#3b82f6;background:#0c1a3b;color:#93c5fd}
     .tmpl-active{border-color:#1d4ed8!important;background:#0c1a3b!important;color:#93c5fd!important}
+    .tmpl-title{font-size:.88rem;font-weight:700;color:#e2e8f0}
+    .tmpl-desc{font-size:.72rem;color:#64748b;line-height:1.45;flex:1}
+    .tmpl-meta{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.1rem}
+    .tmpl-pack-label{font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em}
+    .tmpl-detail{background:#0f172a;border:1px solid #334155;border-radius:.5rem;padding:.65rem .75rem;font-size:.76rem;color:#94a3b8;line-height:1.55}
     .mode-hint-box{margin-top:.75rem;padding:.625rem .875rem;border-radius:.5rem;border:1px solid #1e293b;background:#0f172a;font-size:.78rem;color:#94a3b8;line-height:1.6}
     .mode-hint-box b{color:#93c5fd}
     .combo-chip{padding:.2rem .55rem;border-radius:9999px;border:1px solid #334155;background:#0f172a;font-size:.72rem;color:#94a3b8;cursor:pointer;transition:all 100ms;white-space:nowrap}
@@ -516,34 +522,30 @@
 
         <!-- Template picker (hidden during edit) -->
         <div id="tmpl-picker" class="mb-5 p-4 rounded-xl" style="background:#0a0f1a;border:1px solid #1e293b">
-          <p class="text-xs font-semibold mb-3" style="color:#64748b;text-transform:uppercase;letter-spacing:.07em">Quick Start &mdash; choose a template or start blank below</p>
-          <div class="tmpl-grid">
-            <button type="button" class="tmpl-btn" onclick="applyTemplate('hardening')">
-              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#c4b5fd">&#9632; Basic Hardening</span>
-              <span style="color:#475569;font-size:.7rem">AppArmor &plus; common blocking rules</span>
-            </button>
-            <button type="button" class="tmpl-btn" onclick="applyTemplate('shell-block')">
-              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#f87171">&#9632; Block Shell / Sensitive Files</span>
-              <span style="color:#475569;font-size:.7rem">No shell, no sensitive path access</span>
-            </button>
-            <button type="button" class="tmpl-btn" onclick="applyTemplate('privileged')">
-              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#fbbf24">&#9632; Privileged Lockdown</span>
-              <span style="color:#475569;font-size:.7rem">AppArmor &plus; BPF, privileged baseline</span>
-            </button>
-            <button type="button" class="tmpl-btn" onclick="applyTemplate('observe')">
-              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#4ade80">&#9632; Observe First</span>
-              <span style="color:#475569;font-size:.7rem">BehaviorModeling &mdash; learn before blocking</span>
-            </button>
-            <button type="button" class="tmpl-btn" onclick="applyTemplate('egress')">
-              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#38bdf8">&#9632; Network Egress Whitelist</span>
-              <span style="color:#475569;font-size:.7rem">BPF &plus; NetworkProxy for egress control</span>
-            </button>
-            <button type="button" class="tmpl-btn" onclick="applyTemplate('did')">
-              <span style="font-size:.9rem;display:block;margin-bottom:.2rem;color:#fb923c">&#9632; DefenseInDepth from Model</span>
-              <span style="color:#475569;font-size:.7rem">Strict allowlist &mdash; use after modeling</span>
-            </button>
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p class="text-xs font-semibold" style="color:#64748b;text-transform:uppercase;letter-spacing:.07em">Template Packs</p>
+              <p style="font-size:.72rem;color:#475569;margin-top:.2rem">Choose a packaged policy starting point, then tune the wizard fields below.</p>
+            </div>
+            <span id="tmpl-count" class="badge badge-gray">0 templates</span>
           </div>
-          <p style="font-size:.72rem;color:#475569">Templates pre-fill mode &amp; enforcers and advance to Step 2. Adjust anything in the steps below.</p>
+          <div class="tmpl-toolbar">
+            <select id="tmpl-pack-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
+              <option value="">All packs</option>
+            </select>
+            <select id="tmpl-risk-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
+              <option value="">All risk</option>
+              <option value="low">Low risk</option>
+              <option value="medium">Medium risk</option>
+              <option value="high">High risk</option>
+            </select>
+            <input id="tmpl-search" class="form-input" placeholder="Search templates, rules, workload..." oninput="renderPolicyTemplateGallery()">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="loadPolicyTemplates(true)">Refresh</button>
+          </div>
+          <div id="tmpl-grid" class="tmpl-grid">
+            <div style="font-size:.78rem;color:#64748b">Loading templates...</div>
+          </div>
+          <div id="tmpl-selected-detail" class="tmpl-detail hidden"></div>
         </div>
 
         <!-- Edit banner -->
@@ -2255,6 +2257,7 @@ function ns(){return $("inp-ns").value.trim()||"default";}
 function loadAll(){
   loadDeployments();
   loadPolicies();
+  if(hasPerm("policies:view")) loadPolicyTemplates();
   if(hasPerm("logs:violations")||hasPerm("logs:apparmor")) loadSecurityEvents();
   if(hasPerm("logs:audit"))  loadAuditLogs();
   if(hasPerm("models:view")) loadProfileModels();
@@ -2320,6 +2323,7 @@ function switchPolicyView(view){
     if(b){b.classList.toggle("pnav-active",v===view);}
   });
   if(view==="create"&&!editMode) resetWizard();
+  if(view==="create"&&!_policyTemplatesLoaded) loadPolicyTemplates();
   if(view==="queue") loadPolicyQueue();
 }
 
@@ -2452,14 +2456,154 @@ function renderWizSummary(){
 }
 
 // ── Policy templates ──
-var POLICY_TEMPLATES={
-  hardening:{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disallow-insmod","disallow-mount","disallow-abuse-user-ns","disallow-umount"]},
-  "shell-block":{mode:"EnhanceProtect",enforcers:["AppArmor"],rules:["disable-cap-privileged","disable-shell","disable-access-shadow","disable-access-passwd","disable-write-etc","disallow-abuse-user-ns"]},
-  privileged:{mode:"EnhanceProtect",enforcers:["AppArmor","BPF"],rules:["disable-cap-all-except-net-bind-service","disallow-write-core-pattern","disallow-mount-securityfs","disallow-write-release-agent"],privileged:true},
-  observe:{mode:"BehaviorModeling",enforcers:["AppArmor"],rules:[]},
-  egress:{mode:"EnhanceProtect",enforcers:["BPF","NetworkProxy"],rules:[]},
-  did:{mode:"DefenseInDepth",enforcers:["AppArmor","Seccomp"],rules:[]}
-};
+var POLICY_TEMPLATES={};
+var POLICY_TEMPLATE_PACKS=[];
+var POLICY_TEMPLATE_PACK_NAMES={};
+var _policyTemplatesLoaded=false;
+
+function _riskBadgeClass(risk){
+  return risk==="high"?"badge-red":risk==="medium"?"badge-amber":"badge-green";
+}
+
+async function loadPolicyTemplates(force){
+  if(_policyTemplatesLoaded&&!force){renderPolicyTemplateGallery();return;}
+  var grid=$("tmpl-grid");
+  if(grid) grid.innerHTML='<div style="font-size:.78rem;color:#64748b">Loading templates...</div>';
+  try{
+    var res=await api("/api/policy-templates");
+    var data=await res.json();
+    if(!res.ok) throw new Error(data.error||"Failed to load policy templates");
+    POLICY_TEMPLATE_PACKS=data.packs||[];
+    POLICY_TEMPLATES={};
+    POLICY_TEMPLATE_PACK_NAMES={};
+    POLICY_TEMPLATE_PACKS.forEach(function(p){POLICY_TEMPLATE_PACK_NAMES[p.id]=p.name;});
+    (data.templates||[]).forEach(function(t){POLICY_TEMPLATES[t.id]=t;});
+    _policyTemplatesLoaded=true;
+    populateTemplateFilters();
+    renderPolicyTemplateGallery();
+  }catch(err){
+    if(grid) grid.innerHTML='<div style="font-size:.78rem;color:#fca5a5">Template load failed: '+esc(err.message)+'</div>';
+  }
+}
+
+function populateTemplateFilters(){
+  var sel=$("tmpl-pack-filter");
+  if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">All packs</option>';
+  POLICY_TEMPLATE_PACKS.slice().sort(function(a,b){return(a.order||0)-(b.order||0);}).forEach(function(p){
+    var o=document.createElement("option");
+    o.value=p.id;o.textContent=p.name;
+    sel.appendChild(o);
+  });
+  sel.value=cur;
+}
+
+function _templateSearchText(t){
+  return [
+    t.id,t.name,t.summary,t.pack,t.risk,t.mode,
+    (t.enforcers||[]).join(" "),
+    (t.rules||[]).join(" "),
+    (t.banned_files||[]).join(" "),
+    (t.capability_rules||[]).join(" ")
+  ].join(" ").toLowerCase();
+}
+
+function renderPolicyTemplateGallery(){
+  var grid=$("tmpl-grid");if(!grid) return;
+  var pack=($("tmpl-pack-filter")||{value:""}).value;
+  var risk=($("tmpl-risk-filter")||{value:""}).value;
+  var q=(($("tmpl-search")||{value:""}).value||"").trim().toLowerCase();
+  var items=Object.values(POLICY_TEMPLATES).filter(function(t){
+    if(pack&&t.pack!==pack) return false;
+    if(risk&&t.risk!==risk) return false;
+    if(q&&_templateSearchText(t).indexOf(q)<0) return false;
+    return true;
+  }).sort(function(a,b){
+    var pa=(POLICY_TEMPLATE_PACKS.find(function(p){return p.id===a.pack;})||{}).order||0;
+    var pb=(POLICY_TEMPLATE_PACKS.find(function(p){return p.id===b.pack;})||{}).order||0;
+    return pa===pb?a.name.localeCompare(b.name):pa-pb;
+  });
+  var count=$("tmpl-count");
+  if(count) count.textContent=items.length+" template"+(items.length===1?"":"s");
+  if(!items.length){
+    grid.innerHTML='<div style="font-size:.78rem;color:#64748b">No templates match the current filters.</div>';
+    return;
+  }
+  grid.innerHTML=items.map(function(t){
+    var packName=POLICY_TEMPLATE_PACK_NAMES[t.pack]||t.pack||"Custom";
+    return '<button type="button" class="tmpl-btn" data-template-id="'+esc(t.id)+'" onclick="applyTemplate(\''+esc(t.id)+'\')">'
+      +'<span class="tmpl-pack-label">'+esc(packName)+'</span>'
+      +'<span class="tmpl-title">'+esc(t.name)+'</span>'
+      +'<span class="tmpl-desc">'+esc(t.summary||"")+'</span>'
+      +'<span class="tmpl-meta">'
+      +'<span class="badge '+_riskBadgeClass(t.risk)+'">'+esc(t.risk||"low")+'</span>'
+      +'<span class="badge badge-blue">'+esc(t.mode||"")+'</span>'
+      +'<span class="badge badge-gray">'+esc((t.enforcers||[]).join("+")||"no enforcer")+'</span>'
+      +'</span>'
+      +'</button>';
+  }).join("");
+}
+
+function _clearTemplateManagedFields(){
+  document.querySelectorAll('input[name="rule"]').forEach(function(cb){cb.checked=false;});
+  document.querySelectorAll('input[name="enforcer"]').forEach(function(cb){cb.checked=false;});
+  ["bpf-files","bpf-procs","bpf-mounts","attack-groups","np-header-rows","np-l4-rows","np-http-rows"].forEach(function(id){
+    var el=$(id);if(el) el.innerHTML="";
+  });
+  ["ta-dynamic-caps","ta-banned","ta-apparmor-raw","ta-bpf-network","ta-seccomp","ta-seccomp-raw",
+   "ta-did-aa-custom","ta-did-aa-raw","ta-did-sc-syscalls","ta-did-sc-custom","ta-did-sc-raw",
+   "ta-did-np-egress","ta-np-mitm-domains"].forEach(function(id){var el=$(id);if(el) el.value="";});
+  ["chk-audit-viol","chk-allow-viol","chk-privileged","chk-ptrace-enable","chk-ptrace-strict","did-allow-viol"].forEach(function(id){var el=$(id);if(el) el.checked=false;});
+  ["ptrace-perm-all","ptrace-perm-trace","ptrace-perm-traceby","ptrace-perm-read","ptrace-perm-readby"].forEach(function(id){var el=$(id);if(el) el.checked=false;});
+  hide("sec-ptrace-rule");hide("did-aa-custom-sec");hide("did-sc-custom-sec");
+  if($("sel-np-default-action")) $("sel-np-default-action").value="";
+  if($("sel-seccomp-action")) $("sel-seccomp-action").value="SCMP_ACT_ERRNO";
+  if($("sel-did-sc-action")) $("sel-did-sc-action").value="SCMP_ACT_ERRNO";
+  if($("inp-duration")) $("inp-duration").value=60;
+  ["inp-np-proxy-uid","inp-np-proxy-port","inp-np-proxy-admin-port","inp-np-req-cpu","inp-np-req-mem","inp-np-limit-cpu","inp-np-limit-mem"].forEach(function(id){var el=$(id);if(el) el.value="";});
+}
+
+function _setTemplateLines(id,values){
+  var el=$(id);if(!el) return;
+  el.value=(values||[]).join("\n");
+}
+
+function _applyTemplateNetworkProxy(t){
+  var np=t.np_egress||null;
+  if(np){
+    if($("sel-np-default-action")) $("sel-np-default-action").value=np.defaultAction||"";
+    (np.rules||[]).forEach(function(r){
+      var at=r.ip?"ip":"cidr";
+      var addr=r.ip||r.cidr||"";
+      var ports=(r.ports||[]).map(function(p){return p.endPort?(p.port+"-"+p.endPort):p.port;}).join(",");
+      addNpL4Row((r.qualifiers||[])[0]||"allow",at,addr,ports,r.description||"");
+    });
+    (np.httpRules||[]).forEach(function(r){
+      var m=r.match||{};
+      addNpHttpRow((r.qualifiers||[])[0]||"allow",r.description||"",m.hosts||[],m.paths||[],m.methods||[],m.ports||[]);
+    });
+  }
+  _setTemplateLines("ta-np-mitm-domains",t.np_mitm_domains||[]);
+  (t.np_mitm_mutations||[]).forEach(function(dm){
+    (dm.headers||[]).forEach(function(h){
+      if(h.secretRef) addNpHeaderRow(dm.domain||"",h.name||"","secret",h.secretRef.name||"",h.secretRef.key||"");
+      else addNpHeaderRow(dm.domain||"",h.name||"","literal",h.value||"","");
+    });
+  });
+}
+
+function _renderTemplateDetail(t){
+  var box=$("tmpl-selected-detail");if(!box) return;
+  var packName=POLICY_TEMPLATE_PACK_NAMES[t.pack]||t.pack||"Custom";
+  var tests=(t.test_steps||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join("");
+  box.innerHTML='<div class="flex items-center justify-between gap-2 mb-2">'
+    +'<div><b style="color:#e2e8f0">'+esc(t.name)+'</b><div style="color:#64748b;font-size:.7rem">'+esc(packName)+' / '+esc(t.mode||"")+' / '+esc((t.enforcers||[]).join("+"))+'</div></div>'
+    +'<span class="badge '+_riskBadgeClass(t.risk)+'">'+esc(t.risk||"low")+'</span></div>'
+    +'<div>'+esc(t.summary||"")+'</div>'
+    +(tests?'<div style="margin-top:.5rem;color:#64748b">Test playbook:<ul style="list-style:disc;margin:.25rem 0 0 1rem">'+tests+'</ul></div>':"");
+  box.classList.remove("hidden");
+}
 
 function applyTemplate(name){
   var t=POLICY_TEMPLATES[name];if(!t) return;
@@ -2473,16 +2617,35 @@ function applyTemplate(name){
   var hint=$("tmpl-name-hint");
   if(hint){hint.textContent="";hint.classList.add("hidden");}
   if(pname) pname.classList.remove("input-error");
-  document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
+  _clearTemplateManagedFields();
   document.querySelectorAll(".tmpl-btn").forEach(function(b){
-    if(b.getAttribute("onclick")==="applyTemplate('"+name+"')") b.classList.add("tmpl-active");
+    b.classList.toggle("tmpl-active",b.dataset.templateId===name);
   });
-  var sm=$("sel-mode");if(sm){sm.value=t.mode;onModeChange();}
-  document.querySelectorAll('input[name="enforcer"]').forEach(function(cb){cb.checked=t.enforcers.includes(cb.value);});
+  var sm=$("sel-mode");if(sm){sm.value=t.mode||"EnhanceProtect";onModeChange();}
+  document.querySelectorAll('input[name="enforcer"]').forEach(function(cb){cb.checked=(t.enforcers||[]).indexOf(cb.value)>=0;});
   onEnforcerChange();
-  document.querySelectorAll('input[name="rule"]').forEach(function(cb){cb.checked=t.rules.includes(cb.value);});
-  var priv=$("chk-privileged");if(priv) priv.checked=!!t.privileged;
+  document.querySelectorAll('input[name="rule"]').forEach(function(cb){cb.checked=(t.rules||[]).indexOf(cb.value)>=0;});
+  _setTemplateLines("ta-dynamic-caps",t.capability_rules||[]);
+  _setTemplateLines("ta-banned",t.banned_files||[]);
+  if(t.apparmor_raw_rules) $("ta-apparmor-raw").value=(t.apparmor_raw_rules||[]).map(function(r){return typeof r==="string"?r:JSON.stringify(r);}).join("\n");
+  (t.bpf_file_rules||[]).forEach(function(r){addBpfRow("bpf-files",r.pattern,r.permissions,r.qualifiers);});
+  (t.bpf_process_rules||[]).forEach(function(r){addBpfRow("bpf-procs",r.pattern,r.permissions,r.qualifiers);});
+  (t.bpf_mounts||[]).forEach(function(r){addMountRow(r.sourcePattern,r.fstype,r.flags||[],(r.qualifiers||[])[0]||"deny");});
+  if(t.bpf_network) $("ta-bpf-network").value=JSON.stringify(t.bpf_network,null,2);
+  _setTemplateLines("ta-seccomp",t.seccomp_syscalls||[]);
+  if(t.seccomp_action&&$("sel-seccomp-action")) $("sel-seccomp-action").value=t.seccomp_action;
+  if(t.seccomp_raw_rules) $("ta-seccomp-raw").value=JSON.stringify(t.seccomp_raw_rules,null,2);
+  if(t.did_apparmor_type){var aa=document.querySelector('input[name="did-aa-type"][value="'+t.did_apparmor_type+'"]');if(aa){aa.checked=true;onDidAaTypeChange();}}
+  if(t.did_seccomp_type){var sc=document.querySelector('input[name="did-sc-type"][value="'+t.did_seccomp_type+'"]');if(sc){sc.checked=true;onDidScTypeChange();}}
+  if(t.did_allow_violations&&$("did-allow-viol")) $("did-allow-viol").checked=true;
+  if(t.modeling_duration&&$("inp-duration")) $("inp-duration").value=t.modeling_duration;
+  if($("chk-audit-viol")) $("chk-audit-viol").checked=!!t.audit_violations;
+  if($("chk-allow-viol")) $("chk-allow-viol").checked=!!t.allow_violations;
+  if($("chk-privileged")) $("chk-privileged").checked=!!t.privileged;
+  _applyTemplateNetworkProxy(t);
+  _renderTemplateDetail(t);
   updateRuleCounts&&updateRuleCounts();
+  _onFormChange();
   wizGoToStep(2);
 }
 
@@ -2688,6 +2851,7 @@ function resetWizard(){
   var btnSubmit=$("btn-submit-review");
   if(btnSubmit){btnSubmit.disabled=true;}
   document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
+  var _td=$("tmpl-selected-detail");if(_td){_td.innerHTML="";_td.classList.add("hidden");}
   var _ph=$("tmpl-name-hint");if(_ph){_ph.textContent="";_ph.classList.add("hidden");}
   var _pn=$("inp-pname");if(_pn) _pn.classList.remove("input-error");
   var tp=$("tmpl-picker");if(tp) tp.classList.remove("hidden");
@@ -6131,8 +6295,8 @@ function addNpHttpRow(qualifier,description,hosts,paths,methods,ports){
     +'</div>'
     +'<button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .5rem;color:#f87171;flex-shrink:0" onclick="this.closest(\'.np-http-row\').remove();_onFormChange()">&#10005;</button></div>'
     +'<div class="grid grid-cols-2 gap-2">'
-    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Hosts <span style="color:#475569">(wildcards: *.openai.com)</span></label>'
-    +'<input type="text" class="form-input np-http-hosts" value="'+esc(hostsVal)+'" placeholder="api.openai.com, *.internal" style="font-family:monospace;font-size:.78rem"/></div>'
+    +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Hosts <span style="color:#475569">(wildcards: *.example.com)</span></label>'
+    +'<input type="text" class="form-input np-http-hosts" value="'+esc(hostsVal)+'" placeholder="api.example.com, *.internal" style="font-family:monospace;font-size:.78rem"/></div>'
     +'<div><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Ports <span style="color:#475569">(optional)</span></label>'
     +'<input type="text" class="form-input np-http-ports" value="'+esc(portsVal)+'" placeholder="80,443" style="font-size:.78rem"/></div></div>'
     +'<div class="mt-2"><label style="font-size:.68rem;color:#64748b;display:block;margin-bottom:.2rem">Paths <span style="color:#475569">(one per line — prefix:/v1 or exact:/api/v1 or just /v1. MITM required for HTTPS)</span></label>'
