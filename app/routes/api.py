@@ -79,6 +79,7 @@ VALID_SCMP_ACTIONS = frozenset(["SCMP_ACT_KILL", "SCMP_ACT_ERRNO", "SCMP_ACT_LOG
 VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
 VALID_LABEL_SELECTOR_OPERATORS = frozenset(["In", "NotIn", "Exists", "DoesNotExist"])
 VALID_QUEUE_STATUSES = frozenset(["pending", "approved", "rejected", "cancelled"])
+POLICY_BACKUP_VERSION = "varmor-console-backup/v1"
 
 
 def _clean_str_list(values) -> list[str]:
@@ -647,6 +648,175 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
         }
 
     return manifest, None
+
+
+def _utc_backup_timestamp() -> str:
+    return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def _strip_policy_manifest(raw: dict) -> tuple[dict | None, str | None]:
+    """Return a portable policy manifest with volatile Kubernetes fields removed."""
+    if not isinstance(raw, dict):
+        return None, "manifest must be an object"
+    kind = raw.get("kind")
+    if kind not in ("VarmorPolicy", "VarmorClusterPolicy"):
+        return None, "kind must be VarmorPolicy or VarmorClusterPolicy"
+    meta = raw.get("metadata") or {}
+    spec = raw.get("spec") or {}
+    name = str(meta.get("name") or "").strip()
+    if not name:
+        return None, "metadata.name is required"
+    if not isinstance(spec, dict) or not spec:
+        return None, "spec is required"
+
+    clean_meta: dict = {"name": name}
+    if kind == "VarmorPolicy":
+        clean_meta["namespace"] = str(meta.get("namespace") or "default").strip() or "default"
+    for key in ("labels", "annotations"):
+        value = meta.get(key)
+        if isinstance(value, dict) and value:
+            clean_meta[key] = value
+
+    return {
+        "apiVersion": f"{VARMOR_GROUP}/{VARMOR_VERSION}",
+        "kind": kind,
+        "metadata": clean_meta,
+        "spec": spec,
+    }, None
+
+
+def _backup_manifest_identity(manifest: dict) -> dict:
+    meta = manifest.get("metadata") or {}
+    spec = manifest.get("spec") or {}
+    policy = spec.get("policy") or {}
+    scope = "cluster" if manifest.get("kind") == "VarmorClusterPolicy" else "namespace"
+    return {
+        "kind": manifest.get("kind"),
+        "scope": scope,
+        "namespace": "" if scope == "cluster" else meta.get("namespace", "default"),
+        "name": meta.get("name", ""),
+        "mode": policy.get("mode", ""),
+        "enforcer": policy.get("enforcer", ""),
+    }
+
+
+def _backup_payload_entries(payload) -> tuple[list[dict], str | None]:
+    """Normalize supported backup payload shapes into indexed manifest entries."""
+    if isinstance(payload, dict) and "backup" in payload:
+        payload = payload.get("backup")
+    if isinstance(payload, dict) and "items" in payload:
+        raw_items = payload.get("items") or []
+    elif isinstance(payload, dict) and payload.get("kind") in ("VarmorPolicy", "VarmorClusterPolicy"):
+        raw_items = [payload]
+    elif isinstance(payload, list):
+        raw_items = payload
+    else:
+        return [], "backup must be a backup object, a policy manifest, or an array"
+    if not isinstance(raw_items, list):
+        return [], "backup.items must be an array"
+
+    entries = []
+    for index, item in enumerate(raw_items):
+        manifest = item.get("manifest") if isinstance(item, dict) and "manifest" in item else item
+        clean, err = _strip_policy_manifest(manifest)
+        identity = _backup_manifest_identity(clean) if clean else {
+            "kind": "",
+            "scope": "",
+            "namespace": "",
+            "name": "",
+            "mode": "",
+            "enforcer": "",
+        }
+        entries.append({"index": index, "manifest": clean, "error": err, **identity})
+    return entries, None
+
+
+def _policy_manifest_exists(manifest: dict) -> tuple[bool, str | None]:
+    meta = manifest.get("metadata") or {}
+    name = meta.get("name")
+    try:
+        if manifest.get("kind") == "VarmorClusterPolicy":
+            custom_objects().get_cluster_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                plural=VARMOR_CLUSTER_PLURAL, name=name,
+            )
+        else:
+            custom_objects().get_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=meta.get("namespace", "default"),
+                plural=VARMOR_PLURAL, name=name,
+            )
+        return True, None
+    except ApiException as exc:
+        if exc.status == 404:
+            return False, None
+        return False, _k8s_error_msg(exc)
+
+
+def _restore_preview_items(entries: list[dict], conflict_action: str) -> list[dict]:
+    preview = []
+    for entry in entries:
+        item = {k: entry.get(k) for k in ("index", "kind", "scope", "namespace", "name", "mode", "enforcer")}
+        item["valid"] = not entry.get("error")
+        item["error"] = entry.get("error") or ""
+        item["exists"] = False
+        item["action"] = "error" if entry.get("error") else "create"
+        if entry.get("manifest"):
+            exists, err = _policy_manifest_exists(entry["manifest"])
+            if err:
+                item["valid"] = False
+                item["error"] = err
+                item["action"] = "error"
+            else:
+                item["exists"] = exists
+                item["action"] = "skip" if exists and conflict_action == "skip" else ("overwrite" if exists else "create")
+        preview.append(item)
+    return preview
+
+
+def _apply_backup_manifest(manifest: dict, conflict_action: str) -> dict:
+    meta = manifest.get("metadata") or {}
+    name = meta.get("name")
+    namespace = meta.get("namespace", "default")
+    exists, err = _policy_manifest_exists(manifest)
+    if err:
+        return {"name": name, "namespace": namespace, "status": "error", "error": err}
+    if exists and conflict_action == "skip":
+        return {"name": name, "namespace": namespace, "status": "skipped"}
+
+    try:
+        if manifest.get("kind") == "VarmorClusterPolicy":
+            if exists:
+                custom_objects().patch_cluster_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    plural=VARMOR_CLUSTER_PLURAL, name=name, body=manifest,
+                )
+                status = "overwritten"
+            else:
+                custom_objects().create_cluster_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    plural=VARMOR_CLUSTER_PLURAL, body=manifest,
+                )
+                status = "created"
+            return {"name": name, "namespace": "", "scope": "cluster", "status": status}
+
+        if exists:
+            custom_objects().patch_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=namespace, plural=VARMOR_PLURAL, name=name, body=manifest,
+            )
+            status = "overwritten"
+        else:
+            custom_objects().create_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=namespace, plural=VARMOR_PLURAL, body=manifest,
+            )
+            status = "created"
+        return {"name": name, "namespace": namespace, "scope": "namespace", "status": status}
+    except ApiException as exc:
+        return {"name": name, "namespace": namespace, "status": "error", "error": _k8s_error_msg(exc)}
+    except Exception as exc:
+        return {"name": name, "namespace": namespace, "status": "error", "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -2060,6 +2230,144 @@ def cancel_queued_policy(item_id: str):
     audit_logger.log(user, "CANCEL_REVIEW", item["name"], item["namespace"], "SUCCESS",
                      f"queue_id={item_id}")
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Policy Backup / Restore
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/policies/backup", methods=["GET"])
+@require_permission("policies:export")
+def backup_policies():
+    user = get_current_user()
+    namespace = (request.args.get("namespace") or "default").strip() or "default"
+    include_namespace = request.args.get("include_namespace", "1") not in ("0", "false", "False")
+    include_cluster = request.args.get("include_cluster", "1") not in ("0", "false", "False")
+    items = []
+
+    try:
+        if include_namespace:
+            raw = custom_objects().list_namespaced_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                namespace=namespace, plural=VARMOR_PLURAL,
+            )
+            for obj in raw.get("items", []):
+                manifest, err = _strip_policy_manifest(obj)
+                if not err:
+                    ident = _backup_manifest_identity(manifest)
+                    items.append({**ident, "manifest": manifest})
+
+        if include_cluster:
+            raw = custom_objects().list_cluster_custom_object(
+                group=VARMOR_GROUP, version=VARMOR_VERSION,
+                plural=VARMOR_CLUSTER_PLURAL,
+            )
+            for obj in raw.get("items", []):
+                manifest, err = _strip_policy_manifest(obj)
+                if not err:
+                    ident = _backup_manifest_identity(manifest)
+                    items.append({**ident, "manifest": manifest})
+    except ApiException as exc:
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+    except Exception as exc:
+        logger.exception("Unexpected error building policy backup")
+        return jsonify({"error": str(exc)}), 500
+
+    audit_logger.log(user, "BACKUP_POLICIES", "policies", namespace, "SUCCESS", f"count={len(items)}")
+    return jsonify({
+        "version": POLICY_BACKUP_VERSION,
+        "created_at": _utc_backup_timestamp(),
+        "namespace": namespace,
+        "items": items,
+        "total": len(items),
+    })
+
+
+@api_bp.route("/policies/restore/preview", methods=["POST"])
+@require_permission("policies:import")
+def preview_policy_restore():
+    body = request.get_json(silent=True) or {}
+    conflict_action = (body.get("conflict_action") or "skip").strip()
+    if conflict_action not in ("skip", "overwrite"):
+        return jsonify({"error": "conflict_action must be 'skip' or 'overwrite'"}), 400
+    entries, err = _backup_payload_entries(body.get("backup", body))
+    if err:
+        return jsonify({"error": err}), 400
+    preview = _restore_preview_items(entries, conflict_action)
+    return jsonify({
+        "ok": True,
+        "conflict_action": conflict_action,
+        "items": preview,
+        "total": len(preview),
+        "valid": sum(1 for i in preview if i["valid"]),
+        "errors": sum(1 for i in preview if not i["valid"]),
+    })
+
+
+@api_bp.route("/policies/restore", methods=["POST"])
+@require_permission("policies:apply_direct")
+def restore_policies():
+    user = get_current_user()
+    from ..auth import current_user_has_permission
+    if not current_user_has_permission("policies:import"):
+        return jsonify({"error": 'Forbidden: permission "policies:import" required'}), 403
+    body = request.get_json(silent=True) or {}
+    conflict_action = (body.get("conflict_action") or "skip").strip()
+    if conflict_action not in ("skip", "overwrite"):
+        return jsonify({"error": "conflict_action must be 'skip' or 'overwrite'"}), 400
+    entries, err = _backup_payload_entries(body.get("backup", body))
+    if err:
+        return jsonify({"error": err}), 400
+
+    results = []
+    for entry in entries:
+        ident = {k: entry.get(k) for k in ("kind", "scope", "namespace", "name", "mode", "enforcer")}
+        if entry.get("error"):
+            results.append({"index": entry["index"], "status": "error", "error": entry["error"], **ident})
+            continue
+        result = _apply_backup_manifest(entry["manifest"], conflict_action)
+        result["index"] = entry["index"]
+        result.update({k: v for k, v in ident.items() if v})
+        results.append(result)
+
+    failures = sum(1 for r in results if r.get("status") == "error")
+    applied = sum(1 for r in results if r.get("status") in ("created", "overwritten"))
+    audit_logger.log(user, "RESTORE_POLICIES", "policies", "cluster", "FAILURE" if failures else "SUCCESS",
+                     f"applied={applied}, failures={failures}, total={len(results)}")
+    return jsonify({"ok": failures == 0, "results": results, "applied": applied, "failures": failures})
+
+
+@api_bp.route("/policies/restore/submit", methods=["POST"])
+@require_operator
+def submit_policy_restore_for_review():
+    user = get_current_user()
+    from ..auth import current_user_has_permission
+    if not current_user_has_permission("policies:import"):
+        return jsonify({"error": 'Forbidden: permission "policies:import" required'}), 403
+    body = request.get_json(silent=True) or {}
+    entries, err = _backup_payload_entries(body.get("backup", body))
+    if err:
+        return jsonify({"error": err}), 400
+
+    import json as _json
+    results = []
+    for entry in entries:
+        if entry.get("error"):
+            results.append({"index": entry["index"], "status": "error", "error": entry["error"]})
+            continue
+        manifest = entry["manifest"]
+        ident = _backup_manifest_identity(manifest)
+        item_id = queue_policy(
+            ident["name"], ident["namespace"] or "cluster", ident["scope"],
+            _json.dumps(manifest), user,
+        )
+        results.append({"index": entry["index"], "status": "submitted", "id": item_id, **ident})
+
+    failures = sum(1 for r in results if r.get("status") == "error")
+    submitted = sum(1 for r in results if r.get("status") == "submitted")
+    audit_logger.log(user, "SUBMIT_RESTORE", "policies", "cluster", "FAILURE" if failures else "SUCCESS",
+                     f"submitted={submitted}, failures={failures}, total={len(results)}")
+    return jsonify({"ok": failures == 0, "results": results, "submitted": submitted, "failures": failures}), 201
 
 
 VARMOR_CLUSTER_PLURAL_APPLY = "varmorclusterpolicies"

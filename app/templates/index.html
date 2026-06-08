@@ -397,6 +397,8 @@
           <span id="queue-pending-badge" class="hidden badge badge-amber" style="font-size:.65rem;margin-left:.25rem">0 pending</span>
         </button>
         <div style="flex:1"></div>
+        <button id="btn-backup-policy" onclick="openBackupModal()" class="btn btn-ghost btn-sm" title="Download policy backup">&#11123; Backup</button>
+        <button id="btn-restore-policy" onclick="openRestoreModal()" class="btn btn-ghost btn-sm" title="Restore policies from backup">&#8635; Restore</button>
         <button id="btn-import-policy" onclick="openImportModal()" class="btn btn-ghost btn-sm" title="Import policy from YAML">&#11014; Import YAML</button>
       </div>
 
@@ -1952,6 +1954,68 @@
   </div>
 </div>
 
+<!-- POLICY BACKUP MODAL -->
+<div id="modal-backup" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:34rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Backup Policies</h3>
+      <button onclick="closeBackupModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <p class="text-xs mb-4" style="color:#64748b;line-height:1.6">Download a portable JSON backup of applied vArmor policies. Runtime fields such as status, uid, resourceVersion, and managedFields are removed.</p>
+    <label class="cb-row mb-2"><input id="chk-backup-ns" type="checkbox" checked><span>Namespace policies in current namespace</span></label>
+    <label class="cb-row mb-4"><input id="chk-backup-cluster" type="checkbox" checked><span>Cluster policies</span></label>
+    <div id="backup-msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeBackupModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-backup-download" onclick="downloadPolicyBackup()" class="btn btn-primary">&#11123; Download Backup</button>
+    </div>
+  </div>
+</div>
+
+<!-- POLICY RESTORE MODAL -->
+<div id="modal-restore" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:62rem;max-height:90vh;border-color:#475569">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Restore Policy Backup</h3>
+      <button onclick="closeRestoreModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3 flex-shrink-0">
+      <div>
+        <label class="form-label">Backup JSON</label>
+        <input id="inp-restore-file" type="file" accept="application/json,.json" class="form-input mb-2" onchange="loadRestoreFile(this)">
+        <textarea id="ta-restore-json" rows="9" class="form-input" style="font-family:monospace;font-size:.75rem;resize:vertical" placeholder='Paste backup JSON here'></textarea>
+      </div>
+      <div>
+        <label class="form-label">Restore Options</label>
+        <select id="sel-restore-conflict" class="form-input mb-3">
+          <option value="skip">Skip existing policies</option>
+          <option value="overwrite">Overwrite existing policies</option>
+        </select>
+        <p class="text-xs mb-3" style="color:#64748b;line-height:1.6">Preview checks conflicts before restore. Direct restore applies to the cluster immediately. Submit for Review queues each policy for admin approval.</p>
+        <div id="restore-summary" class="p-3 rounded-lg text-xs" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">No backup loaded.</div>
+      </div>
+    </div>
+    <div id="restore-msg" class="hidden mb-3 p-3 rounded-lg text-sm flex-shrink-0"></div>
+    <div class="flex-1 overflow-auto rounded-lg mb-4" style="border:1px solid #1e293b">
+      <table class="w-full text-sm">
+        <thead style="background:#0f172a">
+          <tr>
+            <th class="th">Policy</th><th class="th">Scope</th><th class="th">Mode</th><th class="th">Enforcer</th><th class="th">Conflict</th><th class="th">Action</th>
+          </tr>
+        </thead>
+        <tbody id="restore-preview-body">
+          <tr><td colspan="6" class="td text-center" style="color:#64748b">Run Preview first.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="flex gap-3 justify-end flex-shrink-0">
+      <button onclick="previewPolicyRestore()" class="btn btn-ghost">Preview</button>
+      <button id="btn-restore-submit" onclick="submitPolicyRestore()" class="btn btn-ghost">Submit for Review</button>
+      <button id="btn-restore-direct" onclick="restorePoliciesDirect()" class="btn btn-primary">Restore Directly</button>
+    </div>
+  </div>
+</div>
+
 <!-- SECRET PICKER MODAL -->
 <div id="modal-secret-picker" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4 flex flex-col" style="max-width:38rem;max-height:80vh;border-color:#475569">
@@ -2117,6 +2181,7 @@ function isViewer(){return !hasPerm("policies:create");}
 function canEdit(){return hasPerm("policies:edit");}
 function canDelete(){return hasPerm("policies:delete");}
 function canImport(){return hasPerm("policies:import");}
+function canExport(){return hasPerm("policies:export");}
 function canApplyModel(){return hasPerm("models:apply");}
 
 var _validatedOk=false; // true after successful validate
@@ -2140,6 +2205,12 @@ function applyRoleUi(){
   if(pnCreate) pnCreate.classList.toggle("hidden",!submit);
   var btnNewPol=$("btn-new-policy");
   if(btnNewPol) btnNewPol.classList.toggle("hidden",!hasPerm("policies:create"));
+  var btnBackup=$("btn-backup-policy");
+  if(btnBackup) btnBackup.classList.toggle("hidden",!canExport());
+  var btnRestore=$("btn-restore-policy");
+  if(btnRestore) btnRestore.classList.toggle("hidden",!canImport());
+  var btnImport=$("btn-import-policy");
+  if(btnImport) btnImport.classList.toggle("hidden",!canImport());
   toggleVis("btn-add-user", admin);
   var all=$("chk-all");
   if(all){all.disabled=!admin;all.checked=false;all.indeterminate=false;}
@@ -5003,6 +5074,133 @@ async function doImportPolicy(){
   finally{btn.disabled=false;}
 }
 
+// ── Policy Backup / Restore ──
+function openBackupModal(){
+  if(!canExport()){alert("Insufficient permissions to export policies.");return;}
+  hideEl($("backup-msg"));show("modal-backup");
+}
+function closeBackupModal(){hide("modal-backup");}
+$("modal-backup").addEventListener("click",function(e){if(e.target===$("modal-backup"))closeBackupModal();});
+
+async function downloadPolicyBackup(){
+  var msgEl=$("backup-msg");hideEl(msgEl);
+  var includeNs=$("chk-backup-ns").checked;
+  var includeCluster=$("chk-backup-cluster").checked;
+  if(!includeNs&&!includeCluster){showMsg(msgEl,"error","Select at least one backup scope.");return;}
+  var btn=$("btn-backup-download");btn.disabled=true;
+  try{
+    var qs=new URLSearchParams({namespace:ns(),include_namespace:includeNs?"1":"0",include_cluster:includeCluster?"1":"0"});
+    var res=await api("/api/policies/backup?"+qs.toString());
+    var data=await res.json();
+    if(!res.ok){showMsg(msgEl,"error",data.error||"Backup failed");return;}
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="varmor-policy-backup-"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showMsg(msgEl,"success","Downloaded "+(data.total||0)+" policy item(s).");
+  }catch(err){showMsg(msgEl,"error",err.message);}
+  finally{btn.disabled=false;}
+}
+
+function openRestoreModal(){
+  if(!canImport()){alert("Insufficient permissions to restore policies.");return;}
+  $("ta-restore-json").value="";
+  $("inp-restore-file").value="";
+  $("restore-summary").textContent="No backup loaded.";
+  $("restore-preview-body").innerHTML='<tr><td colspan="6" class="td text-center" style="color:#64748b">Run Preview first.</td></tr>';
+  hideEl($("restore-msg"));
+  if($("btn-restore-direct")){$("btn-restore-direct").classList.toggle("hidden",!isAdmin());$("btn-restore-direct").disabled=false;}
+  if($("btn-restore-submit")){$("btn-restore-submit").classList.toggle("hidden",!canSubmit());$("btn-restore-submit").disabled=false;}
+  show("modal-restore");
+}
+function closeRestoreModal(){hide("modal-restore");}
+$("modal-restore").addEventListener("click",function(e){if(e.target===$("modal-restore"))closeRestoreModal();});
+
+function loadRestoreFile(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(){ $("ta-restore-json").value=String(reader.result||""); };
+  reader.readAsText(file);
+}
+
+function readRestoreBackup(){
+  var raw=($("ta-restore-json").value||"").trim();
+  if(!raw) throw new Error("Paste or choose a backup JSON file first.");
+  try{return JSON.parse(raw);}catch(e){throw new Error("Backup JSON parse error: "+e.message);}
+}
+
+function renderRestorePreview(items){
+  var body=$("restore-preview-body");
+  if(!items.length){
+    body.innerHTML='<tr><td colspan="6" class="td text-center" style="color:#64748b">No policy items found.</td></tr>';
+    return;
+  }
+  body.innerHTML=items.map(function(it){
+    var conflict=it.error?'<span class="badge badge-red">invalid</span>':(it.exists?'<span class="badge badge-amber">exists</span>':'<span class="badge badge-green">new</span>');
+    var actionColor=it.action==="overwrite"?"badge-amber":it.action==="create"?"badge-green":it.action==="skip"?"badge-gray":it.action==="submitted"?"badge-blue":"badge-red";
+    var nsLabel=it.scope==="cluster"?"cluster":(it.namespace||"default");
+    return '<tr style="border-bottom:1px solid #1e293b">'
+      +'<td class="td"><div style="font-family:monospace;color:#93c5fd">'+esc(it.name||"")+'</div><div style="font-size:.68rem;color:#64748b">'+esc(it.kind||"")+'</div></td>'
+      +'<td class="td">'+esc(nsLabel)+'</td>'
+      +'<td class="td">'+esc(it.mode||"")+'</td>'
+      +'<td class="td">'+esc(it.enforcer||"")+'</td>'
+      +'<td class="td">'+conflict+(it.error?'<div style="font-size:.68rem;color:#fca5a5;margin-top:.25rem">'+esc(it.error)+'</div>':"")+'</td>'
+      +'<td class="td"><span class="badge '+actionColor+'">'+esc(it.action||it.status||"")+'</span></td>'
+      +'</tr>';
+  }).join("");
+}
+
+async function previewPolicyRestore(){
+  var msgEl=$("restore-msg");hideEl(msgEl);
+  try{
+    var backup=readRestoreBackup();
+    var conflict=$("sel-restore-conflict").value;
+    var res=await api("/api/policies/restore/preview",{method:"POST",body:JSON.stringify({backup:backup,conflict_action:conflict})});
+    var data=await res.json();
+    if(!res.ok){showMsg(msgEl,"error",data.error||"Preview failed");return null;}
+    renderRestorePreview(data.items||[]);
+    $("restore-summary").textContent=(data.valid||0)+" valid / "+(data.errors||0)+" error(s), total "+(data.total||0)+" item(s).";
+    return data;
+  }catch(err){showMsg(msgEl,"error",err.message);return null;}
+}
+
+async function restorePoliciesDirect(){
+  if(!isAdmin()||!canImport()){alert("Insufficient permissions to restore directly.");return;}
+  if(!confirm("Restore policies directly to the cluster?")) return;
+  var msgEl=$("restore-msg");hideEl(msgEl);
+  var btn=$("btn-restore-direct");btn.disabled=true;
+  try{
+    var backup=readRestoreBackup();
+    var conflict=$("sel-restore-conflict").value;
+    var res=await api("/api/policies/restore",{method:"POST",body:JSON.stringify({backup:backup,conflict_action:conflict})});
+    var data=await res.json();
+    if(!res.ok&&!(data.results)){showMsg(msgEl,"error",data.error||"Restore failed");return;}
+    showMsg(msgEl,data.failures?"error":"success","Applied "+(data.applied||0)+" policy item(s), failures "+(data.failures||0)+".");
+    renderRestorePreview((data.results||[]).map(function(r){return {name:r.name,namespace:r.namespace,scope:r.scope||"",kind:r.kind||"",mode:r.mode||"",enforcer:r.enforcer||"",exists:false,action:r.status,error:r.error||"",valid:r.status!=="error"};}));
+    loadPolicies();
+  }catch(err){showMsg(msgEl,"error",err.message);}
+  finally{btn.disabled=false;}
+}
+
+async function submitPolicyRestore(){
+  if(!canSubmit()||!canImport()){alert("Insufficient permissions to submit restore for review.");return;}
+  if(!confirm("Submit these backup policies to the review queue?")) return;
+  var msgEl=$("restore-msg");hideEl(msgEl);
+  var btn=$("btn-restore-submit");btn.disabled=true;
+  try{
+    var backup=readRestoreBackup();
+    var res=await api("/api/policies/restore/submit",{method:"POST",body:JSON.stringify({backup:backup})});
+    var data=await res.json();
+    if(!res.ok&&!(data.results)){showMsg(msgEl,"error",data.error||"Submit failed");return;}
+    showMsg(msgEl,data.failures?"error":"success","Submitted "+(data.submitted||0)+" policy item(s), failures "+(data.failures||0)+".");
+    loadPolicyQueue();
+  }catch(err){showMsg(msgEl,"error",err.message);}
+  finally{btn.disabled=false;}
+}
+
 // ── Secret Picker ──
 function openSecretPickerModal(){
   show("modal-secret-picker");
@@ -5458,7 +5656,49 @@ function closeQueueDetail(){
   _qdItem=null;
 }
 
+function queuePayloadFromManifest(manifest,item){
+  var meta=manifest.metadata||{},spec=manifest.spec||{},target=spec.target||{},policy=spec.policy||{};
+  var ep=policy.enhanceProtect||{},did=policy.defenseInDepth||{},bpf=ep.bpfRawRules||{};
+  var rules=[];
+  (ep.hardeningRules||[]).forEach(function(r){rules.push(r);});
+  (ep.vulMitigationRules||[]).forEach(function(r){rules.push(r);});
+  (ep.attackProtectionRules||[]).forEach(function(g){(g.rules||[]).forEach(function(r){rules.push(r);});});
+  var sc=ep.syscallRawRules||[];
+  var scSimple=(sc.length===1&&sc[0]&&!sc[0].args&&!sc[0].errnoRet&&!sc[0].includes&&!sc[0].excludes)?sc[0]:null;
+  return {
+    name:meta.name||item.name,
+    namespace:meta.namespace||item.namespace||"default",
+    scope:manifest.kind==="VarmorClusterPolicy"?"cluster":"namespace",
+    target_kind:target.kind||"Deployment",
+    target_deployment:target.name||"",
+    target_selector:target.selector||null,
+    target_containers:target.containers||[],
+    mode:policy.mode||"",
+    enforcers:(policy.enforcer||"").split("|").filter(Boolean),
+    rules:rules,
+    apparmor_raw_rules:ep.appArmorRawRules||[],
+    attack_protection_groups:ep.attackProtectionRules||[],
+    bpf_file_rules:bpf.files||[],
+    bpf_process_rules:bpf.processes||[],
+    bpf_mounts:bpf.mounts||[],
+    bpf_ptrace:bpf.ptrace||null,
+    bpf_network:bpf.network||null,
+    seccomp_syscalls:scSimple?(scSimple.names||[]):[],
+    seccomp_action:scSimple?(scSimple.action||"SCMP_ACT_ERRNO"):"SCMP_ACT_ERRNO",
+    seccomp_raw_rules:scSimple?[]:sc,
+    np_egress:(ep.networkProxyRawRules||{}).egress||null,
+    did_apparmor_type:(did.appArmor||{}).profileType||"",
+    did_seccomp_type:(did.seccomp||{}).profileType||"",
+    did_allow_violations:!!did.allowViolations,
+    update_existing_workloads:!!spec.updateExistingWorkloads,
+    audit_violations:!!ep.auditViolations,
+    allow_violations:!!ep.allowViolations,
+    privileged:!!ep.privileged
+  };
+}
+
 function _renderQueueDetail(item,p){
+  if(p&&p.apiVersion) p=queuePayloadFromManifest(p,item);
   var statusColors={pending:"badge-amber",approved:"badge-green",rejected:"badge-red",cancelled:"badge-gray"};
   var isPending=item.status==="pending";
   var canApproveItem=hasPerm("review:approve");
