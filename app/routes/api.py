@@ -424,15 +424,16 @@ def _validate_np_egress(egress: dict) -> str | None:
     for i, rule in enumerate(rules):
         if not isinstance(rule, dict):
             return f"egress.rules[{i}] must be an object"
+        # Validate ports first so format errors surface before missing-field errors
+        for j, port_obj in enumerate(rule.get("ports") or []):
+            err = _validate_port_obj(port_obj, f"egress.rules[{i}].ports[{j}]")
+            if err:
+                return err
         if not (rule.get("qualifiers") or []):
             return f"egress.rules[{i}].qualifiers is required"
         # ip and cidr are both optional per CRD (port-only rules are valid)
         if rule.get("ip") and rule.get("cidr"):
             return f"egress.rules[{i}]: 'ip' and 'cidr' are mutually exclusive"
-        for j, port_obj in enumerate(rule.get("ports") or []):
-            err = _validate_port_obj(port_obj, f"egress.rules[{i}].ports[{j}]")
-            if err:
-                return err
     for i, rule in enumerate(http_rules):
         if not isinstance(rule, dict):
             return f"egress.httpRules[{i}] must be an object"
@@ -2048,18 +2049,18 @@ def validate_policy_endpoint():
     """Dry-run: build and validate manifest without writing to cluster."""
     body = request.get_json(silent=True)
     if not body:
-        return jsonify({"ok": False, "error": "Request body must be valid JSON"}), 200
+        return jsonify({"ok": False, "error": "Request body must be valid JSON"}), 400
     raw_name = (body.get("name") or "").strip()
     name = _sanitize_name(raw_name)
     namespace = (body.get("namespace") or "default").strip()
     scope = (body.get("scope") or "namespace").strip()
     if not name:
-        return jsonify({"ok": False, "error": "Policy name is required"}), 200
+        return jsonify({"ok": False, "error": "Policy name is required"}), 400
     if scope not in ("namespace", "cluster"):
-        return jsonify({"ok": False, "error": "scope must be 'namespace' or 'cluster'"}), 200
+        return jsonify({"ok": False, "error": "scope must be 'namespace' or 'cluster'"}), 400
     manifest, err = _build_manifest_from_body(body, scope, name, namespace)
     if err:
-        return jsonify({"ok": False, "error": err}), 200
+        return jsonify({"ok": False, "error": err}), 400
     return jsonify({"ok": True, "manifest": manifest})
 
 
