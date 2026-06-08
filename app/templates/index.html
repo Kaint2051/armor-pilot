@@ -2505,7 +2505,9 @@ function _templateSearchText(t){
     (t.enforcers||[]).join(" "),
     (t.rules||[]).join(" "),
     (t.banned_files||[]).join(" "),
-    (t.capability_rules||[]).join(" ")
+    (t.capability_rules||[]).join(" "),
+    (t.prerequisites||[]).join(" "),
+    JSON.stringify(t.recommended_security_context||{})
   ].join(" ").toLowerCase();
 }
 
@@ -2597,10 +2599,14 @@ function _renderTemplateDetail(t){
   var box=$("tmpl-selected-detail");if(!box) return;
   var packName=POLICY_TEMPLATE_PACK_NAMES[t.pack]||t.pack||"Custom";
   var tests=(t.test_steps||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join("");
+  var prereq=(t.prerequisites||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join("");
+  var sc=t.recommended_security_context?JSON.stringify(t.recommended_security_context,null,2):"";
   box.innerHTML='<div class="flex items-center justify-between gap-2 mb-2">'
     +'<div><b style="color:#e2e8f0">'+esc(t.name)+'</b><div style="color:#64748b;font-size:.7rem">'+esc(packName)+' / '+esc(t.mode||"")+' / '+esc((t.enforcers||[]).join("+"))+'</div></div>'
     +'<span class="badge '+_riskBadgeClass(t.risk)+'">'+esc(t.risk||"low")+'</span></div>'
     +'<div>'+esc(t.summary||"")+'</div>'
+    +(prereq?'<div style="margin-top:.5rem;color:#64748b">Prerequisites:<ul style="list-style:disc;margin:.25rem 0 0 1rem">'+prereq+'</ul></div>':"")
+    +(sc?'<div style="margin-top:.5rem;color:#64748b">Recommended securityContext:<pre style="white-space:pre-wrap;font-family:monospace;font-size:.68rem;background:#060c18;border:1px solid #1e293b;border-radius:.375rem;padding:.5rem;margin-top:.25rem;color:#94a3b8">'+esc(sc)+'</pre></div>':"")
     +(tests?'<div style="margin-top:.5rem;color:#64748b">Test playbook:<ul style="list-style:disc;margin:.25rem 0 0 1rem">'+tests+'</ul></div>':"");
   box.classList.remove("hidden");
 }
