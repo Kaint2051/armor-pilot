@@ -604,9 +604,12 @@ def _build_manifest_from_body(body: dict, scope: str, name: str, namespace: str)
             )
         except ValueError as exc:
             return None, str(exc)
-        if not ep:
+        # NetworkProxy-only policies are valid: the egress config lives in
+        # networkProxyConfig (built below), so enhanceProtect may be empty.
+        if not ep and "NetworkProxy" not in enforcers:
             return None, "EnhanceProtect policy must have at least one rule, banned file, or raw rule"
-        spec_policy["enhanceProtect"] = ep
+        if ep:
+            spec_policy["enhanceProtect"] = ep
 
         if "NetworkProxy" in enforcers:
             try:
