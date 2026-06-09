@@ -33,10 +33,16 @@ PACKS = [
         "order": 50,
     },
     {
+        "id": "data-protection",
+        "name": "Data Protection",
+        "description": "Templates for keys, credentials, backup paths, and sensitive data workflows.",
+        "order": 55,
+    },
+    {
         "id": "incident-response",
         "name": "Incident Response",
         "description": "Containment templates for active compromise and emergency lockdown.",
-        "order": 60,
+        "order": 70,
     },
 ]
 
@@ -1506,6 +1512,398 @@ TEMPLATES = [
         "test_steps": [
             "Try executing payloads from /tmp, /var/tmp, and /dev/shm.",
             "Verify outbound mining pool ports and common C2 ports are denied.",
+        ],
+    },
+    {
+        "id": "data-tls-private-key-guard",
+        "pack": "data-protection",
+        "name": "TLS Private Key Guard",
+        "summary": "Blocks common TLS private key locations from application containers.",
+        "risk": "medium",
+        "mode": "EnhanceProtect",
+        "enforcers": ["AppArmor", "BPF"],
+        "rules": [
+            "disable-access-shadow",
+            "disable-access-ssh-dir",
+            "block-access-to-metadata-service",
+        ],
+        "banned_files": [
+            "/etc/ssl/private/**",
+            "/etc/tls/**/tls.key",
+            "/etc/tls/tls.key",
+            "/etc/nginx/tls.key",
+            "/certs/*key*",
+            "/var/run/secrets/tls/**",
+        ],
+        "bpf_file_rules": [
+            {"pattern": "/etc/ssl/private/**", "permissions": ["read"], "qualifiers": ["deny"]},
+            {"pattern": "/etc/tls/**", "permissions": ["read"], "qualifiers": ["deny"]},
+            {"pattern": "/certs/*key*", "permissions": ["read"], "qualifiers": ["deny"]},
+        ],
+        "prerequisites": [
+            "Target app containers only; do not apply to ingress/proxy containers that legitimately terminate TLS.",
+            "Adjust key paths to match mounted Secrets and cert-manager volumes.",
+        ],
+        "test_steps": [
+            "From the app container, try reading mounted private key files.",
+            "Confirm TLS sidecars or ingress components still read their own keys when excluded.",
+        ],
+    },
+    {
+        "id": "data-vault-external-secrets-client",
+        "pack": "data-protection",
+        "name": "Vault / External Secrets Client Guard",
+        "summary": "Restricts secret-sync clients to approved secret-store endpoints.",
+        "risk": "high",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy", "Seccomp"],
+        "rules": [
+            "block-access-to-metadata-service",
+            "block-access-to-container-runtime",
+            "disallow-create-user-ns",
+            "disallow-load-all-bpf-prog",
+        ],
+        "bpf_process_rules": [
+            {"pattern": "/bin/sh", "permissions": ["exec"], "qualifiers": ["audit"]},
+            {"pattern": "/usr/bin/curl", "permissions": ["exec"], "qualifiers": ["deny"]},
+            {"pattern": "/usr/bin/wget", "permissions": ["exec"], "qualifiers": ["deny"]},
+        ],
+        "np_egress": {
+            "defaultAction": "deny",
+            "httpRules": [
+                {
+                    "qualifiers": ["allow"],
+                    "description": "approved secret store endpoint",
+                    "match": {
+                        "hosts": ["vault.internal.example.com", "secrets.internal.example.com"],
+                        "ports": [{"port": 8200}, {"port": 443}],
+                        "methods": ["GET", "POST", "PUT", "PATCH"],
+                    },
+                }
+            ],
+        },
+        "prerequisites": [
+            "Replace placeholder Vault/external-secret-store hosts.",
+            "Apply to secret-sync controllers after confirming all required endpoints.",
+        ],
+        "test_steps": [
+            "Run a normal secret sync/reconcile cycle.",
+            "Verify metadata, runtime sockets, and unapproved egress are denied.",
+        ],
+    },
+    {
+        "id": "network-object-storage-egress-only",
+        "pack": "network",
+        "name": "Object Storage Egress Only",
+        "summary": "Allows applications to talk only to approved S3/MinIO/object-storage endpoints.",
+        "risk": "medium",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy"],
+        "rules": ["block-access-to-metadata-service"],
+        "np_egress": {
+            "defaultAction": "deny",
+            "httpRules": [
+                {
+                    "qualifiers": ["allow"],
+                    "description": "approved object storage endpoint",
+                    "match": {
+                        "hosts": ["s3.internal.example.com", "minio.internal.example.com"],
+                        "ports": [{"port": 443}, {"port": 9000}],
+                        "methods": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+                    },
+                }
+            ],
+        },
+        "prerequisites": [
+            "Replace placeholder object-storage endpoints and methods.",
+            "Add STS/identity endpoints only if the workload uses them.",
+        ],
+        "test_steps": [
+            "Test upload, download, list, and delete flows against approved buckets.",
+            "Try arbitrary public HTTPS egress and verify denial.",
+        ],
+    },
+    {
+        "id": "data-backup-controller-guard",
+        "pack": "data-protection",
+        "name": "Backup Controller Guard",
+        "summary": "Protects backup/restore controllers that handle broad data and cloud credentials.",
+        "risk": "high",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy", "Seccomp"],
+        "rules": [
+            "block-access-to-metadata-service",
+            "block-access-to-container-runtime",
+            "disallow-create-user-ns",
+            "disallow-load-all-bpf-prog",
+            "disable-access-shadow",
+        ],
+        "banned_files": [
+            "/var/run/docker.sock",
+            "/run/containerd/containerd.sock",
+            "/root/.ssh/**",
+            "/home/*/.ssh/**",
+        ],
+        "np_egress": {
+            "defaultAction": "deny",
+            "rules": [
+                {"qualifiers": ["allow"], "ip": "10.96.0.1", "ports": [{"port": 443}], "description": "replace with Kubernetes API service IP"},
+            ],
+            "httpRules": [
+                {
+                    "qualifiers": ["allow"],
+                    "description": "backup object storage",
+                    "match": {
+                        "hosts": ["backup-s3.internal.example.com", "minio.internal.example.com"],
+                        "ports": [{"port": 443}, {"port": 9000}],
+                        "methods": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+                    },
+                }
+            ],
+        },
+        "prerequisites": [
+            "Replace kube-apiserver and object-storage placeholders.",
+            "Scope backup credentials to required buckets/prefixes.",
+        ],
+        "test_steps": [
+            "Run backup and restore dry-run workflows.",
+            "Verify unapproved egress and runtime socket access are denied.",
+        ],
+    },
+    {
+        "id": "compliance-cert-manager-guard",
+        "pack": "compliance",
+        "name": "Certificate Manager Guard",
+        "summary": "Restricts cert-manager-like controllers to Kubernetes API and approved ACME/issuer endpoints.",
+        "risk": "medium",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy", "Seccomp"],
+        "rules": [
+            "block-access-to-metadata-service",
+            "block-access-to-container-runtime",
+            "disallow-create-user-ns",
+            "disallow-load-all-bpf-prog",
+        ],
+        "bpf_process_rules": [
+            {"pattern": "/bin/sh", "permissions": ["exec"], "qualifiers": ["audit"]},
+            {"pattern": "/usr/bin/curl", "permissions": ["exec"], "qualifiers": ["deny"]},
+        ],
+        "np_egress": {
+            "defaultAction": "deny",
+            "rules": [
+                {"qualifiers": ["allow"], "ip": "10.96.0.1", "ports": [{"port": 443}], "description": "replace with Kubernetes API service IP"},
+            ],
+            "httpRules": [
+                {"qualifiers": ["allow"], "description": "ACME/issuer endpoint", "match": {"hosts": ["acme-v02.api.letsencrypt.org", "issuer.internal.example.com"], "ports": [{"port": 443}], "methods": ["GET", "POST"]}},
+            ],
+        },
+        "prerequisites": [
+            "Replace issuer endpoints and kube-apiserver IP.",
+            "Test renewals in staging before production ACME endpoints.",
+        ],
+        "test_steps": [
+            "Create/renew a staging certificate.",
+            "Verify metadata/runtime socket access and unapproved egress are denied.",
+        ],
+    },
+    {
+        "id": "baseline-observability-agent-guard",
+        "pack": "baseline",
+        "name": "Observability Agent Guard",
+        "summary": "Damage-reduction template for log/metrics agents with host mounts.",
+        "risk": "high",
+        "mode": "EnhanceProtect",
+        "enforcers": ["AppArmor", "BPF", "Seccomp"],
+        "rules": [
+            "disable-cap-privileged",
+            "disallow-write-core-pattern",
+            "disallow-mount-securityfs",
+            "disallow-write-release-agent",
+            "disallow-mount-procfs",
+            "disallow-mount-cgroupfs",
+            "disallow-access-kallsyms",
+            "block-access-to-metadata-service",
+            "block-access-to-container-runtime",
+        ],
+        "bpf_file_rules": [
+            {"pattern": "/proc/sys/**", "permissions": ["write", "append"], "qualifiers": ["deny"]},
+            {"pattern": "/sys/**", "permissions": ["write", "append"], "qualifiers": ["deny"]},
+            {"pattern": "/dev/**", "permissions": ["write", "append"], "qualifiers": ["deny"]},
+            {"pattern": "/var/log/**", "permissions": ["read"], "qualifiers": ["audit"]},
+        ],
+        "prerequisites": [
+            "Use for agents that need host log reads but should never mutate host paths.",
+            "Tune file patterns for each agent's hostPath mounts.",
+        ],
+        "test_steps": [
+            "Verify log and metrics collection still works.",
+            "Attempt writes to /proc/sys, /sys, /dev, and runtime sockets.",
+        ],
+    },
+    {
+        "id": "network-message-queue-client-egress",
+        "pack": "network",
+        "name": "Message Queue Client Egress",
+        "summary": "Allows queue clients to approved Kafka/RabbitMQ/NATS endpoints only.",
+        "risk": "medium",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy"],
+        "rules": ["block-access-to-metadata-service"],
+        "np_egress": {
+            "defaultAction": "deny",
+            "rules": [
+                {"qualifiers": ["allow"], "cidr": "10.0.0.0/8", "ports": [{"port": 5672}, {"port": 9092}, {"port": 4222}], "description": "approved MQ endpoints"},
+            ],
+        },
+        "prerequisites": [
+            "Replace CIDR and ports with actual MQ brokers.",
+            "Add TLS ports and schema registry endpoints if required.",
+        ],
+        "test_steps": [
+            "Run produce/consume workflows.",
+            "Try outbound HTTPS and non-MQ ports to verify denial.",
+        ],
+    },
+    {
+        "id": "network-cache-client-egress",
+        "pack": "network",
+        "name": "Cache Client Egress",
+        "summary": "Allows Redis/Memcached clients only to approved cache endpoints.",
+        "risk": "medium",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy"],
+        "rules": ["block-access-to-metadata-service"],
+        "np_egress": {
+            "defaultAction": "deny",
+            "rules": [
+                {"qualifiers": ["allow"], "cidr": "10.0.0.0/8", "ports": [{"port": 6379}, {"port": 6380}, {"port": 11211}], "description": "approved cache endpoints"},
+            ],
+        },
+        "prerequisites": [
+            "Replace CIDR and ports with approved cache services.",
+            "Add monitoring endpoints deliberately instead of allowing all egress.",
+        ],
+        "test_steps": [
+            "Run cache read/write workflows.",
+            "Try DB, internet, and unapproved internal-service egress.",
+        ],
+    },
+    {
+        "id": "compliance-payment-processor-egress",
+        "pack": "compliance",
+        "name": "Payment Processor Egress",
+        "summary": "Restricts payment workloads to approved payment-provider and internal endpoints.",
+        "risk": "high",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy"],
+        "rules": [
+            "disable-access-shadow",
+            "disable-access-ssh-dir",
+            "block-access-to-metadata-service",
+            "block-access-to-container-runtime",
+            "mitigate-sa-leak",
+        ],
+        "banned_files": [
+            "/var/run/secrets/kubernetes.io/serviceaccount/**",
+            "/root/.ssh/**",
+            "/home/*/.ssh/**",
+        ],
+        "np_egress": {
+            "defaultAction": "deny",
+            "httpRules": [
+                {"qualifiers": ["allow"], "description": "payment provider API", "match": {"hosts": ["payments.example.com", "api.payment-provider.example"], "ports": [{"port": 443}], "methods": ["GET", "POST"]}},
+                {"qualifiers": ["allow"], "description": "internal fraud service", "match": {"hosts": ["fraud.internal.example.com"], "ports": [{"port": 443}], "methods": ["GET", "POST"]}},
+            ],
+        },
+        "prerequisites": [
+            "Replace placeholder payment and fraud endpoints.",
+            "Review PCI-sensitive data paths and avoid broad secret mounts.",
+        ],
+        "test_steps": [
+            "Run authorize, capture, refund, and fraud-check flows.",
+            "Verify metadata, service-account token, and unapproved egress are blocked.",
+        ],
+    },
+    {
+        "id": "incident-emergency-egress-lockdown",
+        "pack": "incident-response",
+        "name": "Emergency Egress Lockdown",
+        "summary": "Immediate deny-all egress profile for compromised workloads under investigation.",
+        "risk": "high",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy"],
+        "rules": [
+            "block-access-to-metadata-service",
+            "block-access-to-kube-apiserver",
+            "block-access-to-container-runtime",
+        ],
+        "np_egress": {"defaultAction": "deny"},
+        "prerequisites": [
+            "Use as a temporary containment action; it can break applications.",
+            "Prefer selecting a compromised workload by name rather than a broad namespace selector.",
+        ],
+        "test_steps": [
+            "Confirm all outbound traffic is denied.",
+            "Collect forensic artifacts before rebuilding or deleting the workload.",
+        ],
+    },
+    {
+        "id": "incident-forensic-hold-audit",
+        "pack": "incident-response",
+        "name": "Forensic Hold Audit",
+        "summary": "Audit-heavy profile for collecting suspicious behavior before enforcement.",
+        "risk": "low",
+        "mode": "EnhanceProtect",
+        "enforcers": ["AppArmor", "BPF", "Seccomp"],
+        "rules": [
+            "block-access-to-metadata-service",
+            "block-access-to-kube-apiserver",
+            "block-access-to-container-runtime",
+            "disallow-create-user-ns",
+            "disallow-load-all-bpf-prog",
+            "disable-access-shadow",
+            "disable-access-ssh-dir",
+        ],
+        "audit_violations": True,
+        "allow_violations": True,
+        "bpf_process_rules": [
+            {"pattern": "/tmp/**", "permissions": ["exec"], "qualifiers": ["audit"]},
+            {"pattern": "/var/tmp/**", "permissions": ["exec"], "qualifiers": ["audit"]},
+            {"pattern": "/dev/shm/**", "permissions": ["exec"], "qualifiers": ["audit"]},
+            {"pattern": "/bin/sh", "permissions": ["exec"], "qualifiers": ["audit"]},
+            {"pattern": "/bin/bash", "permissions": ["exec"], "qualifiers": ["audit"]},
+        ],
+        "prerequisites": [
+            "Use for short observation windows; allowViolations means it does not block.",
+            "Export violation logs after the observation period.",
+        ],
+        "test_steps": [
+            "Run suspected behavior and confirm events are visible in violation logs.",
+            "Convert observed bad actions into enforced deny templates.",
+        ],
+    },
+    {
+        "id": "network-pod-to-pod-default-deny",
+        "pack": "network",
+        "name": "Pod-to-Pod Default Deny",
+        "summary": "Blocks broad pod-to-pod traffic; allow only explicit internal service ranges.",
+        "risk": "high",
+        "mode": "EnhanceProtect",
+        "enforcers": ["BPF", "NetworkProxy"],
+        "np_egress": {
+            "defaultAction": "deny",
+            "rules": [
+                {"qualifiers": ["allow"], "ip": "10.96.0.10", "ports": [{"port": 53}], "description": "replace with kube-dns/CoreDNS service IP"},
+                {"qualifiers": ["allow"], "cidr": "10.96.0.0/12", "ports": [{"port": 443}], "description": "replace with approved service CIDR/ports"},
+            ],
+        },
+        "prerequisites": [
+            "Replace DNS and service CIDR placeholders.",
+            "Add explicit rules for every required service dependency before enforcing.",
+        ],
+        "test_steps": [
+            "Test DNS and approved service calls.",
+            "Attempt unrelated namespace/service traffic and verify denial.",
         ],
     },
 ]
