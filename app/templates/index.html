@@ -78,6 +78,10 @@
     .rtab-active{color:#93c5fd!important;background:#0c1a3b!important;border-color:#1d4ed8!important}
     .rtab-btn[disabled]{opacity:.35;cursor:not-allowed}
     .wiz-sticky-bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:.75rem;padding:.75rem 1.5rem;margin-top:1.5rem;background:#0a0f1a;border-top:1px solid #1e293b}
+    .tmpl-picker-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+    .tmpl-picker-body{margin-top:.875rem}
+    .tmpl-selected-summary{display:inline-flex;align-items:center;max-width:22rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.7rem;font-weight:600;padding:.18rem .5rem;border-radius:9999px;background:#071a07;color:#86efac;border:1px solid #166534}
+    .tmpl-selected-empty{background:#0f172a;color:#64748b;border-color:#334155}
     .tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:.6rem;margin-bottom:.875rem}
     .tmpl-toolbar{display:grid;grid-template-columns:minmax(10rem,14rem) minmax(7rem,9rem) 1fr auto;gap:.5rem;align-items:center;margin-bottom:.75rem}
     .tmpl-btn{padding:.65rem .75rem;border-radius:.5rem;border:1px solid #334155;background:#0f172a;color:#94a3b8;cursor:pointer;font-size:.78rem;font-weight:500;text-align:left;line-height:1.45;transition:all 120ms;width:100%;min-height:7.25rem;display:flex;flex-direction:column;gap:.35rem}
@@ -522,30 +526,41 @@
 
         <!-- Template picker (hidden during edit) -->
         <div id="tmpl-picker" class="mb-5 p-4 rounded-xl" style="background:#0a0f1a;border:1px solid #1e293b">
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p class="text-xs font-semibold" style="color:#64748b;text-transform:uppercase;letter-spacing:.07em">Template Packs</p>
+          <div class="tmpl-picker-head">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="text-xs font-semibold" style="color:#64748b;text-transform:uppercase;letter-spacing:.07em">Template Packs</p>
+                <span id="tmpl-selected-summary" class="tmpl-selected-summary tmpl-selected-empty">No template selected</span>
+              </div>
               <p style="font-size:.72rem;color:#475569;margin-top:.2rem">Choose a packaged policy starting point, then tune the wizard fields below.</p>
             </div>
-            <span id="tmpl-count" class="badge badge-gray">0 templates</span>
+            <div class="flex items-center gap-2 shrink-0">
+              <span id="tmpl-count" class="badge badge-gray">0 templates</span>
+              <button id="tmpl-toggle-btn" type="button" class="btn btn-ghost btn-sm" onclick="toggleTemplatePicker()" aria-expanded="false">
+                <span id="tmpl-toggle-icon">&#9662;</span>
+                <span id="tmpl-toggle-label">Browse Templates</span>
+              </button>
+            </div>
           </div>
-          <div class="tmpl-toolbar">
-            <select id="tmpl-pack-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
-              <option value="">All packs</option>
-            </select>
-            <select id="tmpl-risk-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
-              <option value="">All risk</option>
-              <option value="low">Low risk</option>
-              <option value="medium">Medium risk</option>
-              <option value="high">High risk</option>
-            </select>
-            <input id="tmpl-search" class="form-input" placeholder="Search templates, rules, workload..." oninput="renderPolicyTemplateGallery()">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="loadPolicyTemplates(true)">Refresh</button>
+          <div id="tmpl-picker-body" class="tmpl-picker-body hidden">
+            <div class="tmpl-toolbar">
+              <select id="tmpl-pack-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
+                <option value="">All packs</option>
+              </select>
+              <select id="tmpl-risk-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
+                <option value="">All risk</option>
+                <option value="low">Low risk</option>
+                <option value="medium">Medium risk</option>
+                <option value="high">High risk</option>
+              </select>
+              <input id="tmpl-search" class="form-input" placeholder="Search templates, rules, workload..." oninput="renderPolicyTemplateGallery()">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="loadPolicyTemplates(true)">Refresh</button>
+            </div>
+            <div id="tmpl-grid" class="tmpl-grid">
+              <div style="font-size:.78rem;color:#64748b">Loading templates...</div>
+            </div>
+            <div id="tmpl-selected-detail" class="tmpl-detail hidden"></div>
           </div>
-          <div id="tmpl-grid" class="tmpl-grid">
-            <div style="font-size:.78rem;color:#64748b">Loading templates...</div>
-          </div>
-          <div id="tmpl-selected-detail" class="tmpl-detail hidden"></div>
         </div>
 
         <!-- Edit banner -->
@@ -2460,9 +2475,40 @@ var POLICY_TEMPLATES={};
 var POLICY_TEMPLATE_PACKS=[];
 var POLICY_TEMPLATE_PACK_NAMES={};
 var _policyTemplatesLoaded=false;
+var _templatePickerExpanded=false;
+var SELECTED_POLICY_TEMPLATE_ID="";
 
 function _riskBadgeClass(risk){
   return risk==="high"?"badge-red":risk==="medium"?"badge-amber":"badge-green";
+}
+
+function updateTemplatePickerSummary(){
+  var box=$("tmpl-selected-summary");if(!box) return;
+  var t=SELECTED_POLICY_TEMPLATE_ID?POLICY_TEMPLATES[SELECTED_POLICY_TEMPLATE_ID]:null;
+  if(t){
+    box.textContent="Selected: "+(t.name||t.id);
+    box.classList.remove("tmpl-selected-empty");
+  }else{
+    box.textContent="No template selected";
+    box.classList.add("tmpl-selected-empty");
+  }
+}
+
+function setTemplatePickerExpanded(expanded){
+  _templatePickerExpanded=!!expanded;
+  var body=$("tmpl-picker-body");
+  if(body) body.classList.toggle("hidden",!_templatePickerExpanded);
+  var btn=$("tmpl-toggle-btn");
+  if(btn) btn.setAttribute("aria-expanded",_templatePickerExpanded?"true":"false");
+  var icon=$("tmpl-toggle-icon");
+  if(icon) icon.innerHTML=_templatePickerExpanded?"&#9652;":"&#9662;";
+  var label=$("tmpl-toggle-label");
+  if(label) label.textContent=_templatePickerExpanded?"Hide Templates":"Browse Templates";
+  if(_templatePickerExpanded&&!_policyTemplatesLoaded) loadPolicyTemplates();
+}
+
+function toggleTemplatePicker(){
+  setTemplatePickerExpanded(!_templatePickerExpanded);
 }
 
 async function loadPolicyTemplates(force){
@@ -2528,13 +2574,14 @@ function renderPolicyTemplateGallery(){
   });
   var count=$("tmpl-count");
   if(count) count.textContent=items.length+" template"+(items.length===1?"":"s");
+  updateTemplatePickerSummary();
   if(!items.length){
     grid.innerHTML='<div style="font-size:.78rem;color:#64748b">No templates match the current filters.</div>';
     return;
   }
   grid.innerHTML=items.map(function(t){
     var packName=POLICY_TEMPLATE_PACK_NAMES[t.pack]||t.pack||"Custom";
-    return '<button type="button" class="tmpl-btn" data-template-id="'+esc(t.id)+'" onclick="applyTemplate(\''+esc(t.id)+'\')">'
+    return '<button type="button" class="tmpl-btn'+(t.id===SELECTED_POLICY_TEMPLATE_ID?' tmpl-active':'')+'" data-template-id="'+esc(t.id)+'" onclick="applyTemplate(\''+esc(t.id)+'\')">'
       +'<span class="tmpl-pack-label">'+esc(packName)+'</span>'
       +'<span class="tmpl-title">'+esc(t.name)+'</span>'
       +'<span class="tmpl-desc">'+esc(t.summary||"")+'</span>'
@@ -2623,6 +2670,7 @@ function applyTemplate(name){
   var hint=$("tmpl-name-hint");
   if(hint){hint.textContent="";hint.classList.add("hidden");}
   if(pname) pname.classList.remove("input-error");
+  SELECTED_POLICY_TEMPLATE_ID=name;
   _clearTemplateManagedFields();
   document.querySelectorAll(".tmpl-btn").forEach(function(b){
     b.classList.toggle("tmpl-active",b.dataset.templateId===name);
@@ -2650,6 +2698,8 @@ function applyTemplate(name){
   if($("chk-privileged")) $("chk-privileged").checked=!!t.privileged;
   _applyTemplateNetworkProxy(t);
   _renderTemplateDetail(t);
+  updateTemplatePickerSummary();
+  setTemplatePickerExpanded(false);
   updateRuleCounts&&updateRuleCounts();
   _onFormChange();
   wizGoToStep(2);
@@ -2857,6 +2907,9 @@ function resetWizard(){
   var btnSubmit=$("btn-submit-review");
   if(btnSubmit){btnSubmit.disabled=true;}
   document.querySelectorAll(".tmpl-btn").forEach(function(b){b.classList.remove("tmpl-active");});
+  SELECTED_POLICY_TEMPLATE_ID="";
+  updateTemplatePickerSummary();
+  setTemplatePickerExpanded(false);
   var _td=$("tmpl-selected-detail");if(_td){_td.innerHTML="";_td.classList.add("hidden");}
   var _ph=$("tmpl-name-hint");if(_ph){_ph.textContent="";_ph.classList.add("hidden");}
   var _pn=$("inp-pname");if(_pn) _pn.classList.remove("input-error");
