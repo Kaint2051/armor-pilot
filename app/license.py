@@ -1,0 +1,212 @@
+import base64
+import binascii
+import datetime as dt
+import hashlib
+import hmac
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+
+LICENSE_FILE = os.environ.get("VARMOR_LICENSE_FILE", "/app/data/license.json")
+
+
+def _bool_env(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _utc_now() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
+def _parse_time(value: str | None) -> dt.datetime | None:
+    if not value:
+        return None
+    raw = value.strip()
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        parsed = dt.datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed.astimezone(dt.timezone.utc)
+
+
+def _canonical_payload(payload: dict[str, Any]) -> bytes:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def _b64url_decode(value: str) -> bytes:
+    raw = value.strip().encode("ascii")
+    raw += b"=" * ((4 - len(raw) % 4) % 4)
+    return base64.urlsafe_b64decode(raw)
+
+
+def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
+    secret = os.environ.get("VARMOR_LICENSE_HMAC_SECRET", "")
+    if not secret:
+        raise ValueError("VARMOR_LICENSE_HMAC_SECRET is not configured")
+    expected = hmac.new(secret.encode("utf-8"), _canonical_payload(payload), hashlib.sha256).digest()
+    if not hmac.compare_digest(expected, _b64url_decode(signature)):
+        raise ValueError("license signature is invalid")
+
+
+def _load_ed25519_public_key():
+    public_key = os.environ.get("VARMOR_LICENSE_PUBLIC_KEY", "").strip()
+    if not public_key:
+        raise ValueError("VARMOR_LICENSE_PUBLIC_KEY is not configured")
+    try:
+        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    except Exception as exc:
+        raise ValueError("cryptography package is required for Ed25519 licenses") from exc
+    if public_key.startswith("-----BEGIN"):
+        key = load_pem_public_key(public_key.encode("utf-8"))
+        if not isinstance(key, Ed25519PublicKey):
+            raise ValueError("VARMOR_LICENSE_PUBLIC_KEY is not an Ed25519 public key")
+        return key
+    try:
+        raw = base64.b64decode(public_key)
+    except binascii.Error:
+        raw = _b64url_decode(public_key)
+    return Ed25519PublicKey.from_public_bytes(raw)
+
+
+def _verify_ed25519(payload: dict[str, Any], signature: str) -> None:
+    key = _load_ed25519_public_key()
+    key.verify(_b64url_decode(signature), _canonical_payload(payload))
+
+
+def _safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "license_id": payload.get("license_id"),
+        "customer": payload.get("customer"),
+        "edition": payload.get("edition"),
+        "issued_at": payload.get("issued_at"),
+        "expires_at": payload.get("expires_at"),
+        "grace_days": payload.get("grace_days", 0),
+        "features": sorted(payload.get("features") or []),
+        "limits": payload.get("limits") or {},
+        "cluster_uid": payload.get("cluster_uid"),
+    }
+
+
+def _base_status() -> dict[str, Any]:
+    required = _bool_env("VARMOR_LICENSE_REQUIRED", False)
+    fail_open = _bool_env("VARMOR_LICENSE_FAIL_OPEN", not required)
+    return {
+        "path": LICENSE_FILE,
+        "required": required,
+        "fail_open": fail_open,
+        "present": False,
+        "valid": False,
+        "status": "missing",
+        "reason": "license file is not present",
+        "payload": None,
+        "effective_features": ["*"] if fail_open else [],
+        "days_remaining": None,
+        "in_grace": False,
+    }
+
+
+def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
+    payload = doc.get("payload")
+    signature = doc.get("signature")
+    algorithm = (doc.get("algorithm") or doc.get("alg") or "Ed25519").strip()
+    if not isinstance(payload, dict):
+        raise ValueError("license payload must be an object")
+    if not isinstance(signature, str) or not signature.strip():
+        raise ValueError("license signature is required")
+
+    if algorithm == "Ed25519":
+        _verify_ed25519(payload, signature)
+    elif algorithm == "HS256":
+        _verify_hs256(payload, signature)
+    else:
+        raise ValueError(f"unsupported license algorithm: {algorithm}")
+
+    now = _utc_now()
+    expires_at = _parse_time(payload.get("expires_at"))
+    if not expires_at:
+        raise ValueError("payload.expires_at must be an ISO-8601 timestamp")
+    grace_days = int(payload.get("grace_days") or 0)
+    grace_until = expires_at + dt.timedelta(days=max(grace_days, 0))
+    if now > grace_until:
+        raise ValueError("license is expired")
+
+    issued_at = _parse_time(payload.get("issued_at"))
+    if issued_at and issued_at > now + dt.timedelta(minutes=5):
+        raise ValueError("license issued_at is in the future")
+
+    expected_cluster = (payload.get("cluster_uid") or "").strip()
+    runtime_cluster = os.environ.get("VARMOR_CLUSTER_UID", "").strip()
+    if expected_cluster and runtime_cluster and expected_cluster != runtime_cluster:
+        raise ValueError("license cluster_uid does not match this cluster")
+
+    return {
+        "payload": payload,
+        "days_remaining": max(0, (expires_at - now).days),
+        "in_grace": now > expires_at,
+    }
+
+
+def get_license_status() -> dict[str, Any]:
+    status = _base_status()
+    path = Path(LICENSE_FILE)
+    if not path.exists():
+        return status
+    status["present"] = True
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        verified = verify_license_document(doc)
+        payload = verified["payload"]
+        features = sorted(set(payload.get("features") or []))
+        status.update({
+            "valid": True,
+            "status": "valid",
+            "reason": "license is valid",
+            "payload": _safe_payload(payload),
+            "effective_features": features,
+            "days_remaining": verified["days_remaining"],
+            "in_grace": verified["in_grace"],
+            "algorithm": doc.get("algorithm") or doc.get("alg") or "Ed25519",
+        })
+        if "*" in features:
+            status["effective_features"] = ["*"]
+        return status
+    except Exception as exc:
+        status.update({
+            "status": "invalid",
+            "reason": str(exc),
+            "effective_features": ["*"] if status["fail_open"] else [],
+        })
+        return status
+
+
+def is_feature_enabled(feature: str) -> bool:
+    features = set(get_license_status().get("effective_features") or [])
+    if "*" in features:
+        return True
+    if feature in features:
+        return True
+    prefix = feature.split(":", 1)[0] + ":*"
+    return prefix in features
+
+
+def save_license_text(raw: str) -> dict[str, Any]:
+    if not raw or not raw.strip():
+        raise ValueError("license JSON is required")
+    doc = json.loads(raw)
+    if not isinstance(doc, dict):
+        raise ValueError("license must be a JSON object")
+    verify_license_document(doc)
+    path = Path(LICENSE_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return get_license_status()
