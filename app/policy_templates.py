@@ -52,6 +52,12 @@ PACKS = [
     },
 ]
 
+PACK_LICENSE_FEATURES = {
+    "data-protection": "templates:data_protection",
+    "platform-infra": "templates:platform_infra",
+    "incident-response": "templates:incident_response",
+}
+
 
 TEMPLATES = [
     {
@@ -2374,9 +2380,31 @@ TEMPLATES = [
 ]
 
 
-def get_policy_templates_payload() -> dict:
+def _feature_allowed(features: set[str], feature: str) -> bool:
+    if "*" in features:
+        return True
+    if feature in features:
+        return True
+    prefix = feature.split(":", 1)[0] + ":*"
+    return prefix in features
+
+
+def _pack_allowed(pack_id: str, features: set[str] | None) -> bool:
+    feature = PACK_LICENSE_FEATURES.get(pack_id)
+    if not feature or features is None:
+        return True
+    return _feature_allowed(features, feature)
+
+
+def get_policy_templates_payload(enabled_features: list[str] | None = None) -> dict:
+    feature_set = set(enabled_features or []) if enabled_features is not None else None
+    packs = [p for p in PACKS if _pack_allowed(p["id"], feature_set)]
+    pack_ids = {p["id"] for p in packs}
+    templates = [t for t in TEMPLATES if t.get("pack") in pack_ids]
     return {
-        "packs": copy.deepcopy(PACKS),
-        "templates": copy.deepcopy(TEMPLATES),
-        "total": len(TEMPLATES),
+        "packs": copy.deepcopy(packs),
+        "templates": copy.deepcopy(templates),
+        "total": len(templates),
+        "available_total": len(TEMPLATES),
+        "restricted_packs": copy.deepcopy(PACK_LICENSE_FEATURES),
     }

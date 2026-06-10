@@ -173,6 +173,7 @@
         </button>
         <div class="w-px h-5 mx-2" style="background:#334155"></div>
         <span id="lbl-user" class="text-sm hidden sm:block" style="color:#64748b"></span>
+        <span id="license-badge" class="badge badge-gray hidden">License</span>
         <button onclick="logout()" class="btn btn-ghost btn-sm">Logout</button>
       </div>
     </div>
@@ -1458,6 +1459,10 @@
           <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18M3 6a3 3 0 013-3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3V6z"/></svg>
           Permissions Matrix
         </button>
+        <button id="acnav-license" onclick="switchAcView('license')" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          License
+        </button>
       </div>
 
       <!-- VIEW: Users -->
@@ -1677,6 +1682,32 @@
           </table>
         </div>
       </div><!-- /acv-matrix -->
+
+      <!-- VIEW: License -->
+      <div id="acv-license" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <section class="card lg:col-span-2">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <h3 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                License Status
+              </h3>
+              <button onclick="loadLicenseStatus()" class="btn btn-ghost btn-sm">Refresh</button>
+            </div>
+            <div id="license-status-card" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div style="color:#64748b">Loading license status...</div>
+            </div>
+            <div id="license-feature-list" class="mt-4 p-3 rounded-lg text-xs" style="background:#0f172a;border:1px solid #334155;color:#94a3b8"></div>
+          </section>
+          <section class="card">
+            <h3 class="text-base font-semibold mb-3" style="color:#f1f5f9">Install License</h3>
+            <p class="text-xs mb-3" style="color:#64748b;line-height:1.6">Paste a signed license JSON. The private signing key must stay offline; this console only verifies with the configured public key.</p>
+            <textarea id="ta-license-json" class="form-input mb-3" rows="12" style="font-family:monospace;font-size:.72rem;resize:vertical" placeholder='{"algorithm":"Ed25519","payload":{...},"signature":"..."}'></textarea>
+            <div id="license-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+            <button id="btn-save-license" onclick="saveLicense()" class="btn btn-primary btn-sm">Save License</button>
+          </section>
+        </div>
+      </div><!-- /acv-license -->
 
     </div>
 
@@ -2128,6 +2159,7 @@ var allPolicies=[];
 var editMode=null; // {name, ns, scope} when editing
 var statusPollTimer=null;
 var CURRENT_TAB="policy";
+var CURRENT_LICENSE=null;
 function switchTab(tab){
   ["dashboard","policy","logs","users"].forEach(function(t){
     var p=$("tab-"+t);
@@ -2157,9 +2189,13 @@ function switchTab(tab){
       var _rc2={admin:"badge-blue",operator:"badge-amber",viewer:"badge-gray"};
       if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(_rc2[CURRENT_ROLE]||"badge-gray");}
     }
-    switchAcView("users");
     _updateUsersTabForPermissions();
-    loadUsers();
+    if(hasPerm("users:view")){
+      switchAcView("users");
+      loadUsers();
+    }else if(hasPerm("license:view")){
+      switchAcView("license");
+    }
   }
 }
 
@@ -2186,6 +2222,7 @@ function enterDashboard(){
     if(rb){rb.textContent=CURRENT_ROLE;rb.className="badge "+(roleColors[CURRENT_ROLE]||"badge-gray");}
   }).catch(function(){CURRENT_ROLE="viewer";CURRENT_PERMISSIONS=[];}).then(function(){
     applyRoleUi();
+    if(hasPerm("license:view")) loadLicenseStatus();
     loadAll();
   });
 }
@@ -4718,7 +4755,7 @@ var _allPermsData=[];   // cache from /api/roles all_permissions
 var _editingRole=null;  // null = create, string = role name being edited
 
 function switchAcView(view){
-  ["users","roles","matrix"].forEach(function(v){
+  ["users","roles","matrix","license"].forEach(function(v){
     var el=$("acv-"+v);if(el)el.classList[v===view?"remove":"add"]("hidden");
     var btn=$("acnav-"+v);
     if(btn){
@@ -4728,6 +4765,112 @@ function switchAcView(view){
   });
   if(view==="roles") loadRoles();
   if(view==="matrix") loadRolesForMatrix();
+  if(view==="license") loadLicenseStatus();
+}
+
+function _licenseBadgeClass(status){
+  if(!status) return "badge-gray";
+  if(status.valid) return status.in_grace?"badge-amber":"badge-green";
+  if(status.required&&!status.fail_open) return "badge-red";
+  return "badge-amber";
+}
+
+function _renderHeaderLicense(status){
+  var badge=$("license-badge");if(!badge)return;
+  if(!hasPerm("license:view")){badge.classList.add("hidden");return;}
+  var text="License";
+  if(status){
+    if(status.valid){
+      var p=status.payload||{};
+      text=(p.edition||"licensed")+" / "+(status.days_remaining!=null?status.days_remaining+"d":"valid");
+    }else if(status.status==="missing"){
+      text=status.required?"No license":"Dev mode";
+    }else{
+      text=status.required?"Invalid license":"License warning";
+    }
+  }
+  badge.textContent=text;
+  badge.className="badge "+_licenseBadgeClass(status);
+}
+
+function _licenseStatusRows(status){
+  var p=status.payload||{};
+  var rows=[
+    ["Status",status.status||"unknown"],
+    ["Required",status.required?"yes":"no"],
+    ["Fail open",status.fail_open?"yes":"no"],
+    ["Customer",p.customer||"—"],
+    ["Edition",p.edition||"—"],
+    ["Expires",p.expires_at||"—"],
+    ["Days remaining",status.days_remaining==null?"—":String(status.days_remaining)],
+    ["License ID",p.license_id||"—"],
+    ["Path",status.path||"—"],
+    ["Reason",status.reason||"—"]
+  ];
+  return rows.map(function(r){
+    return '<div class="p-3 rounded-lg" style="background:#0f172a;border:1px solid #334155">'
+      +'<div class="text-xs uppercase font-semibold mb-1" style="color:#475569;letter-spacing:.06em">'+esc(r[0])+'</div>'
+      +'<div class="font-mono text-xs break-all" style="color:#cbd5e1">'+esc(r[1])+'</div>'
+      +'</div>';
+  }).join("");
+}
+
+function renderLicenseStatus(status){
+  CURRENT_LICENSE=status;
+  _renderHeaderLicense(status);
+  var card=$("license-status-card");
+  if(card) card.innerHTML=_licenseStatusRows(status);
+  var feats=$("license-feature-list");
+  if(feats){
+    var p=status.payload||{};
+    var features=status.effective_features||[];
+    var limits=p.limits||{};
+    feats.innerHTML='<div class="font-semibold mb-2" style="color:#cbd5e1">Effective Features</div>'
+      +'<div class="flex flex-wrap gap-1 mb-3">'+(features.length?features.map(function(f){return '<span class="badge badge-blue">'+esc(f)+'</span>';}).join(""):'<span style="color:#64748b">No licensed features</span>')+'</div>'
+      +'<div class="font-semibold mb-2" style="color:#cbd5e1">Limits</div>'
+      +'<pre style="white-space:pre-wrap;font-family:monospace;color:#94a3b8">'+esc(JSON.stringify(limits,null,2))+'</pre>';
+  }
+  var btn=$("btn-save-license");
+  if(btn) btn.classList.toggle("hidden",!hasPerm("license:manage"));
+  var ta=$("ta-license-json");
+  if(ta) ta.disabled=!hasPerm("license:manage");
+}
+
+async function loadLicenseStatus(){
+  if(!hasPerm("license:view")) return;
+  try{
+    var r=await api("/api/license"),data=await r.json();
+    if(!r.ok) throw new Error(data.error||"Failed to load license");
+    renderLicenseStatus(data);
+  }catch(e){
+    _renderHeaderLicense({valid:false,required:true,fail_open:false,status:"error",reason:e.message});
+    var card=$("license-status-card");
+    if(card) card.innerHTML='<div class="p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5">'+esc(e.message)+'</div>';
+  }
+}
+
+async function saveLicense(){
+  if(!hasPerm("license:manage")){alert("Insufficient permissions to manage license.");return;}
+  var msg=$("license-msg");hideEl(msg);
+  var raw=($("ta-license-json")||{}).value||"";
+  if(!raw.trim()){
+    msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";
+    showEl(msg,"License JSON is required.");return;
+  }
+  var btn=$("btn-save-license");btn.disabled=true;btn.textContent="Saving...";
+  try{
+    var r=await api("/api/license",{method:"POST",body:JSON.stringify({license:raw})});
+    var data=await r.json();
+    if(!r.ok){
+      msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";
+      showEl(msg,data.error||"Failed to save license");return;
+    }
+    msg.style.background="#052e16";msg.style.border="1px solid #166534";msg.style.color="#86efac";
+    showEl(msg,"License saved and verified.");
+    renderLicenseStatus(data);
+    loadPolicyTemplates(true);
+  }catch(e){showEl(msg,e.message);}
+  finally{btn.disabled=false;btn.textContent="Save License";}
 }
 
 async function loadRoles(){
@@ -4912,12 +5055,14 @@ async function deleteRole(name){
 function _updateUsersTabForPermissions(){
   // show/hide Add User button based on permission
   if(hasPerm("users:create")){show("btn-add-user");}else{hide("btn-add-user");}
-  // show/hide access control sub-nav based on users:view permission
-  var nav=$("ac-subnav");if(nav)nav.classList[hasPerm("users:view")?"remove":"add"]("hidden");
+  // show/hide access control sub-nav if the user can access at least one view
+  var canUseAccess=hasPerm("users:view")||hasPerm("license:view");
+  var nav=$("ac-subnav");if(nav)nav.classList[canUseAccess?"remove":"add"]("hidden");
   // hide roles/matrix nav if no users:view (viewer role won't have it)
   ["acnav-roles","acnav-matrix"].forEach(function(id){
     var el=$(id);if(el)el.style.display=hasPerm("users:view")?"":"none";
   });
+  var lic=$("acnav-license");if(lic)lic.style.display=hasPerm("license:view")?"":"none";
 }
 
 async function loadUsers(){

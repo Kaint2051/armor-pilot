@@ -21,6 +21,7 @@ ALL_PERMISSIONS: frozenset = frozenset({
     "secrets:view", "secrets:create", "secrets:update", "secrets:delete",
     "users:view", "users:create", "users:update_role",
     "users:reset_password", "users:delete",
+    "license:view", "license:manage",
     "system:view", "system:health",
 })
 
@@ -30,6 +31,7 @@ _VIEWER_PERMS: frozenset = frozenset({
     "logs:view", "logs:audit", "logs:violations", "logs:apparmor",
     "models:view",
     "secrets:view",
+    "license:view",
     "system:view", "system:health",
 })
 

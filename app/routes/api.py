@@ -23,6 +23,7 @@ from ..k8s_client import (
     core_v1,
     custom_objects,
 )
+from ..license import get_license_status, save_license_text
 from ..policy_templates import get_policy_templates_payload
 
 logger = logging.getLogger(__name__)
@@ -1230,7 +1231,41 @@ def get_me():
 @api_bp.route("/policy-templates", methods=["GET"])
 @require_permission("policies:view")
 def list_policy_templates_endpoint():
-    return jsonify(get_policy_templates_payload())
+    license_status = get_license_status()
+    return jsonify({
+        **get_policy_templates_payload(license_status.get("effective_features") or []),
+        "license": {
+            "status": license_status.get("status"),
+            "required": license_status.get("required"),
+            "valid": license_status.get("valid"),
+            "fail_open": license_status.get("fail_open"),
+        },
+    })
+
+
+@api_bp.route("/license", methods=["GET"])
+@require_permission("license:view")
+def get_license_endpoint():
+    return jsonify(get_license_status())
+
+
+@api_bp.route("/license", methods=["POST"])
+@require_permission("license:manage")
+def save_license_endpoint():
+    body = request.get_json(silent=True) or {}
+    raw = body.get("license") or body.get("text") or body.get("json")
+    if isinstance(raw, dict):
+        raw = json.dumps(raw)
+    if not isinstance(raw, str):
+        return jsonify({"error": "license JSON string is required"}), 400
+    try:
+        status = save_license_text(raw)
+    except json.JSONDecodeError as exc:
+        return jsonify({"error": f"invalid license JSON: {exc}"}), 400
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    audit_logger.log(get_current_user(), "UPDATE_LICENSE", "license", "system", "SUCCESS", status.get("status"))
+    return jsonify(status)
 
 
 @api_bp.route("/users", methods=["GET"])
@@ -2928,4 +2963,3 @@ def advise_policy(namespace: str, name: str):
         "suggestions": suggestions,
         "total": len(suggestions),
     })
-

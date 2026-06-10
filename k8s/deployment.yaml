@@ -42,6 +42,16 @@ spec:
               value: /var/log-host/kern.log
             - name: VARMOR_VIOLATION_LOG_PATH
               value: /var/log-varmor/violations.log
+            - name: VARMOR_LICENSE_FILE
+              value: /app/data/license.json
+            - name: VARMOR_LICENSE_REQUIRED
+              value: "false"
+            - name: VARMOR_LICENSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: varmor-console-secret
+                  key: VARMOR_LICENSE_PUBLIC_KEY
+                  optional: true
 
           volumeMounts:
             - name: kern-log
