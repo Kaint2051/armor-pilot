@@ -80,7 +80,10 @@ def _load_ed25519_public_key():
 
 def _verify_ed25519(payload: dict[str, Any], signature: str) -> None:
     key = _load_ed25519_public_key()
-    key.verify(_b64url_decode(signature), _canonical_payload(payload))
+    try:
+        key.verify(_b64url_decode(signature), _canonical_payload(payload))
+    except Exception as exc:
+        raise ValueError("license signature is invalid") from exc
 
 
 def _safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
