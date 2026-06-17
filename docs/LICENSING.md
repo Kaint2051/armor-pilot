@@ -1,7 +1,9 @@
 # vArmor Console Licensing
 
-The console verifies signed JSON licenses. Keep the private key offline; the
-product only needs the public key.
+The console verifies signed JSON licenses. Keep the private key offline. The
+production product should embed the Ed25519 public key in the backend build so
+customers cannot replace the trust anchor through the web UI or a Kubernetes
+Secret.
 
 ## Generate Signing Keys
 
@@ -11,8 +13,10 @@ python tools/license_tool.py gen-key \
   --public-key license-public.pem
 ```
 
-The command prints `VARMOR_LICENSE_PUBLIC_KEY`. Put that value in the
-`varmor-console-secret` Kubernetes Secret.
+The command prints `VARMOR_LICENSE_PUBLIC_KEY`. For production, replace
+`EMBEDDED_LICENSE_PUBLIC_KEY` in `app/license.py` before building the product
+image. For development only, you can set `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY=true`
+and provide `VARMOR_LICENSE_PUBLIC_KEY` through the environment.
 
 ## Sign a Customer License
 
@@ -52,15 +56,18 @@ python tools/license_tool.py verify \
 
 Set these environment variables in the console deployment:
 
-- `VARMOR_LICENSE_PUBLIC_KEY`: base64 Ed25519 public key.
 - `VARMOR_LICENSE_FILE`: path to the uploaded license file, default `/app/data/license.json`.
 - `VARMOR_LICENSE_REQUIRED`: `true` to enforce licensed features.
-- `VARMOR_LICENSE_FAIL_OPEN`: optional. Defaults to `false` when license is required, `true` otherwise.
+- `VARMOR_LICENSE_FAIL_OPEN`: set to `false` for commercial builds.
+- `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY`: development escape hatch only. Keep `false` in production.
+- `VARMOR_LICENSE_PUBLIC_KEY`: base64 Ed25519 public key, used only when the env public-key override is enabled.
+- `VARMOR_LICENSE_ALLOW_HS256`: development/testing only. Keep `false` in production.
 - `VARMOR_CLUSTER_UID`: optional override for cluster binding checks. If unset, the console reports the `kube-system` namespace UID as the runtime cluster UID.
 
-When enforcement is enabled and the license is missing or invalid, premium
-template packs are hidden. Existing core policy operations remain available.
-See `docs/OPEN_CORE.md` for the Community/Enterprise edition split.
+When enforcement is enabled with `VARMOR_LICENSE_FAIL_OPEN=false`, a missing or
+invalid license hides premium template packs and blocks policy-creation paths
+that would add new protected workloads. Set fail-open only for development or
+community-style evaluation builds.
 
 ## Runtime Usage And Limits
 

@@ -45,13 +45,13 @@ spec:
             - name: VARMOR_LICENSE_FILE
               value: /app/data/license.json
             - name: VARMOR_LICENSE_REQUIRED
+              value: "true"
+            - name: VARMOR_LICENSE_FAIL_OPEN
               value: "false"
-            - name: VARMOR_LICENSE_PUBLIC_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: varmor-console-secret
-                  key: VARMOR_LICENSE_PUBLIC_KEY
-                  optional: true
+            - name: VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY
+              value: "false"
+            - name: VARMOR_LICENSE_ALLOW_HS256
+              value: "false"
 
           volumeMounts:
             - name: kern-log
