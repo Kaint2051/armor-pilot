@@ -100,6 +100,13 @@ def _safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _int_limit(limits: dict[str, Any], name: str) -> int:
+    try:
+        return int(limits.get(name) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _base_status() -> dict[str, Any]:
     required = _bool_env("VARMOR_LICENSE_REQUIRED", False)
     fail_open = _bool_env("VARMOR_LICENSE_FAIL_OPEN", not required)
@@ -115,6 +122,11 @@ def _base_status() -> dict[str, Any]:
         "effective_features": ["*"] if fail_open else [],
         "days_remaining": None,
         "in_grace": False,
+        "compliant": True,
+        "warnings": [],
+        "violations": [],
+        "usage": {},
+        "limit_status": {},
     }
 
 
@@ -179,7 +191,12 @@ def get_license_status() -> dict[str, Any]:
             "days_remaining": verified["days_remaining"],
             "in_grace": verified["in_grace"],
             "algorithm": doc.get("algorithm") or doc.get("alg") or "Ed25519",
+            "compliant": True,
         })
+        if status["in_grace"]:
+            status["warnings"].append("license is in grace period")
+        elif status["days_remaining"] is not None and status["days_remaining"] <= 30:
+            status["warnings"].append("license expires within 30 days")
         if "*" in features:
             status["effective_features"] = ["*"]
         return status
@@ -190,6 +207,56 @@ def get_license_status() -> dict[str, Any]:
             "effective_features": ["*"] if status["fail_open"] else [],
         })
         return status
+
+
+def attach_runtime_usage(status: dict[str, Any], usage: dict[str, Any] | None) -> dict[str, Any]:
+    status = dict(status)
+    usage = usage or {}
+    status["usage"] = usage
+    limit_status: dict[str, Any] = {}
+    violations = list(status.get("violations") or [])
+    warnings = list(status.get("warnings") or [])
+    payload = status.get("payload") or {}
+    limits = payload.get("limits") or {}
+
+    for limit_key, usage_key in (("max_nodes", "nodes"), ("max_policies", "policies")):
+        limit = _int_limit(limits, limit_key)
+        current = int(usage.get(usage_key) or 0)
+        ok = limit <= 0 or current <= limit
+        limit_status[limit_key] = {
+            "limit": limit,
+            "current": current,
+            "ok": ok,
+        }
+        if limit > 0 and current > limit:
+            violations.append(f"{usage_key} usage {current} exceeds {limit_key}={limit}")
+        elif limit > 0 and current >= max(1, int(limit * 0.8)):
+            warnings.append(f"{usage_key} usage {current} is near {limit_key}={limit}")
+
+    status["limit_status"] = limit_status
+    status["warnings"] = sorted(set(warnings))
+    status["violations"] = sorted(set(violations))
+    status["compliant"] = not status["violations"]
+    if status.get("valid") and not status["compliant"]:
+        status["status"] = "limit_exceeded"
+        status["reason"] = "license limits exceeded"
+    return status
+
+
+def can_add_policies(status: dict[str, Any], count: int = 1) -> tuple[bool, str | None]:
+    if count <= 0:
+        return True, None
+    if not status.get("valid"):
+        return True, None
+    payload = status.get("payload") or {}
+    limits = payload.get("limits") or {}
+    limit = _int_limit(limits, "max_policies")
+    if limit <= 0:
+        return True, None
+    current = int((status.get("usage") or {}).get("policies") or 0)
+    if current + count > limit:
+        return False, f"License policy limit exceeded: current={current}, requested={count}, max_policies={limit}"
+    return True, None
 
 
 def is_feature_enabled(feature: str) -> bool:
