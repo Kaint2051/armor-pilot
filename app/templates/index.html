@@ -4852,7 +4852,7 @@ async function loadLicenseStatus(){
     if(!r.ok) throw new Error(data.error||"Failed to load license");
     renderLicenseStatus(data);
   }catch(e){
-    _renderHeaderLicense({valid:false,required:true,fail_open:false,status:"error",reason:e.message});
+    if(CURRENT_LICENSE) _renderHeaderLicense(CURRENT_LICENSE);
     var card=$("license-status-card");
     if(card) card.innerHTML='<div class="p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5">'+esc(e.message)+'</div>';
   }
@@ -4878,7 +4878,7 @@ async function saveLicense(){
     showEl(msg,"License saved and verified.");
     renderLicenseStatus(data);
     loadPolicyTemplates(true);
-  }catch(e){showEl(msg,e.message);}
+  }catch(e){msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";showEl(msg,e.message);}
   finally{btn.disabled=false;btn.textContent="Save License";}
 }
 

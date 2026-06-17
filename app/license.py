@@ -72,16 +72,21 @@ def _load_ed25519_public_key():
             raise ValueError("VARMOR_LICENSE_PUBLIC_KEY is not an Ed25519 public key")
         return key
     try:
-        raw = base64.b64decode(public_key)
-    except binascii.Error:
+        raw = base64.b64decode(public_key, validate=True)
+    except (binascii.Error, ValueError):
         raw = _b64url_decode(public_key)
-    return Ed25519PublicKey.from_public_bytes(raw)
+    try:
+        return Ed25519PublicKey.from_public_bytes(raw)
+    except Exception as exc:
+        raise ValueError(f"VARMOR_LICENSE_PUBLIC_KEY is not a valid Ed25519 public key: {exc}") from exc
 
 
 def _verify_ed25519(payload: dict[str, Any], signature: str) -> None:
-    key = _load_ed25519_public_key()
     try:
+        key = _load_ed25519_public_key()
         key.verify(_b64url_decode(signature), _canonical_payload(payload))
+    except ValueError:
+        raise
     except Exception as exc:
         raise ValueError("license signature is invalid") from exc
 
@@ -194,6 +199,8 @@ def get_license_status() -> dict[str, Any]:
             "compliant": True,
         })
         if status["in_grace"]:
+            status["status"] = "in_grace"
+            status["reason"] = "license is in grace period"
             status["warnings"].append("license is in grace period")
         elif status["days_remaining"] is not None and status["days_remaining"] <= 30:
             status["warnings"].append("license expires within 30 days")
@@ -247,6 +254,9 @@ def can_add_policies(status: dict[str, Any], count: int = 1) -> tuple[bool, str 
     if count <= 0:
         return True, None
     if not status.get("valid"):
+        # When no valid license: respect fail_open — fail-closed deployments block everything
+        if not status.get("fail_open", True):
+            return False, "A valid license is required to create policies"
         return True, None
     payload = status.get("payload") or {}
     limits = payload.get("limits") or {}
