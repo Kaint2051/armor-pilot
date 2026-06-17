@@ -234,6 +234,30 @@ def _parse_policy_item(item: dict, scope: str = "namespace", ns_fallback: str = 
     }
 
 
+def _patch_sandbox_label(namespace: str, kind: str, name: str) -> None:
+    """Add sandbox.varmor.org/enable=true to workload and trigger rolling restart."""
+    if not name:
+        return
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    label_patch = {"metadata": {"labels": {"sandbox.varmor.org/enable": "true"}}}
+    restart_patch = {"spec": {"template": {"metadata": {"annotations": {
+        "kubectl.kubernetes.io/restartedAt": now
+    }}}}}
+    try:
+        api = apps_v1()
+        if kind == "Deployment":
+            api.patch_namespaced_deployment(name=name, namespace=namespace, body=label_patch)
+            api.patch_namespaced_deployment(name=name, namespace=namespace, body=restart_patch)
+        elif kind == "StatefulSet":
+            api.patch_namespaced_stateful_set(name=name, namespace=namespace, body=label_patch)
+            api.patch_namespaced_stateful_set(name=name, namespace=namespace, body=restart_patch)
+        elif kind == "DaemonSet":
+            api.patch_namespaced_daemon_set(name=name, namespace=namespace, body=label_patch)
+            api.patch_namespaced_daemon_set(name=name, namespace=namespace, body=restart_patch)
+    except Exception as exc:
+        logger.warning("Failed to patch sandbox label on %s/%s/%s: %s", kind, namespace, name, exc)
+
+
 def _patch_unconfined_annotations(namespace: str, kind: str, name: str, containers: list[str]) -> None:
     """Patch workload annotations for container-level unconfined AppArmor override."""
     if not name or not containers:
@@ -1197,10 +1221,13 @@ def create_policy():
             msg = f"Policy '{actual}' created successfully"
             if actual != raw_name:
                 msg += f" (name sanitized from '{raw_name}')"
+            target_kind = (body.get("target_kind") or "Deployment").strip()
+            target_name = (body.get("target_deployment") or "").strip()
+            # Auto-enable sandbox label on named target so pods are protected immediately
+            if target_name:
+                _patch_sandbox_label(namespace, target_kind, target_name)
             # Apply container unconfined annotations if requested
             if unconfined_containers:
-                target_kind = (body.get("target_kind") or "Deployment").strip()
-                target_name = (body.get("target_deployment") or "").strip()
                 _patch_unconfined_annotations(namespace, target_kind, target_name, unconfined_containers)
             return jsonify({"message": msg, "name": actual}), 201
         except ApiException as exc:
