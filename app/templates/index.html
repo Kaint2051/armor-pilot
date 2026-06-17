@@ -424,7 +424,6 @@
               <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
                 <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                 Active Policies
-                <span id="auto-refresh-badge" class="hidden badge badge-purple" style="font-size:.65rem;padding:.15rem .45rem">&#x21BB; auto-refreshing</span>
               </h2>
               <div class="flex items-center gap-2">
                 <button onclick="loadPolicies()" class="btn btn-ghost btn-sm">
@@ -2157,7 +2156,6 @@ var pendingDel={name:null,ns:null,scope:null};
 var pendingProtect={name:null,ns:null};
 var allPolicies=[];
 var editMode=null; // {name, ns, scope} when editing
-var statusPollTimer=null;
 var CURRENT_TAB="policy";
 var CURRENT_LICENSE=null;
 function switchTab(tab){
@@ -3431,14 +3429,6 @@ async function loadPolicies(){
     if(r2.status==="fulfilled"){var d2=await r2.value.json();if(r2.value.ok) combined=combined.concat(d2.policies||[]);}
     allPolicies=combined;
     renderPolicies(allPolicies);
-    var hasPending=combined.some(function(p){return p.status!=="Ready";});
-    if(hasPending&&!statusPollTimer){
-      statusPollTimer=setInterval(loadPolicies,5000);
-      show("auto-refresh-badge");
-    }else if(!hasPending&&statusPollTimer){
-      clearInterval(statusPollTimer);statusPollTimer=null;
-      hide("auto-refresh-badge");
-    }
   }catch(err){setLoading("pol",false);showEl($("pol-err"),err.message);}
 }
 
@@ -4613,7 +4603,7 @@ $("form-create").addEventListener("submit",async function(e){
       if(hasAppArmor&&!editMode){okMsg+=" AppArmor enforcement applies to new/restarted pods — restart the target deployment to enforce immediately.";}
       showMsg(msgEl,"success",okMsg);
     }
-    setTimeout(function(){cancelEdit();loadAll();if(!statusPollTimer){statusPollTimer=setInterval(loadPolicies,5000);show("auto-refresh-badge");}},1500);
+    setTimeout(function(){cancelEdit();loadAll();},1500);
   }catch(err){setStep("policy","fail");progEl.classList.add("hidden");showMsg(msgEl,"error",err.message);}
   finally{btn.disabled=false;}
 });
