@@ -32,6 +32,14 @@ python tools/license_tool.py sign \
 
 Use `--features "*"` for a full enterprise license.
 
+Open-core enterprise feature flags currently implemented:
+
+- `templates:data_protection`
+- `templates:platform_infra`
+- `templates:incident_response`
+- `templates:*` for every enterprise template pack
+- `*` for internal/full-access licenses
+
 ## Verify Before Delivery
 
 ```bash
@@ -51,3 +59,4 @@ Set these environment variables in the console deployment:
 
 When enforcement is enabled and the license is missing or invalid, premium
 template packs are hidden. Existing core policy operations remain available.
+See `docs/OPEN_CORE.md` for the Community/Enterprise edition split.

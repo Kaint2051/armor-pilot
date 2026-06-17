@@ -1,53 +1,63 @@
 import copy
 
+from .product import CORE_EDITION, ENTERPRISE_EDITION
+
 
 PACKS = [
     {
         "id": "baseline",
         "name": "Baseline Hardening",
         "description": "Production-ready guardrails for common Kubernetes workloads.",
+        "edition": CORE_EDITION,
         "order": 10,
     },
     {
         "id": "cve",
         "name": "CVE Mitigation",
         "description": "Focused mitigations for common container escape and kernel attack paths.",
+        "edition": CORE_EDITION,
         "order": 20,
     },
     {
         "id": "compliance",
         "name": "Compliance",
         "description": "Least-privilege templates aligned with audit and regulated workload needs.",
+        "edition": CORE_EDITION,
         "order": 30,
     },
     {
         "id": "workload",
         "name": "Workload Type",
         "description": "Starting policies for common application runtime patterns.",
+        "edition": CORE_EDITION,
         "order": 40,
     },
     {
         "id": "network",
         "name": "Network Egress",
         "description": "NetworkProxy and BPF egress-control templates.",
+        "edition": CORE_EDITION,
         "order": 50,
     },
     {
         "id": "data-protection",
         "name": "Data Protection",
         "description": "Templates for keys, credentials, backup paths, and sensitive data workflows.",
+        "edition": ENTERPRISE_EDITION,
         "order": 55,
     },
     {
         "id": "platform-infra",
         "name": "Platform Infrastructure",
         "description": "Templates for cluster add-ons, data services, auth, DNS, CSI, and CNI components.",
+        "edition": ENTERPRISE_EDITION,
         "order": 60,
     },
     {
         "id": "incident-response",
         "name": "Incident Response",
         "description": "Containment templates for active compromise and emergency lockdown.",
+        "edition": ENTERPRISE_EDITION,
         "order": 80,
     },
 ]
@@ -2396,13 +2406,24 @@ def _pack_allowed(pack_id: str, features: set[str] | None) -> bool:
     return _feature_allowed(features, feature)
 
 
+def _decorate_pack(pack: dict, features: set[str] | None) -> dict:
+    item = copy.deepcopy(pack)
+    feature = PACK_LICENSE_FEATURES.get(item["id"])
+    item["license_feature"] = feature
+    item["locked"] = not _pack_allowed(item["id"], features)
+    return item
+
+
 def get_policy_templates_payload(enabled_features: list[str] | None = None) -> dict:
     feature_set = set(enabled_features or []) if enabled_features is not None else None
-    packs = [p for p in PACKS if _pack_allowed(p["id"], feature_set)]
+    visible_packs = [p for p in PACKS if _pack_allowed(p["id"], feature_set)]
+    locked_packs = [p for p in PACKS if not _pack_allowed(p["id"], feature_set)]
+    packs = [_decorate_pack(p, feature_set) for p in visible_packs]
     pack_ids = {p["id"] for p in packs}
     templates = [t for t in TEMPLATES if t.get("pack") in pack_ids]
     return {
-        "packs": copy.deepcopy(packs),
+        "packs": packs,
+        "locked_packs": [_decorate_pack(p, feature_set) for p in locked_packs],
         "templates": copy.deepcopy(templates),
         "total": len(templates),
         "available_total": len(TEMPLATES),
