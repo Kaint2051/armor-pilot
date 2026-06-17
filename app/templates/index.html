@@ -4795,7 +4795,9 @@ function _renderHeaderLicense(status){
 
 function _licenseStatusRows(status){
   var p=status.payload||{};
+  var product=status.product||{};
   var rows=[
+    ["Product edition",product.effective_edition||"community"],
     ["Status",status.status||"unknown"],
     ["Required",status.required?"yes":"no"],
     ["Fail open",status.fail_open?"yes":"no"],

@@ -25,6 +25,7 @@ from ..k8s_client import (
 )
 from ..license import get_license_status, save_license_text
 from ..policy_templates import get_policy_templates_payload
+from ..product import get_product_payload
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -1246,7 +1247,18 @@ def list_policy_templates_endpoint():
 @api_bp.route("/license", methods=["GET"])
 @require_permission("license:view")
 def get_license_endpoint():
-    return jsonify(get_license_status())
+    status = get_license_status()
+    return jsonify({
+        **status,
+        "product": get_product_payload(status),
+    })
+
+
+@api_bp.route("/product", methods=["GET"])
+@require_auth
+def get_product_endpoint():
+    status = get_license_status()
+    return jsonify(get_product_payload(status))
 
 
 @api_bp.route("/license", methods=["POST"])
