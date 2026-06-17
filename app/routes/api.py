@@ -23,7 +23,7 @@ from ..k8s_client import (
     core_v1,
     custom_objects,
 )
-from ..license import get_license_status, save_license_text
+from ..license import attach_runtime_usage, can_add_policies, get_license_status, save_license_text
 from ..policy_templates import get_policy_templates_payload
 from ..product import get_product_payload
 
@@ -83,6 +83,87 @@ VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
 VALID_LABEL_SELECTOR_OPERATORS = frozenset(["In", "NotIn", "Exists", "DoesNotExist"])
 VALID_QUEUE_STATUSES = frozenset(["pending", "approved", "rejected", "cancelled"])
 POLICY_BACKUP_VERSION = "varmor-console-backup/v1"
+
+
+def _license_runtime_usage() -> dict:
+    usage = {
+        "cluster_uid": os.environ.get("VARMOR_CLUSTER_UID", "").strip() or None,
+        "nodes": 0,
+        "policies": 0,
+        "namespace_policies": 0,
+        "cluster_policies": 0,
+        "namespaces": 0,
+        "errors": [],
+    }
+    try:
+        ns_obj = core_v1().read_namespace("kube-system")
+        if ns_obj and ns_obj.metadata and ns_obj.metadata.uid:
+            usage["cluster_uid"] = ns_obj.metadata.uid
+    except Exception as exc:
+        usage["errors"].append(f"cluster_uid unavailable: {exc}")
+    try:
+        usage["nodes"] = len(core_v1().list_node().items)
+    except Exception as exc:
+        usage["errors"].append(f"node count unavailable: {exc}")
+    try:
+        namespaces = core_v1().list_namespace().items
+        usage["namespaces"] = len(namespaces)
+        for ns_item in namespaces:
+            ns_name = ns_item.metadata.name
+            try:
+                raw = custom_objects().list_namespaced_custom_object(
+                    group=VARMOR_GROUP, version=VARMOR_VERSION,
+                    namespace=ns_name, plural=VARMOR_PLURAL,
+                )
+                usage["namespace_policies"] += len(raw.get("items", []))
+            except ApiException as exc:
+                if exc.status not in (403, 404):
+                    usage["errors"].append(f"namespace policy count failed for {ns_name}: {_k8s_error_msg(exc)}")
+            except Exception as exc:
+                usage["errors"].append(f"namespace policy count failed for {ns_name}: {exc}")
+    except Exception as exc:
+        usage["errors"].append(f"namespace list unavailable: {exc}")
+    try:
+        raw = custom_objects().list_cluster_custom_object(
+            group=VARMOR_GROUP, version=VARMOR_VERSION, plural=VARMOR_CLUSTER_PLURAL,
+        )
+        usage["cluster_policies"] = len(raw.get("items", []))
+    except ApiException as exc:
+        if exc.status not in (403, 404):
+            usage["errors"].append(f"cluster policy count failed: {_k8s_error_msg(exc)}")
+    except Exception as exc:
+        usage["errors"].append(f"cluster policy count failed: {exc}")
+    usage["policies"] = usage["namespace_policies"] + usage["cluster_policies"]
+    return usage
+
+
+def _license_status_with_usage() -> dict:
+    return attach_runtime_usage(get_license_status(), _license_runtime_usage())
+
+
+def _policy_capacity_error(count: int = 1) -> str | None:
+    ok, err = can_add_policies(_license_status_with_usage(), count)
+    return None if ok else err
+
+
+def _new_policy_count_for_manifests(manifests: list[dict], conflict_action: str = "create") -> int:
+    count = 0
+    seen: set[tuple[str, str, str]] = set()
+    for manifest in manifests:
+        if not manifest:
+            continue
+        ident = _backup_manifest_identity(manifest)
+        key = (ident["scope"], ident["namespace"], ident["name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        exists, err = _policy_manifest_exists(manifest)
+        if err:
+            continue
+        if exists:
+            continue
+        count += 1
+    return count
 
 
 def _clean_str_list(values) -> list[str]:
@@ -1190,6 +1271,9 @@ def create_policy():
     manifest, err = _build_manifest_from_body(body, scope, name, namespace)
     if err:
         return jsonify({"error": err}), 400
+    capacity_err = _policy_capacity_error(_new_policy_count_for_manifests([manifest]))
+    if capacity_err:
+        return jsonify({"error": capacity_err, "license": _license_status_with_usage()}), 403
 
     unconfined_containers: list = _clean_str_list(body.get("unconfined_containers") or [])
 
@@ -1259,7 +1343,7 @@ def get_me():
 @api_bp.route("/policy-templates", methods=["GET"])
 @require_permission("policies:view")
 def list_policy_templates_endpoint():
-    license_status = get_license_status()
+    license_status = _license_status_with_usage()
     return jsonify({
         **get_policy_templates_payload(license_status.get("effective_features") or []),
         "license": {
@@ -1274,7 +1358,7 @@ def list_policy_templates_endpoint():
 @api_bp.route("/license", methods=["GET"])
 @require_permission("license:view")
 def get_license_endpoint():
-    status = get_license_status()
+    status = _license_status_with_usage()
     return jsonify({
         **status,
         "product": get_product_payload(status),
@@ -1284,7 +1368,7 @@ def get_license_endpoint():
 @api_bp.route("/product", methods=["GET"])
 @require_auth
 def get_product_endpoint():
-    status = get_license_status()
+    status = _license_status_with_usage()
     return jsonify(get_product_payload(status))
 
 
@@ -1298,7 +1382,8 @@ def save_license_endpoint():
     if not isinstance(raw, str):
         return jsonify({"error": "license JSON string is required"}), 400
     try:
-        status = save_license_text(raw)
+        save_license_text(raw)
+        status = _license_status_with_usage()
     except json.JSONDecodeError as exc:
         return jsonify({"error": f"invalid license JSON: {exc}"}), 400
     except ValueError as exc:
@@ -2240,6 +2325,9 @@ def approve_queued_policy(item_id: str):
         if _merr:
             return jsonify({"error": f"Cannot rebuild policy manifest: {_merr}"}), 400
         unconfined_containers = _clean_str_list(stored.get("unconfined_containers") or [])
+    capacity_err = _policy_capacity_error(_new_policy_count_for_manifests([manifest]))
+    if capacity_err:
+        return jsonify({"error": capacity_err, "license": _license_status_with_usage()}), 403
     def _do_apply():
         """Create policy; if it already exists, patch-update it instead."""
         if scope == "cluster":
@@ -2416,6 +2504,10 @@ def restore_policies():
     entries, err = _backup_payload_entries(body.get("backup", body))
     if err:
         return jsonify({"error": err}), 400
+    manifests_for_limit = [entry["manifest"] for entry in entries if not entry.get("error") and entry.get("manifest")]
+    capacity_err = _policy_capacity_error(_new_policy_count_for_manifests(manifests_for_limit, conflict_action))
+    if capacity_err:
+        return jsonify({"error": capacity_err, "license": _license_status_with_usage()}), 403
 
     results = []
     for entry in entries:
@@ -2855,6 +2947,9 @@ def import_policy():
 
     # Ensure correct apiVersion
     manifest["apiVersion"] = f"{VARMOR_GROUP}/{VARMOR_VERSION}"
+    capacity_err = _policy_capacity_error(_new_policy_count_for_manifests([manifest]))
+    if capacity_err:
+        return jsonify({"error": capacity_err, "license": _license_status_with_usage()}), 403
 
     try:
         if kind == "VarmorClusterPolicy":

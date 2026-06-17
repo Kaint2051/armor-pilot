@@ -4760,7 +4760,8 @@ function switchAcView(view){
 
 function _licenseBadgeClass(status){
   if(!status) return "badge-gray";
-  if(status.valid) return status.in_grace?"badge-amber":"badge-green";
+  if(status.violations&&status.violations.length) return "badge-red";
+  if(status.valid) return (status.in_grace||(status.warnings&&status.warnings.length))?"badge-amber":"badge-green";
   if(status.required&&!status.fail_open) return "badge-red";
   return "badge-amber";
 }
@@ -4770,7 +4771,9 @@ function _renderHeaderLicense(status){
   if(!hasPerm("license:view")){badge.classList.add("hidden");return;}
   var text="License";
   if(status){
-    if(status.valid){
+    if(status.status==="limit_exceeded"){
+      text="License limit";
+    }else if(status.valid){
       var p=status.payload||{};
       text=(p.edition||"licensed")+" / "+(status.days_remaining!=null?status.days_remaining+"d":"valid");
     }else if(status.status==="missing"){
@@ -4786,9 +4789,14 @@ function _renderHeaderLicense(status){
 function _licenseStatusRows(status){
   var p=status.payload||{};
   var product=status.product||{};
+  var usage=status.usage||{};
   var rows=[
     ["Product edition",product.effective_edition||"community"],
     ["Status",status.status||"unknown"],
+    ["Compliant",status.compliant===false?"no":"yes"],
+    ["Cluster UID",usage.cluster_uid||p.cluster_uid||"n/a"],
+    ["Nodes",usage.nodes==null?"n/a":String(usage.nodes)],
+    ["Policies",usage.policies==null?"n/a":String(usage.policies)],
     ["Required",status.required?"yes":"no"],
     ["Fail open",status.fail_open?"yes":"no"],
     ["Customer",p.customer||"—"],
@@ -4817,10 +4825,19 @@ function renderLicenseStatus(status){
     var p=status.payload||{};
     var features=status.effective_features||[];
     var limits=p.limits||{};
-    feats.innerHTML='<div class="font-semibold mb-2" style="color:#cbd5e1">Effective Features</div>'
+    var usage=status.usage||{};
+    var limitStatus=status.limit_status||{};
+    var warnings=status.warnings||[];
+    var violations=status.violations||[];
+    var warnHtml=warnings.length?'<div class="mb-3 p-2 rounded" style="background:#1c1200;border:1px solid #713f12;color:#fde68a">'+warnings.map(esc).join('<br>')+'</div>':'';
+    var violHtml=violations.length?'<div class="mb-3 p-2 rounded" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5">'+violations.map(esc).join('<br>')+'</div>':'';
+    feats.innerHTML=violHtml+warnHtml
+      +'<div class="font-semibold mb-2" style="color:#cbd5e1">Effective Features</div>'
       +'<div class="flex flex-wrap gap-1 mb-3">'+(features.length?features.map(function(f){return '<span class="badge badge-blue">'+esc(f)+'</span>';}).join(""):'<span style="color:#64748b">No licensed features</span>')+'</div>'
+      +'<div class="font-semibold mb-2" style="color:#cbd5e1">Runtime Usage</div>'
+      +'<pre style="white-space:pre-wrap;font-family:monospace;color:#94a3b8">'+esc(JSON.stringify(usage,null,2))+'</pre>'
       +'<div class="font-semibold mb-2" style="color:#cbd5e1">Limits</div>'
-      +'<pre style="white-space:pre-wrap;font-family:monospace;color:#94a3b8">'+esc(JSON.stringify(limits,null,2))+'</pre>';
+      +'<pre style="white-space:pre-wrap;font-family:monospace;color:#94a3b8">'+esc(JSON.stringify({configured:limits,status:limitStatus},null,2))+'</pre>';
   }
   var btn=$("btn-save-license");
   if(btn) btn.classList.toggle("hidden",!hasPerm("license:manage"));
