@@ -41,7 +41,8 @@ Use `templates:*` or `*` only for full-enterprise/internal licenses.
 
 When `VARMOR_LICENSE_REQUIRED=true`:
 
-- Missing or invalid license = Community edition.
+- Missing or invalid license with `VARMOR_LICENSE_FAIL_OPEN=false` = fail-closed commercial mode.
+- Missing or invalid license with fail-open enabled = Community/evaluation behavior.
 - Valid license = Enterprise features listed in the signed license are enabled.
 - Locked enterprise packs are hidden from `/api/policy-templates` and returned as `locked_packs`.
 

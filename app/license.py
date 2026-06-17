@@ -11,6 +11,11 @@ from typing import Any
 
 LICENSE_FILE = os.environ.get("VARMOR_LICENSE_FILE", "/app/data/license.json")
 
+# Public keys are safe to distribute, but they are the license trust anchor.
+# For production builds, replace this test key with the vendor Ed25519 public key
+# and keep VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY disabled.
+EMBEDDED_LICENSE_PUBLIC_KEY = "OrsGfpk+/4XCzmE/m/CGhXSRFrKgQz8GQqSBcmA/5IE="
+
 
 def _bool_env(name: str, default: bool) -> bool:
     raw = os.environ.get(name)
@@ -49,6 +54,8 @@ def _b64url_decode(value: str) -> bytes:
 
 
 def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
+    if not _bool_env("VARMOR_LICENSE_ALLOW_HS256", False):
+        raise ValueError("HS256 licenses are disabled")
     secret = os.environ.get("VARMOR_LICENSE_HMAC_SECRET", "")
     if not secret:
         raise ValueError("VARMOR_LICENSE_HMAC_SECRET is not configured")
@@ -58,9 +65,11 @@ def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
 
 
 def _load_ed25519_public_key():
-    public_key = os.environ.get("VARMOR_LICENSE_PUBLIC_KEY", "").strip()
+    public_key = EMBEDDED_LICENSE_PUBLIC_KEY.strip()
+    if _bool_env("VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY", False):
+        public_key = os.environ.get("VARMOR_LICENSE_PUBLIC_KEY", "").strip() or public_key
     if not public_key:
-        raise ValueError("VARMOR_LICENSE_PUBLIC_KEY is not configured")
+        raise ValueError("license public key is not configured")
     try:
         from cryptography.hazmat.primitives.serialization import load_pem_public_key
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey

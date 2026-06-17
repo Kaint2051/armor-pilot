@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local license material. Keep signing keys outside source control.
+license-test/
+license-private.pem
+license-public.pem
+customer-license*.json
+test-*-license.json
