@@ -459,6 +459,15 @@
                 <tbody id="pol-body"></tbody>
               </table>
             </div>
+            <!-- Pagination -->
+            <div id="pol-pagination" class="hidden mt-3 flex items-center justify-between" style="font-size:.8rem;color:#64748b">
+              <span id="pol-page-info"></span>
+              <div class="flex items-center gap-1">
+                <button id="pol-btn-prev" onclick="polGoTo(polPage-1)" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem;min-height:0">&#8592; Prev</button>
+                <span id="pol-page-nums" class="flex gap-1"></span>
+                <button id="pol-btn-next" onclick="polGoTo(polPage+1)" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem;min-height:0">Next &#8594;</button>
+              </div>
+            </div>
           </section>
 
           <!-- BEHAVIOR MODELS -->
@@ -2248,6 +2257,9 @@ var AUTH_HEADER=null,CURRENT_USER=null,CURRENT_ROLE="viewer";
 var pendingDel={name:null,ns:null,scope:null};
 var pendingProtect={name:null,ns:null};
 var allPolicies=[];
+var polFiltered=[];
+var polPage=1;
+var POL_PAGE_SIZE=10;
 var editMode=null; // {name, ns, scope} when editing
 var CURRENT_TAB="policy";
 var CURRENT_LICENSE=null;
@@ -3526,6 +3538,7 @@ async function loadPolicies(){
 }
 
 function filterPolicies(){
+  polPage=1;
   var q=($("inp-search").value||"").toLowerCase();
   if(!q){renderPolicies(allPolicies);return;}
   renderPolicies(allPolicies.filter(function(p){
@@ -3534,14 +3547,27 @@ function filterPolicies(){
   }));
 }
 
-function renderPolicies(pols){
+function polGoTo(page){
+  var totalPages=Math.ceil(polFiltered.length/POL_PAGE_SIZE)||1;
+  polPage=Math.max(1,Math.min(page,totalPages));
+  _renderPoliciesPage();
+}
+
+function _renderPoliciesPage(){
+  var pols=polFiltered;
+  var totalPages=Math.ceil(pols.length/POL_PAGE_SIZE)||1;
+  var start=(polPage-1)*POL_PAGE_SIZE;
+  var pageItems=pols.slice(start,start+POL_PAGE_SIZE);
+
   $("pol-body").innerHTML="";
   if($("chk-all")) $("chk-all").checked=false;
   updateBatchBar();
-  if(!pols.length){show("pol-empty");return;}
+
+  if(!pols.length){show("pol-empty");hide("pol-pagination");return;}
   hide("pol-empty");
+
   var cEdit=canEdit(),cDel=canDelete();
-  pols.forEach(function(p){
+  pageItems.forEach(function(p){
     var rdy=p.status==="Ready";
     var isPending=p.status==="Pending";
     var statusMsg=p.status_message||"";
@@ -3550,7 +3576,6 @@ function renderPolicies(pols){
     var sbLabel=rdy?"Ready":esc(p.status||"Pending");
     var tooltipAttr=(!rdy&&statusMsg)?' title="'+esc(statusMsg)+'" style="cursor:help"':"";
     var sb='<span class="badge '+sbClass+'"'+tooltipAttr+'>'+sbIcon+sbLabel+'</span>';
-    // Phase badge (show when non-empty and different from inferred status)
     var phaseColors={Pending:"badge-amber",Modeling:"badge-purple",Completed:"badge-blue",
       Protecting:"badge-green",Error:"badge-red",Failed:"badge-red",Unknown:"badge-gray",Unchanged:"badge-gray"};
     var ph=p.phase||"";
@@ -3585,6 +3610,38 @@ function renderPolicies(pols){
       +'<td class="td th-r" style="white-space:nowrap">'+editBtn+viewBtn+exportBtn+delBtn+'</td>';
     $("pol-body").appendChild(tr);
   });
+
+  // Pagination controls
+  var pagDiv=$("pol-pagination");
+  if(pagDiv){
+    if(totalPages<=1){pagDiv.classList.add("hidden");return;}
+    pagDiv.classList.remove("hidden");
+    var info=$("pol-page-info");
+    if(info) info.textContent="Trang "+polPage+"/"+totalPages+" ("+pols.length+" policy)";
+    var prev=$("pol-btn-prev"); if(prev) prev.disabled=(polPage<=1);
+    var next=$("pol-btn-next"); if(next) next.disabled=(polPage>=totalPages);
+    var nums=$("pol-page-nums");
+    if(nums){
+      nums.innerHTML="";
+      var show5=Math.min(totalPages,5);
+      var startP=Math.max(1,Math.min(polPage-2,totalPages-show5+1));
+      for(var pg=startP;pg<startP+show5;pg++){
+        (function(pg){
+          var btn=document.createElement("button");
+          btn.textContent=pg;
+          btn.className="btn btn-ghost btn-sm";
+          btn.style.cssText="padding:.2rem .55rem;min-height:0;min-width:1.8rem"+(pg===polPage?";background:#1e3a5f;color:#93c5fd":"");
+          btn.onclick=function(){polGoTo(pg);};
+          nums.appendChild(btn);
+        })(pg);
+      }
+    }
+  }
+}
+
+function renderPolicies(pols){
+  polFiltered=pols;
+  _renderPoliciesPage();
 }
 
 function modeColor(m){
