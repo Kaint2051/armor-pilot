@@ -433,8 +433,27 @@
                 <button id="btn-new-policy" onclick="switchPolicyView('create')" class="btn btn-primary btn-sm">+ New Policy</button>
               </div>
             </div>
-            <div class="mb-3">
-              <input id="inp-search" type="text" placeholder="Search by name, target or mode&#8230;" class="form-input" oninput="filterPolicies()" style="font-size:.8125rem"/>
+            <div class="mb-3 flex gap-2 flex-wrap">
+              <input id="inp-search" type="text" placeholder="Search by name, target or mode&#8230;" class="form-input flex-1 min-w-0" oninput="filterPolicies()" style="font-size:.8125rem"/>
+              <select id="fil-scope" class="form-input" onchange="filterPolicies()" style="font-size:.8125rem;width:auto;flex-shrink:0">
+                <option value="">All Scope</option>
+                <option value="namespace">Namespace</option>
+                <option value="cluster">Cluster</option>
+              </select>
+              <select id="fil-mode" class="form-input" onchange="filterPolicies()" style="font-size:.8125rem;width:auto;flex-shrink:0">
+                <option value="">All Mode</option>
+                <option value="EnhanceProtect">EnhanceProtect</option>
+                <option value="AlwaysAllow">AlwaysAllow</option>
+                <option value="RuntimeDefault">RuntimeDefault</option>
+                <option value="BehaviorModeling">BehaviorModeling</option>
+                <option value="DefenseInDepth">DefenseInDepth</option>
+              </select>
+              <select id="fil-status" class="form-input" onchange="filterPolicies()" style="font-size:.8125rem;width:auto;flex-shrink:0">
+                <option value="">All Status</option>
+                <option value="Ready">Ready</option>
+                <option value="Pending">Pending</option>
+                <option value="Error">Error</option>
+              </select>
             </div>
             <div id="pol-loading" class="hidden py-8 flex justify-center">
               <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -3540,8 +3559,18 @@ async function loadPolicies(){
 function filterPolicies(){
   polPage=1;
   var q=($("inp-search").value||"").toLowerCase();
-  if(!q){renderPolicies(allPolicies);return;}
+  var scope=($("fil-scope")||{}).value||"";
+  var mode=($("fil-mode")||{}).value||"";
+  var status=($("fil-status")||{}).value||"";
   renderPolicies(allPolicies.filter(function(p){
+    if(scope && (p.scope||"namespace")!==scope) return false;
+    if(mode  && p.mode!==mode) return false;
+    if(status){
+      var ps=p.status||"Pending";
+      if(status==="Error" && ps!=="Error" && ps!=="Failed") return false;
+      if(status!=="Error" && ps!==status) return false;
+    }
+    if(!q) return true;
     var tgt=(p.target&&p.target.name)||"";
     return p.name.toLowerCase().includes(q)||tgt.toLowerCase().includes(q)||(p.mode||"").toLowerCase().includes(q)||(p.scope||"").toLowerCase().includes(q)||(p.enforcer||"").toLowerCase().includes(q);
   }));
