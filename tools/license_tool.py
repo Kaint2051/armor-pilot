@@ -17,6 +17,21 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
 
 
+def _b64url_decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * ((4 - len(value) % 4) % 4))
+
+
+def _parse_license_text(raw: str) -> dict:
+    value = raw.strip()
+    if value.startswith("VARMOR1."):
+        parts = value.split(".")
+        if len(parts) != 3:
+            raise SystemExit("license key format is invalid")
+        payload = json.loads(_b64url_decode(parts[1]).decode("utf-8"))
+        return {"algorithm": "Ed25519", "payload": payload, "signature": parts[2]}
+    return json.loads(value)
+
+
 def _read_private_key(path: Path) -> Ed25519PrivateKey:
     key = serialization.load_pem_private_key(path.read_bytes(), password=None)
     if not isinstance(key, Ed25519PrivateKey):
@@ -74,19 +89,24 @@ def cmd_sign(args) -> None:
     }
     if args.cluster_uid:
         payload["cluster_uid"] = args.cluster_uid
+    signature = _b64url(private_key.sign(_canonical(payload)))
     doc = {
         "algorithm": "Ed25519",
         "payload": payload,
-        "signature": _b64url(private_key.sign(_canonical(payload))),
+        "signature": signature,
     }
-    args.output.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.format == "key":
+        license_text = f"VARMOR1.{_b64url(_canonical(payload))}.{signature}\n"
+    else:
+        license_text = json.dumps(doc, indent=2, sort_keys=True) + "\n"
+    args.output.write_text(license_text, encoding="utf-8")
     print(f"wrote {args.output}")
 
 
 def cmd_verify(args) -> None:
     public_key = _read_public_key(args.public_key)
-    doc = json.loads(args.license.read_text(encoding="utf-8"))
-    public_key.verify(base64.urlsafe_b64decode(doc["signature"] + "==="), _canonical(doc["payload"]))
+    doc = _parse_license_text(args.license.read_text(encoding="utf-8"))
+    public_key.verify(_b64url_decode(doc["signature"]), _canonical(doc["payload"]))
     print("license signature ok")
 
 
@@ -111,6 +131,7 @@ def main() -> None:
     p.add_argument("--max-nodes", type=int, default=0)
     p.add_argument("--max-policies", type=int, default=0)
     p.add_argument("--cluster-uid", default="")
+    p.add_argument("--format", choices=("key", "json"), default="key")
     p.set_defaults(func=cmd_sign)
 
     p = sub.add_parser("verify", help="verify a signed license")
