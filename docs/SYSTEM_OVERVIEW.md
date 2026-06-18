@@ -10,28 +10,7 @@ The system operates on an **eBPF + LSM** (Linux Security Module) model, intercep
 
 ## 2. System Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   vArmor Console                     │
-│            (Web UI - Python/Flask)                   │
-│           Management interface: port 30080            │
-└────────────────────┬────────────────────────────────┘
-                     │ REST API
-┌────────────────────▼────────────────────────────────┐
-│              Kubernetes API Server                   │
-│         (VarmorPolicy / VarmorClusterPolicy CRD)     │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│              vArmor Agent (DaemonSet)                │
-│    Runs on each node, applies policies to the kernel │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│           Enforcement Engines                        │
-│    AppArmor  │  BPF/eBPF  │  Seccomp  │  NetworkProxy│
-└─────────────────────────────────────────────────────┘
-```
+![vArmor Architecture Stack](../img/varmor_architecture_stack.png)
 
 ### Key Components
 
