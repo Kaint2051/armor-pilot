@@ -1,0 +1,26 @@
+<!-- LOGIN -->
+<div id="pg-login" class="hidden fixed inset-0 flex items-center justify-center" style="background:#0f172a">
+  <div class="card w-full mx-4" style="max-width:26rem">
+    <div class="flex flex-col items-center mb-8">
+      <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:#2563eb">
+        <svg class="w-9 h-9" style="color:#fff" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight" style="color:#f1f5f9">vArmor Console</h1>
+      <p class="text-sm mt-1" style="color:#64748b">Kubernetes Security Policy Manager</p>
+    </div>
+    <form id="login-form" novalidate>
+      <div class="mb-4">
+        <label class="form-label">Username</label>
+        <input id="inp-user" type="text" autocomplete="username" placeholder="admin" class="form-input"/>
+      </div>
+      <div class="mb-5">
+        <label class="form-label">Password</label>
+        <input id="inp-pass" type="password" autocomplete="current-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" class="form-input"/>
+      </div>
+      <div id="login-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+      <button type="submit" class="btn btn-primary w-full justify-center" style="padding-top:.625rem;padding-bottom:.625rem">Sign In</button>
+    </form>
+  </div>
+</div>
