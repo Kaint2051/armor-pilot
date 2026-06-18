@@ -23,6 +23,7 @@ from ..k8s_client import (
     core_v1,
     custom_objects,
 )
+from ..installation import create_activation_request, get_installation_identity
 from ..license import attach_runtime_usage, can_add_policies, get_license_status, save_license_text
 from ..policy_templates import get_policy_templates_payload
 from ..product import get_product_payload
@@ -139,6 +140,19 @@ def _license_runtime_usage() -> dict:
 
 def _license_status_with_usage() -> dict:
     return attach_runtime_usage(get_license_status(), _license_runtime_usage())
+
+
+def _installation_status() -> dict:
+    try:
+        return {
+            "available": True,
+            **get_installation_identity(),
+        }
+    except Exception as exc:
+        return {
+            "available": False,
+            "error": str(exc),
+        }
 
 
 def _policy_capacity_error(count: int = 1) -> str | None:
@@ -1361,8 +1375,18 @@ def get_license_endpoint():
     status = _license_status_with_usage()
     return jsonify({
         **status,
+        "installation": _installation_status(),
         "product": get_product_payload(status),
     })
+
+
+@api_bp.route("/license/activation-request", methods=["GET"])
+@require_permission("license:view")
+def get_activation_request_endpoint():
+    try:
+        return jsonify(create_activation_request())
+    except Exception as exc:
+        return jsonify({"error": f"could not create activation request: {exc}"}), 503
 
 
 @api_bp.route("/product", methods=["GET"])
@@ -1387,7 +1411,11 @@ def save_license_endpoint():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     audit_logger.log(get_current_user(), "UPDATE_LICENSE", "license", "system", "SUCCESS", status.get("status"))
-    return jsonify(status)
+    return jsonify({
+        **status,
+        "installation": _installation_status(),
+        "product": get_product_payload(status),
+    })
 
 
 @api_bp.route("/users", methods=["GET"])

@@ -147,6 +147,7 @@ def _safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "features": sorted(payload.get("features") or []),
         "limits": payload.get("limits") or {},
         "cluster_uid": payload.get("cluster_uid"),
+        "installation_id": payload.get("installation_id"),
     }
 
 
@@ -160,10 +161,12 @@ def _int_limit(limits: dict[str, Any], name: str) -> int:
 def _base_status() -> dict[str, Any]:
     required = _bool_env("VARMOR_LICENSE_REQUIRED", False)
     fail_open = _bool_env("VARMOR_LICENSE_FAIL_OPEN", not required)
+    binding_required = _bool_env("VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING", False)
     return {
         "path": LICENSE_FILE,
         "required": required,
         "fail_open": fail_open,
+        "binding_required": binding_required,
         "present": False,
         "valid": False,
         "status": "missing",
@@ -214,10 +217,25 @@ def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
     if expected_cluster and runtime_cluster and expected_cluster != runtime_cluster:
         raise ValueError("license cluster_uid does not match this cluster")
 
+    expected_installation = str(payload.get("installation_id") or "").strip()
+    binding_required = _bool_env("VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING", False)
+    if binding_required and not expected_installation:
+        raise ValueError("license is not bound to this installation")
+    if expected_installation:
+        try:
+            from .installation import get_installation_identity
+
+            runtime_installation = get_installation_identity()["installation_id"]
+        except Exception as exc:
+            raise ValueError(f"installation identity is unavailable: {exc}") from exc
+        if not hmac.compare_digest(expected_installation, runtime_installation):
+            raise ValueError("license installation_id does not match this installation")
+
     return {
         "payload": payload,
         "days_remaining": max(0, (expires_at - now).days),
         "in_grace": now > expires_at,
+        "installation_id": expected_installation or None,
     }
 
 

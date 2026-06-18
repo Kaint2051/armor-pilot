@@ -23,10 +23,19 @@ and provide `VARMOR_LICENSE_PUBLIC_KEY` through the environment.
 
 ## Generate a Customer License Key
 
+For commercial installations, first ask the customer to open **License** in the
+console and download `varmor-activation-request.json`. Verify the request:
+
+```bash
+python tools/license_tool.py verify-request \
+  --request varmor-activation-request.json
+```
+
 ```bash
 python tools/license_tool.py sign \
   --private-key license-private.pem \
   --output customer-license.key \
+  --activation-request varmor-activation-request.json \
   --license-id LIC-ACME-001 \
   --customer "ACME Corp" \
   --edition enterprise \
@@ -45,7 +54,19 @@ VARMOR1.<base64url-payload>.<ed25519-signature>
 
 The customer pastes this key into **Console > Users > License > Install
 License**. Use `--features "*"` for a full enterprise license. Legacy JSON can
-still be generated with `--format json` and remains accepted by the console.
+still be generated with `--format json`. When installation binding is required,
+legacy or new licenses without `installation_id` are rejected.
+
+The installation ID is derived from:
+
+- A private/public key pair generated on first console startup.
+- A persistent installation UUID.
+- The `kube-system` namespace UID.
+- The Kubernetes API CA certificate fingerprint.
+
+The installation private key and metadata are stored under `/app/data` by
+default. Back up these files for disaster recovery, but do not copy them to a
+second active installation.
 
 Open-core enterprise feature flags currently implemented:
 
@@ -73,6 +94,9 @@ Set these environment variables in the console deployment:
 - `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY`: development escape hatch only. Keep `false` in production.
 - `VARMOR_LICENSE_PUBLIC_KEY`: base64 Ed25519 public key, used only when the env public-key override is enabled.
 - `VARMOR_LICENSE_ALLOW_HS256`: development/testing only. Keep `false` in production.
+- `VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING`: require the signed license to match this installation.
+- `VARMOR_INSTALLATION_KEY_FILE`: persistent installation private-key path.
+- `VARMOR_INSTALLATION_METADATA_FILE`: persistent installation UUID/metadata path.
 - `VARMOR_CLUSTER_UID`: optional override for cluster binding checks. If unset, the console reports the `kube-system` namespace UID as the runtime cluster UID.
 
 When enforcement is enabled with `VARMOR_LICENSE_FAIL_OPEN=false`, a missing or
@@ -104,6 +128,15 @@ Cluster binding:
 
 - If `payload.cluster_uid` is set and `VARMOR_CLUSTER_UID` is also set, they must match.
 - If `VARMOR_CLUSTER_UID` is not set, the UI still displays the discovered `kube-system` namespace UID so operators can request a cluster-bound license.
+
+Installation binding:
+
+- A copied license fails on an installation with a different installation key,
+  UUID, cluster UID, or Kubernetes API CA fingerprint.
+- Rebuilding the console while preserving `/app/data` preserves the installation identity.
+- Restoring a full cluster and `/app/data` backup is treated as disaster recovery
+  of the same installation. Offline licensing cannot detect two simultaneous
+  clones without an activation server.
 
 Expiry behavior:
 
