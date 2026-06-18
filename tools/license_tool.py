@@ -165,6 +165,18 @@ def cmd_verify_request(args) -> None:
     print("activation request signature ok")
     print(f"installation_id={payload['installation_id']}")
     print(f"cluster_uid={payload.get('cluster_uid') or ''}")
+    customer_request = payload.get("customer_request")
+    if isinstance(customer_request, dict):
+        print(f"request_type={customer_request.get('request_type') or ''}")
+        print(f"organization_name={customer_request.get('organization_name') or ''}")
+        print(f"contact_name={customer_request.get('contact_name') or ''}")
+        print(f"contact_email={customer_request.get('contact_email') or ''}")
+        print(f"requested_edition={customer_request.get('requested_edition') or ''}")
+        print(f"requested_days={customer_request.get('requested_days') or ''}")
+        print(f"requested_nodes={customer_request.get('requested_nodes') or ''}")
+        print(f"requested_policies={customer_request.get('requested_policies') or ''}")
+        print(f"existing_license_id={customer_request.get('existing_license_id') or ''}")
+        print(f"quote_reference={customer_request.get('quote_reference') or ''}")
 
 
 def main() -> None:

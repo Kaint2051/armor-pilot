@@ -1380,11 +1380,17 @@ def get_license_endpoint():
     })
 
 
-@api_bp.route("/license/activation-request", methods=["GET"])
+@api_bp.route("/license/activation-request", methods=["GET", "POST"])
 @require_permission("license:view")
 def get_activation_request_endpoint():
     try:
+        if request.method == "POST":
+            body = request.get_json(silent=True) or {}
+            customer_request = body.get("customer_request", body)
+            return jsonify(create_activation_request(customer_request))
         return jsonify(create_activation_request())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         return jsonify({"error": f"could not create activation request: {exc}"}), 503
 
