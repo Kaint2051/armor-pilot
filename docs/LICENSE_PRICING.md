@@ -267,53 +267,18 @@ CA fingerprint differs.
 Installation binding should be optional during a proof of concept because
 customers may rebuild evaluation clusters frequently.
 
-## 8. License Key Generation
+## 8. License Operations
 
-Generate the vendor signing key pair once:
+Customer request, activation, renewal, rehost, and recovery procedures:
 
-```powershell
-python tools/license_tool.py gen-key `
-  --private-key license-private.pem `
-  --public-key license-public.pem
-```
+- [`LICENSING.md`](LICENSING.md)
 
-Keep `license-private.pem` offline and backed up securely. Never place it in:
+Vendor-only key generation and signing procedures:
 
-- The product image.
-- The customer cluster.
-- Git.
-- CI logs or build artifacts.
-- The web console.
+- [`LICENSE_ISSUER_GUIDE.md`](LICENSE_ISSUER_GUIDE.md)
 
-Generate a Professional customer key:
-
-```powershell
-python tools/license_tool.py verify-request `
-  --request varmor-activation-request.json
-
-python tools/license_tool.py sign `
-  --private-key license-private.pem `
-  --output customer-license.key `
-  --activation-request varmor-activation-request.json `
-  --license-id LIC-CUSTOMER-2026-001 `
-  --customer "Customer Company" `
-  --edition professional `
-  --days 365 `
-  --grace-days 14 `
-  --features "*" `
-  --max-nodes 50 `
-  --max-policies 2000
-```
-
-Verify before delivery:
-
-```powershell
-python tools/license_tool.py verify `
-  --public-key license-public.pem `
-  --license customer-license.key
-```
-
-The customer pastes the generated `VARMOR1...` line into **Install License**.
+Keep customer-facing activation instructions separate from private signing-key
+operations.
 
 ## 9. Renewal and Expiration Policy
 
