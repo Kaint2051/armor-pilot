@@ -1380,12 +1380,10 @@ def save_license_endpoint():
     if isinstance(raw, dict):
         raw = json.dumps(raw)
     if not isinstance(raw, str):
-        return jsonify({"error": "license JSON string is required"}), 400
+        return jsonify({"error": "license key string is required"}), 400
     try:
         save_license_text(raw)
         status = _license_status_with_usage()
-    except json.JSONDecodeError as exc:
-        return jsonify({"error": f"invalid license JSON: {exc}"}), 400
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     audit_logger.log(get_current_user(), "UPDATE_LICENSE", "license", "system", "SUCCESS", status.get("status"))

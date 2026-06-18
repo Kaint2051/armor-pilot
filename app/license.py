@@ -15,6 +15,7 @@ LICENSE_FILE = os.environ.get("VARMOR_LICENSE_FILE", "/app/data/license.json")
 # For production builds, replace this test key with the vendor Ed25519 public key
 # and keep VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY disabled.
 EMBEDDED_LICENSE_PUBLIC_KEY = "OrsGfpk+/4XCzmE/m/CGhXSRFrKgQz8GQqSBcmA/5IE="
+LICENSE_KEY_PREFIX = "VARMOR1"
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -51,6 +52,41 @@ def _b64url_decode(value: str) -> bytes:
     raw = value.strip().encode("ascii")
     raw += b"=" * ((4 - len(raw) % 4) % 4)
     return base64.urlsafe_b64decode(raw)
+
+
+def parse_license_text(raw: str) -> dict[str, Any]:
+    value = (raw or "").strip()
+    if not value:
+        raise ValueError("license key is required")
+    if len(value) > 65536:
+        raise ValueError("license key is too large")
+
+    if value.startswith(f"{LICENSE_KEY_PREFIX}."):
+        parts = value.split(".")
+        if len(parts) != 3:
+            raise ValueError("license key format is invalid")
+        _, encoded_payload, signature = parts
+        try:
+            payload = json.loads(_b64url_decode(encoded_payload).decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError, ValueError, binascii.Error) as exc:
+            raise ValueError("license key payload is invalid") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("license key payload must be an object")
+        if not signature:
+            raise ValueError("license key signature is required")
+        return {
+            "algorithm": "Ed25519",
+            "payload": payload,
+            "signature": signature,
+        }
+
+    try:
+        doc = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError("license key or JSON is invalid") from exc
+    if not isinstance(doc, dict):
+        raise ValueError("license must be a key or JSON object")
+    return doc
 
 
 def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
@@ -289,11 +325,7 @@ def is_feature_enabled(feature: str) -> bool:
 
 
 def save_license_text(raw: str) -> dict[str, Any]:
-    if not raw or not raw.strip():
-        raise ValueError("license JSON is required")
-    doc = json.loads(raw)
-    if not isinstance(doc, dict):
-        raise ValueError("license must be a JSON object")
+    doc = parse_license_text(raw)
     verify_license_document(doc)
     path = Path(LICENSE_FILE)
     path.parent.mkdir(parents=True, exist_ok=True)

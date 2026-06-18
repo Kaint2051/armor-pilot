@@ -1700,8 +1700,8 @@
           </section>
           <section class="card">
             <h3 class="text-base font-semibold mb-3" style="color:#f1f5f9">Install License</h3>
-            <p class="text-xs mb-3" style="color:#64748b;line-height:1.6">Paste a signed license JSON. The private signing key must stay offline; this console only verifies with the configured public key.</p>
-            <textarea id="ta-license-json" class="form-input mb-3" rows="12" style="font-family:monospace;font-size:.72rem;resize:vertical" placeholder='{"algorithm":"Ed25519","payload":{...},"signature":"..."}'></textarea>
+            <p class="text-xs mb-3" style="color:#64748b;line-height:1.6">Paste the single-line license key supplied by the vendor. Legacy signed JSON is also accepted.</p>
+            <textarea id="ta-license-json" class="form-input mb-3" rows="5" style="font-family:monospace;font-size:.72rem;resize:vertical" placeholder="VARMOR1.eyJjdXN0b21lciI6Ii4uLiJ9.signature"></textarea>
             <div id="license-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
             <button id="btn-save-license" onclick="saveLicense()" class="btn btn-primary btn-sm">Save License</button>
           </section>
@@ -4864,7 +4864,7 @@ async function saveLicense(){
   var raw=($("ta-license-json")||{}).value||"";
   if(!raw.trim()){
     msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";
-    showEl(msg,"License JSON is required.");return;
+    showEl(msg,"License key is required.");return;
   }
   var btn=$("btn-save-license");btn.disabled=true;btn.textContent="Saving...";
   try{

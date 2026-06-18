@@ -1,6 +1,6 @@
 # vArmor Console Licensing
 
-The console verifies signed JSON licenses. Keep the private key offline. The
+The console verifies compact signed license keys and legacy JSON licenses. Keep the private key offline. The
 production product should embed the Ed25519 public key in the backend build so
 customers cannot replace the trust anchor through the web UI or a Kubernetes
 Secret.
@@ -18,12 +18,12 @@ The command prints `VARMOR_LICENSE_PUBLIC_KEY`. For production, replace
 image. For development only, you can set `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY=true`
 and provide `VARMOR_LICENSE_PUBLIC_KEY` through the environment.
 
-## Sign a Customer License
+## Generate a Customer License Key
 
 ```bash
 python tools/license_tool.py sign \
   --private-key license-private.pem \
-  --output customer-license.json \
+  --output customer-license.key \
   --license-id LIC-ACME-001 \
   --customer "ACME Corp" \
   --edition enterprise \
@@ -34,7 +34,15 @@ python tools/license_tool.py sign \
   --max-policies 500
 ```
 
-Use `--features "*"` for a full enterprise license.
+The output is one signed line:
+
+```text
+VARMOR1.<base64url-payload>.<ed25519-signature>
+```
+
+The customer pastes this key into **Console > Users > License > Install
+License**. Use `--features "*"` for a full enterprise license. Legacy JSON can
+still be generated with `--format json` and remains accepted by the console.
 
 Open-core enterprise feature flags currently implemented:
 
@@ -49,7 +57,7 @@ Open-core enterprise feature flags currently implemented:
 ```bash
 python tools/license_tool.py verify \
   --public-key license-public.pem \
-  --license customer-license.json
+  --license customer-license.key
 ```
 
 ## Runtime Configuration
