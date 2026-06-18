@@ -161,49 +161,30 @@ Applies to all workloads matching the labels. Supported operators: `In`, `NotIn`
 
 ### 7.1 License States
 
-| State | Color | Meaning |
+| State | Meaning |
+|---|---|
+| **trial** | Built-in 30-day trial, starting from the installation date |
+| **valid** | Full license, not yet expired |
+| **in_grace** | Expired but within the grace period — system still operates normally |
+| **missing** | No license installed and trial has expired |
+| **invalid** | License error (e.g., wrong key format or bound to a different system) |
+
+### 7.2 License Editions
+
+| Edition | Target | Features |
 |---|---|---|
-| **trial** | Green | Built-in 30-day trial, starting from the installation date |
-| **valid** | Green | Full license, not yet expired |
-| **in_grace** | Yellow | Expired but within the grace period |
-| **missing** | Red | No license installed and trial has expired |
-| **invalid** | Red | License error (invalid signature, wrong installation) |
+| **Trial** | Evaluation / testing | All features, 30 days, limited to the trial period |
+| **Starter** | Small teams | Core protection features, limited nodes and policies |
+| **Enterprise** | Organizations | Full features, policy templates, no node/policy limits |
 
-### 7.2 License Mechanism
+### 7.3 License Limits
 
-- **Algorithm**: Ed25519 digital signature.
-- **Key format**: `VARMOR1.<base64url_payload>.<base64url_signature>`
-- **Installation binding**: A license can be bound to a specific installation (cluster) via `installation_id`.
-- **Offline**: No internet connection is required to verify the license.
-
-### 7.3 License Fields
-
-| Field | Meaning |
+| Limit | Description |
 |---|---|
-| `license_id` | License identifier (e.g., LIC-VNNIC-001) |
-| `customer` | Customer name |
-| `edition` | License edition: `trial`, `starter`, `enterprise` |
-| `issued_at` | Issue date (ISO 8601) |
-| `expires_at` | Expiry date (ISO 8601) |
-| `grace_days` | Number of grace days after expiry |
-| `features` | Feature list: `["*"]` = all features |
-| `limits.max_nodes` | Maximum number of nodes (0 = unlimited) |
-| `limits.max_policies` | Maximum number of policies (0 = unlimited) |
-| `installation_id` | Binding to a specific installation (`vmi_<hash>`) |
-| `cluster_uid` | UID of the kube-system namespace |
-
-### 7.4 Installation Identity
-
-Each vArmor installation generates a unique **installation identity**:
-
-| Field | Meaning |
-|---|---|
-| `installation_uuid` | Random UUID generated at install time |
-| `installation_public_key` | Ed25519 public key of the installation |
-| `installation_id` | `vmi_` + SHA256 of the canonical JSON identity |
-| `cluster_uid` | UID of the `kube-system` namespace |
-| `api_ca_sha256` | SHA256 of the kube-apiserver CA certificate |
-| `created_at` | Timestamp of the installation |
+| **Max Nodes** | Maximum number of cluster nodes covered by the license (0 = unlimited) |
+| **Max Policies** | Maximum number of active policies allowed (0 = unlimited) |
+| **Grace Days** | Number of additional days the system remains operational after the license expires |
+| **Expiry Date** | The date the license stops being valid (plus any grace period) |
 
 ---
 
