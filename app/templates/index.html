@@ -3558,21 +3558,42 @@ async function loadPolicies(){
 
 function filterPolicies(){
   polPage=1;
-  var q=($("inp-search").value||"").toLowerCase();
-  var scope=($("fil-scope")||{}).value||"";
-  var mode=($("fil-mode")||{}).value||"";
-  var status=($("fil-status")||{}).value||"";
+  var q     = ($("inp-search")||{}).value||"";
+  var scope = ($("fil-scope")||{}).value||"";
+  var mode  = ($("fil-mode")||{}).value||"";
+  var status= ($("fil-status")||{}).value||"";
+
+  // Highlight active filters
+  ["fil-scope","fil-mode","fil-status"].forEach(function(id){
+    var el=$(id); if(!el) return;
+    if(el.value) { el.style.borderColor="#3b82f6"; el.style.color="#93c5fd"; }
+    else         { el.style.borderColor=""; el.style.color=""; }
+  });
+
+  var ql = q.toLowerCase();
   renderPolicies(allPolicies.filter(function(p){
-    if(scope && (p.scope||"namespace")!==scope) return false;
-    if(mode  && p.mode!==mode) return false;
-    if(status){
-      var ps=p.status||"Pending";
-      if(status==="Error" && ps!=="Error" && ps!=="Failed") return false;
-      if(status!=="Error" && ps!==status) return false;
+    // Scope
+    if(scope){
+      var ps = p.scope||"namespace";
+      if(ps !== scope) return false;
     }
-    if(!q) return true;
-    var tgt=(p.target&&p.target.name)||"";
-    return p.name.toLowerCase().includes(q)||tgt.toLowerCase().includes(q)||(p.mode||"").toLowerCase().includes(q)||(p.scope||"").toLowerCase().includes(q)||(p.enforcer||"").toLowerCase().includes(q);
+    // Mode
+    if(mode && p.mode !== mode) return false;
+    // Status: Ready = green, Pending = amber, else = red (Error)
+    if(status){
+      var st = p.status||"Pending";
+      if(status === "Ready"   && st !== "Ready")   return false;
+      if(status === "Pending" && st !== "Pending") return false;
+      if(status === "Error"   && (st === "Ready" || st === "Pending")) return false;
+    }
+    // Text search
+    if(!ql) return true;
+    var tgt = (p.target&&p.target.name)||"";
+    return p.name.toLowerCase().includes(ql)
+      || tgt.toLowerCase().includes(ql)
+      || (p.mode||"").toLowerCase().includes(ql)
+      || (p.scope||"").toLowerCase().includes(ql)
+      || (p.enforcer||"").toLowerCase().includes(ql);
   }));
 }
 
