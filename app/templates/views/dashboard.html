@@ -1,0 +1,207 @@
+<!-- ═══════════════ TAB: DASHBOARD ═══════════════ -->
+    <div id="tab-dashboard" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold flex items-center gap-2" style="color:#f1f5f9">
+          <svg class="w-5 h-5" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Security Dashboard
+        </h2>
+        <div class="flex items-center gap-3">
+          <span id="dash-updated" class="text-xs" style="color:#475569"></span>
+          <button onclick="loadDashboard()" class="btn btn-ghost btn-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Policies</div>
+          <div class="flex items-end justify-between gap-3 mb-3">
+            <div id="dash-policy-total" class="text-3xl font-bold" style="color:#93c5fd">-</div>
+            <div class="text-xs text-right" style="color:#64748b">total policies</div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Namespace</span><b id="dash-policy-ns" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Cluster</span><b id="dash-policy-cluster" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Ready</span><b id="dash-policy-ready" style="color:#4ade80">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Not ready</span><b id="dash-policy-notready" style="color:#fb923c">-</b></div>
+          </div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Workloads</div>
+          <div class="flex items-end justify-between gap-3 mb-3">
+            <div id="dash-workload-coverage" class="text-3xl font-bold" style="color:#22d3ee">-</div>
+            <div class="text-xs text-right" style="color:#64748b">protected / total</div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Protected</span><b id="dash-workload-protected" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Total</span><b id="dash-workload-total" style="color:#cbd5e1">-</b></div>
+            <div class="flex items-center justify-between gap-2"><span style="color:#64748b">Ready</span><b id="dash-workload-ready-compact" style="color:#4ade80">-</b></div>
+            <div id="dash-replica-ready-compact" class="text-right" style="color:#64748b"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Runtime</div>
+          <div class="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <div id="dash-agent-health-compact" class="text-2xl font-bold" style="color:#4ade80">-</div>
+              <div class="text-xs" style="color:#64748b">agents healthy</div>
+            </div>
+            <div>
+              <div id="dash-events-total-compact" class="text-2xl font-bold" style="color:#f87171">-</div>
+              <div class="text-xs" style="color:#64748b">events</div>
+            </div>
+          </div>
+          <div class="grid gap-2 text-xs">
+            <div id="dash-agent-restarts-compact" style="color:#64748b"></div>
+            <div id="dash-events-breakdown-compact" style="color:#64748b"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Behavior Models</div>
+          <div class="flex items-end justify-between gap-3 mb-3">
+            <div id="dash-model-total-compact" class="text-3xl font-bold" style="color:#a78bfa">-</div>
+            <div class="text-xs text-right" style="color:#64748b">model profiles</div>
+          </div>
+          <div id="dash-model-breakdown-compact" class="text-xs" style="color:#64748b"></div>
+        </div>
+      </div>
+
+      <div class="hidden">
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">NS Policies</div>
+          <div id="dash-ns" class="text-3xl font-bold mb-1" style="color:#93c5fd">—</div>
+          <div class="text-xs" style="color:#64748b">Namespace scoped</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Cluster Policies</div>
+          <div id="dash-cluster" class="text-3xl font-bold mb-1" style="color:#c4b5fd">—</div>
+          <div class="text-xs" style="color:#64748b">Cluster scoped</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Ready</div>
+          <div id="dash-ready" class="text-3xl font-bold mb-1" style="color:#4ade80">—</div>
+          <div class="text-xs" style="color:#64748b">Policies active</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Not Ready</div>
+          <div id="dash-notready" class="text-3xl font-bold mb-1" style="color:#fb923c">—</div>
+          <div class="text-xs" style="color:#64748b">Pending / Error</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Protected</div>
+          <div id="dash-protected" class="text-3xl font-bold mb-1" style="color:#22d3ee">—</div>
+          <div class="text-xs" style="color:#64748b">Workloads shielded</div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Total Workloads</div>
+          <div id="dash-workloads" class="text-3xl font-bold mb-1" style="color:#94a3b8">—</div>
+          <div class="text-xs" style="color:#64748b">All target kinds</div>
+        </div>
+      </div>
+
+      <div class="hidden">
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Workload Ready</div>
+          <div id="dash-workload-ready" class="text-2xl font-bold mb-1" style="color:#4ade80">â€”</div>
+          <div id="dash-replica-ready" class="text-xs" style="color:#64748b"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Agent Health</div>
+          <div id="dash-agent-health" class="text-2xl font-bold mb-1" style="color:#4ade80">â€”</div>
+          <div id="dash-agent-restarts" class="text-xs" style="color:#64748b"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Enforcement Events</div>
+          <div id="dash-events-total" class="text-2xl font-bold mb-1" style="color:#f87171">â€”</div>
+          <div id="dash-events-breakdown" class="text-xs" style="color:#64748b"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:#475569">Behavior Models</div>
+          <div id="dash-model-total" class="text-2xl font-bold mb-1" style="color:#a78bfa">â€”</div>
+          <div id="dash-model-breakdown" class="text-xs" style="color:#64748b"></div>
+        </div>
+      </div>
+
+      <!-- Compact charts -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+            Policies by Mode
+          </h3>
+          <div id="dash-modes"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            Policies by Enforcer
+          </h3>
+          <div id="dash-enforcers"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#22d3ee" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>
+            Workloads by Kind
+          </h3>
+          <div id="dash-workload-kinds"><div class="text-xs py-4 text-center" style="color:#475569">Loadingâ€¦</div></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <h3 class="text-xs font-semibold mb-3 flex items-center gap-2 uppercase tracking-wider" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4h8l-1 1v5l4.5 6.5A2 2 0 0117.85 20H6.15a2 2 0 01-1.65-3.5L9 10V5L8 4z"/></svg>
+            Model Storage / Phase
+          </h3>
+          <div id="dash-models-summary"><div class="text-xs py-4 text-center" style="color:#475569">Loadingâ€¦</div></div>
+        </div>
+      </div>
+
+      <div id="dash-errors" class="hidden card" style="border-color:#7f1d1d;background:#1f0b0b"></div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2" style="color:#94a3b8">
+          <svg class="w-4 h-4" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Recent Activity
+        </h3>
+        <div id="dash-activity"><div class="text-xs py-4 text-center" style="color:#475569">Loading…</div></div>
+      </div>
+
+      <!-- Agent Health -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Agent Health
+          </h3>
+          <div id="dash-agents-summary" class="text-xs font-semibold" style="color:#64748b"></div>
+        </div>
+        <div id="dash-agents"><div class="text-xs py-3 text-center" style="color:#475569">Loading…</div></div>
+      </div>
+
+      <!-- Enforcement Events -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold flex items-center gap-2" style="color:#94a3b8">
+            <svg class="w-4 h-4" style="color:#f87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            Enforcement Events <span class="text-xs font-normal ml-1" style="color:#475569">(AppArmor · BPF · Seccomp)</span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <select id="enf-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadEnforcementEvents()">
+              <option value="all">All</option>
+              <option value="apparmor">AppArmor</option>
+              <option value="bpf">BPF</option>
+              <option value="seccomp">Seccomp</option>
+            </select>
+            <button onclick="loadEnforcementEvents()" class="btn btn-ghost btn-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="dash-enforcement"><div class="text-xs py-3 text-center" style="color:#475569">Loading…</div></div>
+      </div>
+
+    </div>

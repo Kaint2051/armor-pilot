@@ -1,0 +1,902 @@
+<!-- ═══════════════ TAB: POLICY ═══════════════ -->
+    <div id="tab-policy" class="max-w-screen-2xl mx-auto w-full px-6 py-4">
+
+      <!-- Policy sub-nav -->
+      <div class="pv-subnav">
+        <button id="pnav-list" class="pnav-btn pnav-active" onclick="switchPolicyView('list')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          Policies
+        </button>
+        <button id="pnav-create" class="pnav-btn" onclick="switchPolicyView('create')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          <span id="pnav-create-label">Create Policy</span>
+        </button>
+        <button id="pnav-queue" class="pnav-btn" onclick="switchPolicyView('queue')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Review Queue
+          <span id="queue-pending-badge" class="hidden badge badge-amber" style="font-size:.65rem;margin-left:.25rem">0 pending</span>
+        </button>
+        <div style="flex:1"></div>
+        <button id="btn-backup-policy" onclick="openBackupModal()" class="btn btn-ghost btn-sm" title="Download policy backup">&#11123; Backup</button>
+        <button id="btn-restore-policy" onclick="openRestoreModal()" class="btn btn-ghost btn-sm" title="Restore policies from backup">&#8635; Restore</button>
+        <button id="btn-import-policy" onclick="openImportModal()" class="btn btn-ghost btn-sm" title="Import policy from YAML">&#11014; Import YAML</button>
+      </div>
+
+      <!-- ═══════ VIEW: Policies list ═══════ -->
+      <div id="pv-list">
+        <div class="grid grid-cols-12 gap-6">
+          <div class="col-span-12 xl:col-span-8 space-y-6">
+
+          <!-- ACTIVE POLICIES -->
+          <section class="card">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                Active Policies
+              </h2>
+              <div class="flex items-center gap-2">
+                <button onclick="loadPolicies()" class="btn btn-ghost btn-sm">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Refresh
+                </button>
+                <button id="btn-new-policy" onclick="switchPolicyView('create')" class="btn btn-primary btn-sm">+ New Policy</button>
+              </div>
+            </div>
+            <div class="mb-3 flex gap-2 flex-wrap">
+              <input id="inp-search" type="text" placeholder="Search by name, target or mode&#8230;" class="form-input flex-1 min-w-0" oninput="filterPolicies()" style="font-size:.8125rem"/>
+              <select id="fil-scope" class="form-input" onchange="filterPolicies()" style="font-size:.8125rem;width:auto;flex-shrink:0">
+                <option value="">All Scope</option>
+                <option value="namespace">Namespace</option>
+                <option value="cluster">Cluster</option>
+              </select>
+              <select id="fil-mode" class="form-input" onchange="filterPolicies()" style="font-size:.8125rem;width:auto;flex-shrink:0">
+                <option value="">All Mode</option>
+                <option value="EnhanceProtect">EnhanceProtect</option>
+                <option value="AlwaysAllow">AlwaysAllow</option>
+                <option value="RuntimeDefault">RuntimeDefault</option>
+                <option value="BehaviorModeling">BehaviorModeling</option>
+                <option value="DefenseInDepth">DefenseInDepth</option>
+              </select>
+              <select id="fil-status" class="form-input" onchange="filterPolicies()" style="font-size:.8125rem;width:auto;flex-shrink:0">
+                <option value="">All Status</option>
+                <option value="Ready">Ready</option>
+                <option value="Pending">Pending</option>
+                <option value="Error">Error</option>
+              </select>
+            </div>
+            <div id="pol-loading" class="hidden py-8 flex justify-center">
+              <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
+            <div id="pol-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No policies found.</div>
+            <div id="pol-err" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+            <div id="batch-bar" class="hidden mb-3 flex items-center gap-3 px-3 py-2 rounded-lg" style="background:#1c1a05;border:1px solid #854d0e">
+              <span id="batch-count" class="text-sm font-semibold" style="color:#fbbf24">0 selected</span>
+              <button onclick="confirmBatchDelete()" class="btn btn-danger btn-sm">Delete Selected</button>
+              <button onclick="clearSelection()" class="btn btn-ghost btn-sm">Clear</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #1e293b">
+                    <th class="th" style="width:2rem;text-align:center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll()" style="accent-color:#3b82f6;width:1rem;height:1rem;cursor:pointer" title="Select all"></th>
+                    <th class="th">Name</th><th class="th">Scope</th><th class="th">Target</th>
+                    <th class="th">Mode</th><th class="th">Enforcer</th>
+                    <th class="th">Status</th><th class="th">Created</th><th class="th th-r">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pol-body"></tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div id="pol-pagination" class="hidden mt-3 flex items-center justify-between" style="font-size:.8rem;color:#64748b">
+              <span id="pol-page-info"></span>
+              <div class="flex items-center gap-1">
+                <button id="pol-btn-prev" onclick="polGoTo(polPage-1)" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem;min-height:0">&#8592; Prev</button>
+                <span id="pol-page-nums" class="flex gap-1"></span>
+                <button id="pol-btn-next" onclick="polGoTo(polPage+1)" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem;min-height:0">Next &#8594;</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- BEHAVIOR MODELS -->
+          <section class="card">
+            <div class="collapsible-hdr" onclick="toggleSection('models-content','models-arr')">
+              <h2 class="text-base font-semibold flex items-center gap-2 collapsible-title">
+                <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                Behavior Models <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(ArmorProfileModel)</span>
+              </h2>
+              <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation();loadProfileModels()" class="btn btn-ghost btn-sm">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Refresh
+                </button>
+                <span id="models-arr" style="color:#64748b;font-size:.75rem">&#9660;</span>
+              </div>
+            </div>
+            <div id="models-content" class="mt-4">
+              <div id="models-loading" class="hidden py-6 flex justify-center">
+                <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              </div>
+              <div id="models-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfileModels in this namespace.</div>
+              <div id="models-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr style="border-bottom:1px solid #1e293b">
+                      <th class="th">Name</th><th class="th">Phase</th><th class="th">Storage</th><th class="th">Created</th><th class="th th-r">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="models-body"></tbody>
+                </table>
+              </div>
+              <p class="mt-3 text-xs" style="color:#475569">ArmorProfileModels are generated automatically when a BehaviorModeling policy completes its observation period.</p>
+            </div>
+          </section>
+
+          </div>
+
+          <!-- RIGHT 4 cols: Deployments -->
+          <div class="col-span-12 xl:col-span-4">
+            <div class="card xl:sticky xl:top-28">
+              <div class="flex items-center justify-between mb-5">
+                <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+                  <svg class="w-5 h-5" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
+                  Deployments
+                </h2>
+                <button onclick="loadDeployments()" class="btn btn-ghost" style="padding:.3rem">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+              </div>
+              <div id="dep-loading" class="hidden py-6 flex justify-center">
+                <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              </div>
+              <div id="dep-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No deployments found.</div>
+              <div id="dep-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+              <div id="dep-list" class="space-y-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════ VIEW: Create / Edit wizard ═══════ -->
+      <div id="pv-create" class="hidden">
+
+        <!-- Template picker (hidden during edit) -->
+        <div id="tmpl-picker" class="mb-5 p-4 rounded-xl" style="background:#0a0f1a;border:1px solid #1e293b">
+          <div class="tmpl-picker-head">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="text-xs font-semibold" style="color:#64748b;text-transform:uppercase;letter-spacing:.07em">Template Packs</p>
+                <span id="tmpl-selected-summary" class="tmpl-selected-summary tmpl-selected-empty">No template selected</span>
+              </div>
+              <p style="font-size:.72rem;color:#475569;margin-top:.2rem">Choose a packaged policy starting point, then tune the wizard fields below.</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span id="tmpl-count" class="badge badge-gray">0 templates</span>
+              <button id="tmpl-toggle-btn" type="button" class="btn btn-ghost btn-sm" onclick="toggleTemplatePicker()" aria-expanded="false">
+                <span id="tmpl-toggle-icon">&#9662;</span>
+                <span id="tmpl-toggle-label">Browse Templates</span>
+              </button>
+            </div>
+          </div>
+          <div id="tmpl-picker-body" class="tmpl-picker-body hidden">
+            <div class="tmpl-toolbar">
+              <select id="tmpl-pack-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
+                <option value="">All packs</option>
+              </select>
+              <select id="tmpl-risk-filter" class="form-input" onchange="renderPolicyTemplateGallery()">
+                <option value="">All risk</option>
+                <option value="low">Low risk</option>
+                <option value="medium">Medium risk</option>
+                <option value="high">High risk</option>
+              </select>
+              <input id="tmpl-search" class="form-input" placeholder="Search templates, rules, workload..." oninput="renderPolicyTemplateGallery()">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="loadPolicyTemplates(true)">Refresh</button>
+            </div>
+            <div id="tmpl-grid" class="tmpl-grid">
+              <div style="font-size:.78rem;color:#64748b">Loading templates...</div>
+            </div>
+            <div id="tmpl-selected-detail" class="tmpl-detail hidden"></div>
+          </div>
+        </div>
+
+        <!-- Edit banner -->
+        <div id="edit-banner" class="hidden edit-banner">
+          <div>
+            <span style="font-size:.8rem;color:#d97706;font-weight:600">&#9998; Editing Policy:</span>
+            <span id="edit-banner-name" class="font-mono text-sm ml-2" style="color:#fbbf24"></span>
+          </div>
+          <button type="button" onclick="cancelEdit()" class="btn btn-ghost btn-sm">&#10005; Cancel</button>
+        </div>
+
+        <!-- Viewer notice -->
+        <div id="policy-admin-notice" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
+          Viewer role: read-only access. Cannot create, submit, or approve policies.
+        </div>
+
+        <!-- Wizard step indicator -->
+        <div class="flex items-center mb-6">
+          <div id="wiz-ind-1" class="wiz-ind wiz-ind-active"><span class="wiz-num">1</span><span>Scope &amp; Target</span></div>
+          <div class="wiz-connector"></div>
+          <div id="wiz-ind-2" class="wiz-ind"><span class="wiz-num">2</span><span>Mode &amp; Enforcers</span></div>
+          <div class="wiz-connector"></div>
+          <div id="wiz-ind-3" class="wiz-ind"><span class="wiz-num">3</span><span>Rules</span></div>
+          <div class="wiz-connector"></div>
+          <div id="wiz-ind-4" class="wiz-ind"><span class="wiz-num">4</span><span>Review &amp; Apply</span></div>
+        </div>
+
+        <form id="form-create" novalidate>
+
+          <!-- ─── STEP 1: Scope & Target ─── -->
+          <div id="wiz-step-1" class="card mb-4">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Scope &amp; Target</h3>
+
+            <!-- Scope -->
+            <div class="mb-4 p-3 rounded-xl flex flex-wrap gap-5" style="background:#0f172a;border:1px solid #334155">
+              <label class="cb-row">
+                <input type="radio" name="scope" value="namespace" checked onchange="onScopeChange()">
+                <span style="color:#93c5fd;font-weight:600">Namespace <span class="dim">(VarmorPolicy)</span></span>
+              </label>
+              <label class="cb-row">
+                <input type="radio" name="scope" value="cluster" onchange="onScopeChange()">
+                <span style="color:#c4b5fd;font-weight:600">Cluster <span class="dim">(VarmorClusterPolicy)</span></span>
+              </label>
+            </div>
+
+            <!-- Name + Kind -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="form-label">Policy Name <span style="color:#f87171">*</span></label>
+                <input id="inp-pname" type="text" placeholder="e.g. protect-nginx" class="form-input" oninput="this.classList.remove('input-error');var h=$('tmpl-name-hint');if(h){h.classList.add('hidden');h.textContent='';}"/>
+                <p id="tmpl-name-hint" class="hidden" style="color:#f87171;font-size:.75rem;margin-top:.25rem"></p>
+              </div>
+              <div>
+                <label class="form-label">Target Kind</label>
+                <select id="sel-kind" class="form-input" onchange="onKindChange()">
+                  <option value="Deployment">Deployment</option>
+                  <option value="StatefulSet">StatefulSet</option>
+                  <option value="DaemonSet">DaemonSet</option>
+                  <option value="Pod">Pod</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Target mode toggle -->
+            <div class="mb-3 flex gap-4">
+              <label class="cb-row">
+                <input type="radio" name="tgt-mode" value="name" checked onchange="onTargetModeChange()">
+                <span>By Name</span>
+              </label>
+              <label class="cb-row">
+                <input type="radio" name="tgt-mode" value="selector" onchange="onTargetModeChange()">
+                <span>By Label Selector</span>
+              </label>
+            </div>
+
+            <!-- By Name -->
+            <div id="sec-tgt-name" class="mb-4">
+              <label class="form-label">Target Workload <span style="color:#f87171">*</span></label>
+              <select id="sel-target" class="form-input">
+                <option value="">&#8212; select workload &#8212;</option>
+              </select>
+            </div>
+
+            <!-- By Label Selector -->
+            <div id="sec-tgt-selector" class="hidden mb-4">
+              <label class="form-label">Label Selector <span style="color:#f87171">*</span> <span style="color:#475569;font-size:.75rem;font-weight:400">(matchLabels — key=value, one per line)</span></label>
+              <textarea id="ta-selector" rows="3" placeholder="app=nginx&#10;env=production" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              <label class="form-label mt-3">Match Expressions <span style="color:#475569;font-size:.75rem;font-weight:400">(optional JSON array)</span></label>
+              <textarea id="ta-selector-expr" rows="2" placeholder='[{"key":"tier","operator":"In","values":["frontend","api"]}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+              <p class="mt-1 text-xs" style="color:#64748b">Mutually exclusive with target name. Selects all matching workloads in namespace.</p>
+            </div>
+
+            <!-- Containers (optional) -->
+            <div>
+              <label class="form-label">Target Containers <span style="color:#475569;font-size:.75rem;font-weight:400">(optional — comma-separated, leave blank to protect all)</span></label>
+              <input id="inp-containers" type="text" placeholder="app, sidecar" class="form-input"/>
+            </div>
+          </div>
+
+          <!-- ─── STEP 2: Mode & Enforcers ─── -->
+          <div id="wiz-step-2" class="card mb-4 hidden">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Mode &amp; Enforcers</h3>
+
+            <!-- Mode -->
+            <div class="mb-5">
+              <label class="form-label">Policy Mode <span style="color:#f87171">*</span></label>
+              <select id="sel-mode" class="form-input" onchange="onModeChange()">
+                <option value="EnhanceProtect">EnhanceProtect — built-in rules + custom blocking</option>
+                <option value="AlwaysAllow">AlwaysAllow — disable all restrictions</option>
+                <option value="RuntimeDefault">RuntimeDefault — container runtime defaults</option>
+                <option value="BehaviorModeling">BehaviorModeling — record behavior (experimental)</option>
+                <option value="DefenseInDepth">DefenseInDepth — allowlist strict mode (experimental)</option>
+              </select>
+              <div id="mode-hint-box" class="mode-hint-box"><b>EnhanceProtect</b> &mdash; Most commonly used. Adds blocking rules on top of the runtime default. Choose enforcers below, then configure rules in Step 3.</div>
+            </div>
+
+            <!-- Enforcers (for EnhanceProtect) -->
+            <div id="sec-enhance">
+              <div class="mb-4">
+                <label class="form-label" style="margin-bottom:.375rem">Kernel Enforcers</label>
+                <p class="text-xs mb-2" style="color:#64748b">Click a combination below to apply it, or tick individually:</p>
+                <div class="flex flex-wrap gap-2 mb-3" id="combo-chips">
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor')">AppArmor</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('Seccomp')">Seccomp</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('BPF')">BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|Seccomp')">AppArmor + Seccomp</button>
+                  <button type="button" class="combo-chip combo-chip-active" onclick="applyEnforcerCombo('AppArmor|BPF')">AppArmor + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('Seccomp|BPF')">Seccomp + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('AppArmor|BPF|Seccomp')">AppArmor + BPF + Seccomp</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF')">NetworkProxy + BPF</button>
+                  <button type="button" class="combo-chip" onclick="applyEnforcerCombo('NetworkProxy|BPF|Seccomp')">NetworkProxy + BPF + Seccomp</button>
+                </div>
+                <div class="flex flex-wrap gap-5">
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="AppArmor" checked onchange="onEnforcerChange()"><span>AppArmor</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="Seccomp" onchange="onEnforcerChange()"><span>Seccomp</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="BPF" onchange="onEnforcerChange()"><span>BPF</span></label>
+                  <label class="cb-row"><input type="checkbox" name="enforcer" value="NetworkProxy" onchange="onEnforcerChange()"><span>NetworkProxy</span></label>
+                </div>
+                <div id="enf-combo-warn" style="display:none;margin-top:.5rem;padding:.4rem .75rem;background:#1c0a05;border:1px solid #9a3412;border-radius:.5rem;font-size:.75rem;color:#fdba74"></div>
+                <label class="cb-row mt-3"><input type="checkbox" id="chk-privileged"><span style="color:#94a3b8">Privileged workload baseline <span class="dim">(build AppArmor/BPF from AlwaysAllow; Seccomp profile is skipped by vArmor)</span></span></label>
+              </div>
+            </div>
+
+            <!-- AlwaysAllow / RuntimeDefault / BehaviorModeling / DID info -->
+            <div id="sec-simple" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">
+              <span id="simple-note"></span>
+            </div>
+
+            <!-- Options -->
+            <div class="p-3 rounded-xl space-y-2" style="background:#0c1a3b;border:1px solid #1d4ed8">
+              <label class="cb-row">
+                <input type="checkbox" id="chk-auto-restart" checked>
+                <span style="font-weight:600;color:#93c5fd">Auto-restart Deployment after policy creation</span>
+              </label>
+              <p style="font-size:.78rem;color:#475569;line-height:1.5;margin-left:1.5rem">Adds <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> label and triggers rolling restart.</p>
+              <label class="cb-row">
+                <input type="checkbox" id="chk-update-existing">
+                <span style="color:#93c5fd">updateExistingWorkloads <span style="color:#475569;font-weight:400;font-size:.8rem">— vArmor rolling update existing pods</span></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- ─── STEP 3: Rules (tab-based) ─── -->
+          <div id="wiz-step-3" class="card mb-4 hidden">
+            <h3 class="text-sm font-semibold mb-3" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Rules</h3>
+
+            <!-- Rule selection summary bar -->
+            <div id="rule-summary-bar" class="rule-summary-bar hidden">
+              <span><b id="rsb-total">0</b> rules selected</span>
+              <span id="rsb-groups" class="flex flex-wrap gap-1"></span>
+              <span id="rsb-warn" class="hidden" style="color:#fbbf24">&#9888; <span id="rsb-warn-text"></span></span>
+            </div>
+
+            <!-- Rule tab buttons -->
+            <div class="flex flex-wrap gap-2 mb-5">
+              <button type="button" id="rtab-btn-apparmor" class="rtab-btn rtab-active" onclick="switchRuleTab('apparmor')">AppArmor</button>
+              <button type="button" id="rtab-btn-attack" class="rtab-btn" onclick="switchRuleTab('attack')">Attack Protection</button>
+              <button type="button" id="rtab-btn-bpf" class="rtab-btn" onclick="switchRuleTab('bpf')">BPF</button>
+              <button type="button" id="rtab-btn-seccomp" class="rtab-btn" onclick="switchRuleTab('seccomp')">Seccomp</button>
+              <button type="button" id="rtab-btn-networkproxy" class="rtab-btn" onclick="switchRuleTab('networkproxy')">NetworkProxy</button>
+              <button type="button" id="rtab-btn-did" class="rtab-btn" onclick="switchRuleTab('did')">DefenseInDepth</button>
+              <button type="button" id="rtab-btn-general" class="rtab-btn" onclick="switchRuleTab('general')">General</button>
+            </div>
+
+            <!-- Tab: AppArmor -->
+            <div id="rtab-apparmor">
+              <div class="mb-4 space-y-2">
+                <label class="form-label" style="margin-bottom:.5rem">Built-in Defense Rules</label>
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('grp-hardening')">
+                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#c4b5fd">&#127755; Hardening <span id="cnt-hardening" class="text-xs font-normal" style="color:#64748b"></span></span>
+                    <span id="arr-hardening" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="grp-hardening" class="rule-group-body hidden">
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-all" onchange="updateRuleCounts()"><span>Disable all capabilities</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-privileged" onchange="updateRuleCounts()"><span>Disable privileged capabilities <span class="dim">(Baseline PSS)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disable-cap-all-except-net-bind-service" onchange="updateRuleCounts()"><span>Disable all except NET_BIND_SERVICE <span class="dim">(Restricted PSS)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-insmod" onchange="updateRuleCounts()"><span>Prohibit loading kernel modules</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount" onchange="updateRuleCounts()"><span>Disable mount syscall</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-umount" onchange="updateRuleCounts()"><span>Disable umount syscall</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-abuse-user-ns" onchange="updateRuleCounts()"><span>Prohibit abusing user namespaces</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-create-user-ns" onchange="updateRuleCounts()"><span>Prohibit creating user namespaces <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-prog" onchange="updateRuleCounts()"><span>Prohibit privileged eBPF programs</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-all-bpf-prog" onchange="updateRuleCounts()"><span>Prohibit any eBPF programs <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-load-bpf-via-setsockopt" onchange="updateRuleCounts()"><span>Prohibit cBPF via setsockopt <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-core-pattern" onchange="updateRuleCounts()"><span>Prohibit modifying core_pattern <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-securityfs" onchange="updateRuleCounts()"><span>Prohibit mounting securityfs <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-write-release-agent" onchange="updateRuleCounts()"><span>Prohibit modifying release_agent <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-cgroupfs" onchange="updateRuleCounts()"><span>Prohibit remounting cgroupfs <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-procfs" onchange="updateRuleCounts()"><span>Prohibit remounting procfs <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-debug-disk-device" onchange="updateRuleCounts()"><span>Prohibit debugging disk devices <span class="dim">(privileged)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-procfs-root" onchange="updateRuleCounts()"><span>Prohibit accessing /proc/[PID]/root</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-access-kallsyms" onchange="updateRuleCounts()"><span>Prohibit reading /proc/kallsyms</span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-userfaultfd-creation" onchange="updateRuleCounts()"><span>Prohibit userfaultfd <span class="dim">(Seccomp)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="disallow-mount-disk-device" onchange="updateRuleCounts()"><span>Prohibit mounting block devices <span class="dim">(privileged)</span></span></label>
+                  </div>
+                </div>
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('grp-vuln')">
+                    <span class="flex items-center gap-2 text-sm font-semibold" style="color:#4ade80">&#128203; Vulnerability Mitigation <span id="cnt-vuln" class="text-xs font-normal" style="color:#64748b"></span></span>
+                    <span id="arr-vuln" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="grp-vuln" class="rule-group-body hidden">
+                    <label class="cb-row"><input type="checkbox" name="rule" value="cgroups-lxcfs-escape-mitigation" onchange="updateRuleCounts()"><span>Mitigate cgroups/lxcfs escape <span class="dim">(CVE-2022-0492)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="runc-override-mitigation" onchange="updateRuleCounts()"><span>Mitigate runc override <span class="dim">(CVE-2019-5736)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="dirty-pipe-mitigation" onchange="updateRuleCounts()"><span>Mitigate Dirty Pipe <span class="dim">(CVE-2022-0847)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="ingress-nightmare-mitigation" onchange="updateRuleCounts()"><span>Mitigate IngressNightmare <span class="dim">(CVE-2025-1974)</span></span></label>
+                    <label class="cb-row"><input type="checkbox" name="rule" value="copy-fail-mitigation" onchange="updateRuleCounts()"><span>Mitigate Copy Fail <span class="dim">(CVE-2026-31431)</span></span></label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">Disable Specific Capabilities <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, one per line)</span></label>
+                <textarea id="ta-dynamic-caps" rows="2" placeholder="NET_RAW&#10;MKNOD" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">Banned File Paths <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor deny — one per line)</span></label>
+                <textarea id="ta-banned" rows="3" placeholder="/etc/shadow&#10;/proc/sysrq-trigger&#10;/sys/kernel/debug" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+              </div>
+
+              <div>
+                <label class="form-label">AppArmor Raw Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, one rule per line or JSON array with rules/targets)</span></label>
+                <textarea id="ta-apparmor-raw" rows="3" placeholder="deny /var/run/docker.sock rw,&#10;deny network packet raw," class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+              </div>
+            </div>
+
+            <!-- Tab: Attack Protection -->
+            <div id="rtab-attack" class="hidden">
+              <div class="mb-4">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="form-label" style="margin:0">Attack Protection Groups <span style="color:#475569;font-size:.75rem;font-weight:400">(AppArmor only — per-group executable targets)</span></label>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="addAttackGroup();_onFormChange()">+ Add Group</button>
+                </div>
+                <div id="attack-groups" class="space-y-2"></div>
+                <p class="mt-1 text-xs" style="color:#475569">Each group restricts specific rules to listed executables. Checked rules not in any group apply to all processes.</p>
+              </div>
+              <div class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-attack')" style="background:#0c1a3b">
+                  <span class="flex items-center gap-2 text-sm font-semibold" style="color:#93c5fd">&#128737; Attack Protection Rules <span id="cnt-attack" class="text-xs font-normal" style="color:#64748b"></span></span>
+                  <span id="arr-attack" style="color:#64748b;font-size:.75rem">&#9660;</span>
+                </div>
+                <div id="grp-attack" class="rule-group-body">
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-sa-leak" onchange="updateRuleCounts()"><span>Mitigate ServiceAccount token leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-host-ip-leak" onchange="updateRuleCounts()"><span>Mitigate host IP/MAC leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-disk-device-number-leak" onchange="updateRuleCounts()"><span>Mitigate disk device number leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="mitigate-overlayfs-leak" onchange="updateRuleCounts()"><span>Mitigate overlayfs path leakage</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-metadata-service" onchange="updateRuleCounts()"><span>Block all cloud metadata services <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-aws-metadata-service" onchange="updateRuleCounts()"><span>Block AWS/GCP/Azure metadata <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-kube-apiserver" onchange="updateRuleCounts()"><span>Block kube-apiserver access <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-container-runtime" onchange="updateRuleCounts()"><span>Block container runtime sockets <span class="dim">(CVE-2024-0132)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-etc" onchange="updateRuleCounts()"><span>Prohibit writing to /etc</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-shadow" onchange="updateRuleCounts()"><span>Prohibit access to /etc/shadow</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-passwd" onchange="updateRuleCounts()"><span>Prohibit access to /etc/passwd</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-access-ssh-dir" onchange="updateRuleCounts()"><span>Prohibit access to .ssh directories</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-shell" onchange="updateRuleCounts()"><span>Prohibit Unix shell creation</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-wget" onchange="updateRuleCounts()"><span>Prohibit wget</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-curl" onchange="updateRuleCounts()"><span>Prohibit curl</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-busybox" onchange="updateRuleCounts()"><span>Prohibit busybox</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod" onchange="updateRuleCounts()"><span>Prohibit chmod command</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-su-sudo" onchange="updateRuleCounts()"><span>Prohibit su/sudo</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-network" onchange="updateRuleCounts()"><span>Prohibit all network access</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet" onchange="updateRuleCounts()"><span>Prohibit IPv4</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-inet6" onchange="updateRuleCounts()"><span>Prohibit IPv6</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-tcp" onchange="updateRuleCounts()"><span>Prohibit TCP</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-udp" onchange="updateRuleCounts()"><span>Prohibit UDP</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-icmp" onchange="updateRuleCounts()"><span>Prohibit ICMP</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-unix-domain-socket" onchange="updateRuleCounts()"><span>Prohibit Unix domain sockets</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-write-skills" onchange="updateRuleCounts()"><span>Prohibit writing skill files</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-x-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +x (set exec bit)</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="disable-chmod-s-bit" onchange="updateRuleCounts()"><span>Prohibit chmod +s (set SUID/SGID)</span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-volc-metadata-service" onchange="updateRuleCounts()"><span>Block Volcengine metadata service <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-alibaba-metadata-service" onchange="updateRuleCounts()"><span>Block Alibaba Cloud metadata service <span class="dim">(BPF)</span></span></label>
+                  <label class="cb-row"><input type="checkbox" name="rule" value="block-access-to-oci-metadata-service" onchange="updateRuleCounts()"><span>Block OCI metadata service <span class="dim">(BPF)</span></span></label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: BPF -->
+            <div id="rtab-bpf" class="hidden">
+              <div id="sec-bpf-rules" class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-bpf')" style="background:#051a0a">
+                  <span class="text-sm font-semibold" style="color:#4ade80">&#9881; Custom BPF Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(bpfRawRules)</span></span>
+                  <span id="arr-bpf" style="color:#64748b;font-size:.75rem">&#9660;</span>
+                </div>
+                <div id="grp-bpf" class="p-3 space-y-4">
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">FILE RULES</span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-files');_onFormChange()">+ Add File Rule</button>
+                    </div>
+                    <div id="bpf-files" class="space-y-1"></div>
+                  </div>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">PROCESS RULES</span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addBpfRow('bpf-procs');_onFormChange()">+ Add Process Rule</button>
+                    </div>
+                    <div id="bpf-procs" class="space-y-1"></div>
+                  </div>
+                  <p class="text-xs" style="color:#475569">File/Process: pattern | qualifier | permissions (r=read, w=write, a=append, e=exec, *=all)</p>
+
+                  <!-- Ptrace rules -->
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">PTRACE RULE</span>
+                      <label class="cb-row"><input type="checkbox" id="chk-ptrace-enable" onchange="onPtraceEnableChange()"><span class="text-xs" style="color:#94a3b8">Enable ptrace rule</span></label>
+                    </div>
+                    <div id="sec-ptrace-rule" class="hidden p-2 rounded space-y-2" style="background:#0a0f1a;border:1px solid #1e293b">
+                      <div class="flex flex-wrap gap-4">
+                        <div style="min-width:9rem">
+                          <label class="form-label">Qualifier</label>
+                          <select id="sel-ptrace-qual" class="form-input" style="padding:.3rem .5rem">
+                            <option value="deny">deny</option>
+                            <option value="audit">audit</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="form-label">Permissions</label>
+                          <div class="flex flex-wrap gap-3">
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-all" value="all">all</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-trace" value="trace">trace</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-traceby" value="traceby">traceby</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-read" value="read">read</label>
+                            <label class="perm-check"><input type="checkbox" id="ptrace-perm-readby" value="readby">readby</label>
+                          </div>
+                        </div>
+                      </div>
+                      <label class="cb-row"><input type="checkbox" id="chk-ptrace-strict"><span style="color:#94a3b8;font-size:.8rem">Strict Mode (also restrict traceby/readby)</span></label>
+                    </div>
+                  </div>
+
+                  <!-- Mount rules -->
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">MOUNT RULES <span style="color:#475569;font-weight:400">(source pattern | fstype | flags | qualifier)</span></span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addMountRow();_onFormChange()">+ Add Mount Rule</button>
+                    </div>
+                    <div id="bpf-mounts" class="space-y-1"></div>
+                  </div>
+
+                  <!-- Network rules (JSON) -->
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-semibold" style="color:#94a3b8">NETWORK RULES <span style="color:#475569;font-weight:400">(NetworkRule JSON)</span></span>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="fillNetworkTemplate()">Template</button>
+                    </div>
+                    <textarea id="ta-bpf-network" rows="4" placeholder='{"egress":[{"ipBlock":{"cidr":"169.254.169.254/32"},"ports":[{"protocol":"TCP","port":80}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                    <p class="text-xs mt-1" style="color:#475569">Leave empty to skip. Click Template for a cloud-metadata-block example.</p>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /rtab-bpf -->
+
+            <!-- Tab: Seccomp -->
+            <div id="rtab-seccomp" class="hidden">
+              <div id="sec-seccomp-rules" class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-seccomp')" style="background:#1c0a05">
+                  <span class="text-sm font-semibold" style="color:#fb923c">&#128274; Custom Seccomp Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(syscallRawRules)</span></span>
+                  <span id="arr-seccomp" style="color:#64748b;font-size:.75rem">&#9660;</span>
+                </div>
+                <div id="grp-seccomp" class="p-3 space-y-3">
+                  <div>
+                    <label class="form-label">Action</label>
+                    <select id="sel-seccomp-action" class="form-input" style="max-width:20rem">
+                      <option value="SCMP_ACT_ERRNO">SCMP_ACT_ERRNO — return error (recommended)</option>
+                      <option value="SCMP_ACT_KILL">SCMP_ACT_KILL — kill process</option>
+                      <option value="SCMP_ACT_LOG">SCMP_ACT_LOG — log only</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="form-label">Blocked Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                    <textarea id="ta-seccomp" rows="5" placeholder="execve&#10;fork&#10;clone&#10;unshare" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Full LinuxSyscall JSON <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, overrides simple syscall list)</span></label>
+                    <textarea id="ta-seccomp-raw" rows="4" placeholder='[{"names":["clone"],"action":"SCMP_ACT_ERRNO","args":[{"index":0,"value":268435456,"op":"SCMP_CMP_MASKED_EQ"}]}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /rtab-seccomp -->
+
+            <!-- Tab: NetworkProxy -->
+            <div id="rtab-networkproxy" class="hidden">
+              <div id="sec-np-config" class="rule-group">
+                <div class="rule-group-hdr" onclick="toggleGroup('grp-np')" style="background:#051429">
+                  <span class="text-sm font-semibold" style="color:#38bdf8">&#127760; NetworkProxy Rules <span style="color:#64748b;font-weight:400;font-size:.75rem">(networkProxyRawRules + config)</span></span>
+                  <span id="arr-grp-np" style="color:#64748b;font-size:.75rem">&#9660;</span>
+                </div>
+                <div id="grp-np" class="p-3 space-y-4">
+
+                <!-- MITM Domains -->
+                <div>
+                  <label class="form-label">MITM Domains <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line — domains where TLS is intercepted)</span></label>
+                  <textarea id="ta-np-mitm-domains" rows="3" placeholder="example.com&#10;*.internal.corp" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                </div>
+
+                <!-- Header Mutations - structured builder -->
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="form-label" style="margin:0">Header Mutations <span style="color:#475569;font-size:.75rem;font-weight:400">(inject HTTP headers when MITM is active)</span></label>
+                    <div class="flex items-center gap-2">
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="openSecretPickerForHeader()" title="Pick a K8s Secret key">&#128273; Secret</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHeaderRow();_onFormChange()">+ Header</button>
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 5rem 1fr auto;gap:.375rem;font-size:.65rem;color:#475569;margin-bottom:.2rem;padding:0 .1rem">
+                    <span>Domain</span><span>Header Name</span><span>Type</span><span>Value / Secret&#58;Key</span><span></span>
+                  </div>
+                  <div id="np-header-rows" class="space-y-1"></div>
+                  <p class="mt-1 text-xs" style="color:#475569">Domain must match a MITM domain above. Secret refs are resolved by the proxy at runtime.</p>
+                </div>
+
+                <!-- Default egress action -->
+                <div class="flex items-center gap-4">
+                  <label class="form-label" style="margin:0;white-space:nowrap">Default Egress Action</label>
+                  <select id="sel-np-default-action" class="form-input" style="max-width:17rem">
+                    <option value="">&#8212; not configured (pass-through) &#8212;</option>
+                    <option value="deny">deny &#8212; whitelist (block unless allowed)</option>
+                    <option value="allow">allow &#8212; blacklist (allow unless denied)</option>
+                  </select>
+                </div>
+
+                <!-- L4 Egress Rules -->
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold" style="color:#94a3b8">L4 EGRESS RULES <span style="color:#475569;font-weight:400">(connection-level: IP/CIDR + ports)</span></span>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpL4Row();_onFormChange()">+ L4 Rule</button>
+                  </div>
+                  <div style="display:grid;grid-template-columns:5.5rem 4.5rem 1fr 7rem 1fr auto;gap:.375rem;font-size:.65rem;color:#475569;margin-bottom:.2rem;padding:0 .1rem">
+                    <span>Qualifier</span><span>Type</span><span>IP / CIDR</span><span>Ports (80,443)</span><span>Description</span><span></span>
+                  </div>
+                  <div id="np-l4-rows" class="space-y-1"></div>
+                  <p class="mt-1 text-xs" style="color:#475569">Deny/allow by IP or CIDR at TCP connection level. Ports optional (empty = all).</p>
+                </div>
+
+                <!-- L7 HTTP Rules -->
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold" style="color:#94a3b8">L7 HTTP RULES <span style="color:#475569;font-weight:400">(request-level: host, path, method)</span></span>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addNpHttpRow();_onFormChange()">+ HTTP Rule</button>
+                  </div>
+                  <div id="np-http-rows" class="space-y-2"></div>
+                  <p class="mt-1 text-xs" style="color:#475569">Deny/allow by domain (SNI), path, and method. Path/method matching requires MITM for HTTPS.</p>
+                </div>
+
+                <!-- Proxy ports / resources -->
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="form-label">Proxy UID</label>
+                    <input id="inp-np-proxy-uid" type="number" min="0" placeholder="1337" class="form-input"/>
+                  </div>
+                  <div>
+                    <label class="form-label">Proxy Port</label>
+                    <input id="inp-np-proxy-port" type="number" min="1" max="65535" placeholder="15001" class="form-input"/>
+                  </div>
+                  <div>
+                    <label class="form-label">Admin Port</label>
+                    <input id="inp-np-proxy-admin-port" type="number" min="1" max="65535" placeholder="15000" class="form-input"/>
+                  </div>
+                </div>
+                <div>
+                  <label class="form-label">Proxy Resources <span style="color:#475569;font-size:.75rem;font-weight:400">(optional requests/limits)</span></label>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <input id="inp-np-req-cpu" class="form-input" placeholder="request cpu, e.g. 100m"/>
+                    <input id="inp-np-req-mem" class="form-input" placeholder="request memory, e.g. 128Mi"/>
+                    <input id="inp-np-limit-cpu" class="form-input" placeholder="limit cpu, e.g. 1000m"/>
+                    <input id="inp-np-limit-mem" class="form-input" placeholder="limit memory, e.g. 512Mi"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div><!-- /rtab-networkproxy -->
+
+            <!-- Tab: DefenseInDepth -->
+            <div id="rtab-did" class="hidden">
+              <div id="sec-did" class="space-y-3">
+                <div class="p-3 rounded-lg text-sm" style="background:#0c1205;border:1px solid #166534;color:#86efac">
+                  DefenseInDepth applies a deny-by-default allowlist profile. Configure AppArmor/Seccomp profiles and optional NetworkProxy egress rules below.
+                </div>
+                <!-- DID AppArmor -->
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('did-apparmor')" style="background:#0c1205">
+                    <span class="text-sm font-semibold" style="color:#4ade80">AppArmor Profile</span>
+                    <span id="arr-did-apparmor" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="did-apparmor" class="hidden p-3 space-y-3">
+                  <div>
+                    <label class="form-label">Profile Type</label>
+                    <div class="flex gap-5">
+                      <label class="cb-row"><input type="radio" name="did-aa-type" value="BehaviorModel" onchange="onDidAaTypeChange()"><span>BehaviorModel <span class="dim">(use recorded model)</span></span></label>
+                      <label class="cb-row"><input type="radio" name="did-aa-type" value="Custom" onchange="onDidAaTypeChange()"><span>Custom <span class="dim">(provide profile)</span></span></label>
+                    </div>
+                  </div>
+                  <div id="did-aa-custom-sec" class="hidden">
+                    <label class="form-label">Custom Profile <span style="color:#475569;font-size:.75rem;font-weight:400">(base64-encoded AppArmor profile)</span></label>
+                    <textarea id="ta-did-aa-custom" rows="3" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Additional Raw Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line, appended to profile)</span></label>
+                    <textarea id="ta-did-aa-raw" rows="3" placeholder="deny /etc/shadow r,&#10;deny /proc/sysrq-trigger rwmlk," class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                  </div>
+                </div>
+              </div>
+              <!-- DID Seccomp -->
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('did-seccomp')" style="background:#1c0a05">
+                    <span class="text-sm font-semibold" style="color:#fb923c">Seccomp Profile</span>
+                    <span id="arr-did-seccomp" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="did-seccomp" class="hidden p-3 space-y-3">
+                    <div>
+                      <label class="form-label">Profile Type</label>
+                      <div class="flex gap-5">
+                        <label class="cb-row"><input type="radio" name="did-sc-type" value="BehaviorModel" onchange="onDidScTypeChange()"><span>BehaviorModel</span></label>
+                        <label class="cb-row"><input type="radio" name="did-sc-type" value="Custom" onchange="onDidScTypeChange()"><span>Custom</span></label>
+                      </div>
+                    </div>
+                    <div id="did-sc-custom-sec" class="hidden">
+                      <label class="form-label">Custom Profile <span style="color:#475569;font-size:.75rem;font-weight:400">(base64-encoded Seccomp profile)</span></label>
+                      <textarea id="ta-did-sc-custom" rows="3" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                    </div>
+                    <div>
+                      <label class="form-label">Allowed Syscalls <span style="color:#475569;font-size:.75rem;font-weight:400">(one per line)</span></label>
+                      <textarea id="ta-did-sc-syscalls" rows="4" placeholder="read&#10;write&#10;open&#10;close" class="form-input" style="font-family:monospace;resize:vertical"></textarea>
+                    </div>
+                  <div>
+                    <label class="form-label">Full LinuxSyscall JSON <span style="color:#475569;font-size:.75rem;font-weight:400">(optional, overrides simple syscall list)</span></label>
+                    <textarea id="ta-did-sc-raw" rows="4" placeholder='[{"names":["read","write"],"action":"SCMP_ACT_ALLOW"}]' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  </div>
+                  <div>
+                    <label class="form-label">Action for listed syscalls</label>
+                    <select id="sel-did-sc-action" class="form-input" style="max-width:22rem">
+                      <option value="SCMP_ACT_ALLOW">SCMP_ACT_ALLOW — allow these syscalls</option>
+                      <option value="SCMP_ACT_ERRNO">SCMP_ACT_ERRNO — block (return error)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <!-- DID NetworkProxy egress -->
+                <div class="rule-group">
+                  <div class="rule-group-hdr" onclick="toggleGroup('did-np')" style="background:#051429">
+                    <span class="text-sm font-semibold" style="color:#38bdf8">NetworkProxy Egress <span style="color:#64748b;font-weight:400;font-size:.75rem">(optional)</span></span>
+                    <span id="arr-did-np" style="color:#64748b;font-size:.75rem">&#9658;</span>
+                  </div>
+                  <div id="did-np" class="hidden p-3">
+                    <label class="form-label">Egress Rules <span style="color:#475569;font-size:.75rem;font-weight:400">(JSON object)</span></label>
+                    <textarea id="ta-did-np-egress" rows="4" placeholder='{"defaultAction":"deny","rules":[{"qualifiers":["allow"],"cidr":"10.0.0.0/8","ports":[{"port":443}]}]}' class="form-input" style="font-family:monospace;font-size:.78rem;resize:vertical"></textarea>
+                  </div>
+                </div>
+                <label class="cb-row mt-2"><input type="checkbox" id="did-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only mode)</span></label>
+              </div><!-- /sec-did -->
+            </div><!-- /rtab-did -->
+
+            <!-- Tab: General -->
+            <div id="rtab-general" class="hidden">
+              <!-- BehaviorModeling duration -->
+              <div id="sec-modeling" class="mb-4">
+                <label class="form-label">Modeling Duration <span style="color:#475569;font-size:.75rem;font-weight:400">(minutes)</span></label>
+                <input id="inp-duration" type="number" min="1" value="60" class="form-input" style="max-width:12rem"/>
+                <p class="mt-1 text-xs" style="color:#64748b">vArmor records container behavior for this duration, then transitions to Completed state.</p>
+              </div>
+
+              <!-- Observation toggles -->
+              <div class="mb-4 flex flex-wrap gap-5">
+                <label class="cb-row"><input type="checkbox" id="chk-audit-viol"><span style="color:#94a3b8">Audit violations (log detections)</span></label>
+                <label class="cb-row"><input type="checkbox" id="chk-allow-viol"><span style="color:#94a3b8">Allow violations (observe-only)</span></label>
+              </div>
+
+              <!-- Container unconfined overrides -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="form-label" style="margin:0">Container Unconfined Overrides <span style="color:#475569;font-size:.75rem;font-weight:400">(exclude specific containers from enforcement)</span></label>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="addUnconfinedRow();_onFormChange()">+ Add Container</button>
+                </div>
+                <div id="unconfined-rows" class="space-y-1"></div>
+                <p class="mt-1 text-xs" style="color:#475569">Adds <code style="color:#7dd3fc">container.apparmor.security.beta.varmor.org/&lt;name&gt;=unconfined</code> annotation to the workload pod template.</p>
+              </div>
+            </div><!-- /rtab-general -->
+
+          </div><!-- /wiz-step-3 -->
+
+          <!-- ─── STEP 4: Review & Apply ─── -->
+          <div id="wiz-step-4" class="card mb-4 hidden">
+            <h3 class="text-sm font-semibold mb-4" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1e293b;padding-bottom:.625rem">Review &amp; Apply</h3>
+
+            <div class="grid gap-5 mb-5" style="grid-template-columns:1fr 1fr">
+              <!-- Left: summary table -->
+              <div>
+                <p class="text-xs font-semibold mb-2" style="color:#64748b;text-transform:uppercase;letter-spacing:.06em">Policy Summary</p>
+                <div id="wiz-summary" class="space-y-0 text-sm"></div>
+                <div id="wiz-restart-note" class="hidden mt-3 p-2 rounded-lg text-xs" style="background:#0c1a3b;border:1px solid #1d4ed8;color:#93c5fd"></div>
+                <div id="wiz-apply-note" class="mt-3 p-2 rounded-lg text-xs" style="background:#0f172a;border:1px solid #334155;color:#64748b"></div>
+              </div>
+              <!-- Right: YAML preview -->
+              <div>
+                <p class="text-xs font-semibold mb-2" style="color:#64748b;text-transform:uppercase;letter-spacing:.06em">Spec Preview <span style="font-weight:400;color:#475569">(read-only)</span></p>
+                <pre id="yaml-preview" class="yaml-preview"></pre>
+              </div>
+            </div>
+
+            <div id="create-progress" class="hidden mb-4 p-4 rounded-xl space-y-2" style="background:#0f172a;border:1px solid #1e293b">
+              <div id="step-policy" class="step"><span id="icon-policy">&#9675;</span><span>Applying policy CRD&#8230;</span></div>
+              <div id="step-restart" class="step"><span id="icon-restart">&#9675;</span><span>Labeling &amp; restarting deployment&#8230;</span></div>
+            </div>
+            <div id="create-msg" class="hidden mb-4"></div>
+            <p id="validate-hint" class="text-xs" style="color:#475569">Click <b>Validate</b> to check the policy spec &mdash; submit/apply buttons activate on success.</p>
+          </div><!-- /wiz-step-4 -->
+
+          <!-- Sticky action bar -->
+          <div class="wiz-sticky-bar">
+            <button type="button" id="wiz-btn-back" class="btn btn-ghost hidden" onclick="wizBack()">&#8592; Back</button>
+            <div style="flex:1"></div>
+            <button type="button" id="wiz-btn-next" class="btn btn-primary" onclick="wizNext()">Next &#8594;</button>
+            <button type="button" id="btn-validate" onclick="doValidatePolicy()" class="btn btn-ghost hidden">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Validate
+            </button>
+            <span id="validate-indicator" class="text-sm font-semibold hidden"></span>
+            <button type="button" id="btn-cancel-edit" class="hidden btn btn-ghost" onclick="cancelEdit()">Cancel Edit</button>
+            <button type="button" id="btn-submit-review" onclick="doSubmitForReview()" class="btn btn-warning hidden" disabled>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              <span id="btn-submit-label">Submit for Review</span>
+            </button>
+            <button type="submit" id="btn-apply-direct" class="btn btn-primary hidden" disabled>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span id="btn-create-label">Apply Directly</span>
+            </button>
+          </div><!-- /sticky bar -->
+
+        </form>
+      </div><!-- /pv-create -->
+
+      <!-- ═══════ VIEW: Review Queue ═══════ -->
+      <div id="pv-queue" class="hidden">
+        <section class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold flex items-center gap-2" style="color:#f1f5f9">
+              <svg class="w-5 h-5" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+              Review Queue
+              <span style="color:#64748b;font-size:.75rem;font-weight:400;margin-left:.375rem">(submit → admin review → apply)</span>
+            </h2>
+            <div class="flex items-center gap-2">
+              <select id="sel-queue-filter" class="form-input" style="padding:.2rem .5rem;font-size:.72rem;width:auto" onchange="loadPolicyQueue()">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <button onclick="loadPolicyQueue()" class="btn btn-ghost btn-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div id="queue-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+          <div id="queue-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No items in queue.</div>
+          <div id="queue-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr style="border-bottom:1px solid #1e293b">
+                  <th class="th">Policy</th><th class="th">Scope</th><th class="th">Submitted By</th>
+                  <th class="th">Submitted At</th><th class="th">Status</th>
+                  <th class="th">Reviewed By</th><th class="th">Note</th><th class="th th-r">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body"></tbody>
+            </table>
+          </div>
+          <p class="mt-3 text-xs" style="color:#475569">
+            <b>operator / admin</b>: submit policies for review.
+            <b>admin only</b>: approve (applies to cluster) or reject with a note.
+          </p>
+        </section>
+      </div><!-- /pv-queue -->
+
+    </div><!-- /tab-policy -->

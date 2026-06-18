@@ -1,0 +1,519 @@
+<!-- EVENT DETAIL DRAWER -->
+<div id="ev-drawer" class="hidden fixed inset-y-0 right-0 z-40 flex flex-col" style="width:26rem;background:#0c1424;border-left:1px solid #1e293b;box-shadow:-6px 0 32px rgba(0,0,0,.6)">
+  <div class="flex items-center justify-between px-4 py-3 border-b flex-shrink-0" style="border-color:#1e293b">
+    <div class="flex items-center gap-2">
+      <span id="ev-drawer-sev" class="badge badge-gray">—</span>
+      <span class="text-sm font-semibold" style="color:#f1f5f9">Event Detail</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-copy-raw" onclick="copyEvRaw()" class="btn btn-ghost btn-sm text-xs">Copy Raw</button>
+      <button onclick="closeEvDrawer()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+  </div>
+  <div class="overflow-y-auto flex-1 px-4 py-3" id="ev-drawer-body"></div>
+</div>
+
+<!-- REJECT POLICY MODAL -->
+<div id="modal-reject" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:28rem;border-color:#7f1d1d">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Reject Policy</h3>
+      <button onclick="closeRejectModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <p class="text-sm mb-1" style="color:#94a3b8">Policy:</p>
+    <p id="reject-policy-name" class="font-mono font-semibold text-sm mb-3" style="color:#f87171"></p>
+    <div class="mb-4">
+      <label class="form-label">Rejection Note <span style="color:#f87171">*</span></label>
+      <textarea id="ta-reject-note" rows="3" class="form-input" placeholder="Explain why this policy is rejected…" style="resize:vertical"></textarea>
+    </div>
+    <div id="reject-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeRejectModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-reject-confirm" class="btn btn-danger">Reject Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUEUE DETAIL MODAL -->
+<div id="modal-queue-detail" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.78);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeQueueDetail()">
+  <div class="card flex flex-col w-full mx-4" style="max-width:68rem;max-height:92vh;border-color:#334155">
+
+    <!-- Header -->
+    <div class="flex items-start gap-3 mb-4 flex-shrink-0" style="border-bottom:1px solid #1e293b;padding-bottom:.875rem">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h3 class="text-sm font-semibold" style="color:#94a3b8;text-transform:uppercase;letter-spacing:.06em">Policy Review</h3>
+          <span id="qd-status-badge"></span>
+        </div>
+        <p id="qd-title" class="font-mono font-semibold mt-1" style="color:#f1f5f9;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+        <p id="qd-subtitle" class="text-xs mt-0.5" style="color:#64748b"></p>
+      </div>
+      <button onclick="closeQueueDetail()" class="btn btn-ghost btn-sm flex-shrink-0">&#10005;</button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overflow-y-auto flex-1" style="min-height:0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+
+        <!-- LEFT: structured details -->
+        <div>
+          <div class="qd-section">
+            <span class="qd-label">Target</span>
+            <div id="qd-target"></div>
+          </div>
+          <div class="qd-section">
+            <span class="qd-label">Mode &amp; Enforcers</span>
+            <div id="qd-mode"></div>
+          </div>
+          <div class="qd-section">
+            <span class="qd-label">Rules Selected</span>
+            <div id="qd-rules"></div>
+          </div>
+          <div class="qd-section">
+            <span class="qd-label">Extended Config</span>
+            <div id="qd-extended" style="font-size:.78rem;color:#64748b"></div>
+          </div>
+          <div>
+            <span class="qd-label">Options</span>
+            <div id="qd-options"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: YAML + timeline -->
+        <div style="display:flex;flex-direction:column;gap:1rem">
+          <div>
+            <span class="qd-label">Spec Preview <span style="font-weight:400;color:#475569">(read-only)</span></span>
+            <pre id="qd-yaml" class="yaml-preview" style="max-height:22rem;margin-top:.3rem"></pre>
+          </div>
+          <div>
+            <span class="qd-label">Review Timeline</span>
+            <div id="qd-timeline" class="space-y-2 mt-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="flex items-center gap-3 flex-shrink-0 flex-wrap" style="border-top:1px solid #1e293b;padding-top:.875rem;margin-top:.875rem">
+      <div id="qd-reject-note-sec" class="hidden" style="flex:1;min-width:12rem">
+        <textarea id="qd-reject-note" rows="2" class="form-input" placeholder="Rejection note (required)&#8230;" style="resize:none;font-size:.8rem"></textarea>
+      </div>
+      <div id="qd-spacer" style="flex:1"></div>
+      <div id="qd-msg" class="hidden text-xs"></div>
+      <button id="qd-btn-cancel-sub" onclick="cancelQueuedFromDetail()" class="hidden btn btn-ghost btn-sm">Cancel Submission</button>
+      <button id="qd-btn-reject-toggle" onclick="toggleQdRejectNote()" class="hidden btn btn-danger btn-sm">&#10005; Reject</button>
+      <button id="qd-btn-reject-confirm" onclick="confirmQdReject()" class="hidden btn btn-danger">Confirm Reject</button>
+      <button id="qd-btn-approve" onclick="approveFromDetail()" class="hidden btn btn-green">&#10003; Approve &amp; Apply</button>
+      <button onclick="closeQueueDetail()" class="btn btn-ghost">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div id="modal-add-user" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:26rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Add New User</h3>
+      <button onclick="closeAddUserModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <form id="form-add-user" novalidate>
+      <div class="mb-3">
+        <label class="form-label">Username <span style="color:#f87171">*</span></label>
+        <input id="inp-new-uname" type="text" autocomplete="off" class="form-input" placeholder="e.g. operator1"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password <span style="color:#f87171">*</span></label>
+        <input id="inp-new-upass" type="password" autocomplete="new-password" class="form-input" placeholder="Min 8 characters"/>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Role</label>
+        <select id="sel-new-role" class="form-input">
+          <option value="viewer">viewer — Read-only: view policies, logs, dashboard</option>
+          <option value="operator">operator — Submit policies for review; cannot approve/apply</option>
+          <option value="admin">admin — Full access: submit, approve, reject, manage users</option>
+        </select>
+      </div>
+      <div id="add-user-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="closeAddUserModal()" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CREATE / EDIT ROLE MODAL -->
+<div id="modal-role" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:42rem;max-height:90vh;border-color:#1e3a5f">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <h3 id="role-modal-title" class="text-base font-semibold" style="color:#f1f5f9">New Role</h3>
+      <button onclick="closeRoleModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <div class="overflow-y-auto flex-1 pr-1">
+      <div class="grid grid-cols-1 gap-4 mb-4">
+        <div>
+          <label class="form-label">Role Name <span style="color:#f87171">*</span></label>
+          <input id="inp-role-name" type="text" class="form-input" placeholder="e.g. security_reviewer" maxlength="32"/>
+          <p class="text-xs mt-1" style="color:#475569">Lowercase letters, digits, underscores. Cannot shadow built-in roles.</p>
+        </div>
+        <div>
+          <label class="form-label">Description</label>
+          <input id="inp-role-desc" type="text" class="form-input" placeholder="Brief description of this role's purpose" maxlength="120"/>
+        </div>
+      </div>
+      <div class="mb-2 flex items-center justify-between">
+        <label class="form-label mb-0">Permissions</label>
+        <div class="flex gap-2">
+          <button onclick="_roleSelectAll(true)" class="btn btn-ghost btn-sm text-xs">Select All</button>
+          <button onclick="_roleSelectAll(false)" class="btn btn-ghost btn-sm text-xs">Clear All</button>
+        </div>
+      </div>
+      <div id="role-perm-checkboxes" class="space-y-3"></div>
+    </div>
+    <div id="role-modal-msg" class="hidden mt-3 p-3 rounded-lg text-sm flex-shrink-0"></div>
+    <div class="flex gap-3 justify-end mt-4 flex-shrink-0">
+      <button onclick="closeRoleModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-role-save" onclick="saveRole()" class="btn btn-primary">Save Role</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div id="modal-reset-pwd" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:26rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Reset Password</h3>
+      <button onclick="closeResetPwdModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <div class="flex items-center gap-3 mb-4 p-3 rounded-xl" style="background:#0f172a;border:1px solid #334155">
+      <div id="reset-pwd-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style="background:#334155;color:#f1f5f9">?</div>
+      <div>
+        <p id="reset-pwd-uname" class="font-mono font-semibold text-sm" style="color:#93c5fd"></p>
+        <span id="reset-pwd-role-badge" class="badge badge-gray" style="font-size:.65rem">viewer</span>
+      </div>
+    </div>
+    <!-- Generate random password -->
+    <div class="mb-3 p-3 rounded-lg" style="background:#071a07;border:1px solid #166534">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold" style="color:#4ade80">Generate Random Password</span>
+        <button type="button" onclick="generateAndFillPwd()" class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:.2rem .5rem;color:#4ade80;border-color:#166534">&#9881; Generate</button>
+      </div>
+      <div id="reset-gen-box" class="hidden">
+        <div class="flex items-center gap-2 mt-1">
+          <code id="reset-gen-display" class="flex-1 text-xs font-mono rounded px-2 py-1.5" style="background:#0a1a0a;border:1px solid #166534;color:#86efac;word-break:break-all"></code>
+          <button type="button" onclick="copyGenPwd()" class="btn btn-ghost btn-sm shrink-0" style="font-size:.7rem;padding:.2rem .45rem" title="Copy">&#128203;</button>
+        </div>
+        <p class="text-xs mt-1" style="color:#475569">Copy and share this password securely.</p>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">New Password <span style="color:#f87171">*</span></label>
+      <input id="inp-reset-pass" type="password" autocomplete="new-password" class="form-input" placeholder="Min 8 characters"/>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Confirm Password <span style="color:#f87171">*</span></label>
+      <input id="inp-reset-confirm" type="password" autocomplete="new-password" class="form-input" placeholder="Repeat new password"/>
+    </div>
+    <div id="reset-pwd-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeResetPwdModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-reset-pwd-confirm" class="btn btn-warning">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIVATION REQUEST MODAL -->
+<div id="modal-activation-request" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.78);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeActivationRequestModal()">
+  <div class="card w-full mx-4" style="max-width:38rem;border-color:#1e3a5f;max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Download Activation Request</h3>
+      <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm" style="padding:.25rem .5rem;min-height:0">&#x2715;</button>
+    </div>
+
+    <!-- Section: Thong tin lien he -->
+    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#3b82f6">Thong tin lien he</p>
+    <div class="flex flex-col gap-3 mb-4">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ho va ten <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-name" type="text" class="form-input" placeholder="Nguyen Van A" autocomplete="name" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Cong ty / To chuc <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-company" type="text" class="form-input" placeholder="Acme Corp" autocomplete="organization" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Email lien he <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-email" type="email" class="form-input" placeholder="contact@example.com" autocomplete="email" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So dien thoai <span style="color:#64748b;font-weight:400">(tuy chon)</span></label>
+          <input id="ar-contact-phone" type="text" class="form-input" placeholder="+84 xxx xxx xxx" autocomplete="tel" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Yeu cau license -->
+    <div style="border-top:1px solid #1e293b;margin-bottom:.75rem"></div>
+    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#34d399">Yeu cau license</p>
+    <div class="flex flex-col gap-3 mb-4">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Edition <span style="color:#f87171">*</span></label>
+          <select id="ar-req-edition" class="form-input">
+            <option value="enterprise">Enterprise</option>
+            <option value="starter">Starter</option>
+            <option value="trial">Trial</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Thoi han <span style="color:#f87171">*</span></label>
+          <select id="ar-req-duration" class="form-input" onchange="arToggleCustomDays()">
+            <option value="365">1 nam (365 ngay)</option>
+            <option value="730">2 nam (730 ngay)</option>
+            <option value="90">3 thang (90 ngay)</option>
+            <option value="30">1 thang / trial (30 ngay)</option>
+            <option value="custom">Khac...</option>
+          </select>
+        </div>
+      </div>
+      <div id="ar-custom-days-row" class="hidden">
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So ngay cu the</label>
+        <input id="ar-req-custom-days" type="number" class="form-input" min="1" max="3650" placeholder="365" style="max-width:10rem" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So node toi da <span style="color:#64748b;font-weight:400">(0 = khong gioi han)</span></label>
+          <input id="ar-req-max-nodes" type="number" class="form-input" value="0" min="0" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So policy toi da <span style="color:#64748b;font-weight:400">(0 = khong gioi han)</span></label>
+          <input id="ar-req-max-policies" type="number" class="form-input" value="0" min="0" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ghi chu / Muc dich su dung <span style="color:#64748b;font-weight:400">(tuy chon)</span></label>
+        <textarea id="ar-contact-notes" class="form-input" rows="2" placeholder="Mo ta muc dich su dung, moi truong trien khai..." style="resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <div id="ar-error-msg" class="hidden mb-3 p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Huy</button>
+      <button id="btn-ar-confirm" onclick="confirmDownloadActivationRequest()" class="btn btn-primary btn-sm">Tai xuong</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div id="modal-del" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:24rem;border-color:#475569">
+    <h3 class="text-base font-semibold mb-2" style="color:#f1f5f9">Confirm Deletion</h3>
+    <p class="text-sm mb-1" style="color:#94a3b8">About to permanently delete:</p>
+    <p id="del-pname" class="font-mono font-semibold text-sm mb-6 break-all" style="color:#f87171"></p>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeDelModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-del-confirm" class="btn btn-danger">Delete Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROTECT MODAL -->
+<div id="modal-protect" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:26rem;border-color:#334155">
+    <h3 id="protect-title" class="text-base font-semibold mb-2" style="color:#f1f5f9">Manage Protection</h3>
+    <p class="text-sm mb-1" style="color:#94a3b8">Deployment:</p>
+    <p id="protect-dname" class="font-mono font-semibold text-sm mb-4" style="color:#93c5fd"></p>
+    <p class="text-xs mb-5" style="color:#64748b;line-height:1.6">Sets <code style="color:#7dd3fc">sandbox.varmor.org/enable=true</code> and triggers rolling restart.</p>
+    <div id="protect-msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeProtectModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-protect-confirm" class="btn btn-cyan">Enable &amp; Restart</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL (Policy) -->
+<div id="modal-detail" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:52rem;max-height:85vh;border-color:#475569">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <div>
+        <h3 class="text-base font-semibold" style="color:#f1f5f9">Policy Detail</h3>
+        <p id="detail-name" class="font-mono text-sm mt-0.5" style="color:#93c5fd"></p>
+      </div>
+      <button onclick="closeDetailModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <div id="detail-loading" class="py-8 flex justify-center">
+      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    </div>
+    <div id="detail-err" class="hidden p-3 rounded-lg text-sm mb-2" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div id="detail-body" class="hidden flex-1 overflow-auto rounded-lg p-4 text-xs font-mono" style="background:#0f172a;border:1px solid #334155;color:#7dd3fc;min-height:12rem;white-space:pre-wrap;word-break:break-all"></div>
+  </div>
+</div>
+
+<!-- YAML IMPORT MODAL -->
+<div id="modal-import" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:54rem;max-height:88vh;border-color:#475569">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Import Policy from YAML</h3>
+      <button onclick="closeImportModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <p class="text-xs mb-3 flex-shrink-0" style="color:#64748b">Paste a VarmorPolicy or VarmorClusterPolicy YAML. The <code style="color:#7dd3fc">apiVersion</code> field will be set automatically.</p>
+    <textarea id="ta-import-yaml" class="form-input flex-1 overflow-auto" style="font-family:monospace;font-size:.78rem;resize:none;min-height:16rem" placeholder='kind: VarmorPolicy&#10;metadata:&#10;  name: my-policy&#10;  namespace: default&#10;spec:&#10;  target:&#10;    kind: Deployment&#10;    name: my-app&#10;  policy:&#10;    enforcer: AppArmor&#10;    mode: EnhanceProtect&#10;    enhanceProtect:&#10;      hardeningRules: [disable-shell]'></textarea>
+    <div id="import-msg" class="hidden mt-3 flex-shrink-0 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end mt-4 flex-shrink-0">
+      <button onclick="closeImportModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-import-confirm" onclick="doImportPolicy()" class="btn btn-primary">&#11014; Import Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- POLICY BACKUP MODAL -->
+<div id="modal-backup" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:34rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Backup Policies</h3>
+      <button onclick="closeBackupModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <p class="text-xs mb-4" style="color:#64748b;line-height:1.6">Download a portable JSON backup of applied vArmor policies. Runtime fields such as status, uid, resourceVersion, and managedFields are removed.</p>
+    <label class="cb-row mb-2"><input id="chk-backup-ns" type="checkbox" checked><span>Namespace policies in current namespace</span></label>
+    <label class="cb-row mb-4"><input id="chk-backup-cluster" type="checkbox" checked><span>Cluster policies</span></label>
+    <div id="backup-msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeBackupModal()" class="btn btn-ghost">Cancel</button>
+      <button id="btn-backup-download" onclick="downloadPolicyBackup()" class="btn btn-primary">&#11123; Download Backup</button>
+    </div>
+  </div>
+</div>
+
+<!-- POLICY RESTORE MODAL -->
+<div id="modal-restore" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:62rem;max-height:90vh;border-color:#475569">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Restore Policy Backup</h3>
+      <button onclick="closeRestoreModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3 flex-shrink-0">
+      <div>
+        <label class="form-label">Backup JSON</label>
+        <input id="inp-restore-file" type="file" accept="application/json,.json" class="form-input mb-2" onchange="loadRestoreFile(this)">
+        <textarea id="ta-restore-json" rows="9" class="form-input" style="font-family:monospace;font-size:.75rem;resize:vertical" placeholder='Paste backup JSON here'></textarea>
+      </div>
+      <div>
+        <label class="form-label">Restore Options</label>
+        <select id="sel-restore-conflict" class="form-input mb-3">
+          <option value="skip">Skip existing policies</option>
+          <option value="overwrite">Overwrite existing policies</option>
+        </select>
+        <p class="text-xs mb-3" style="color:#64748b;line-height:1.6">Preview checks conflicts before restore. Direct restore applies to the cluster immediately. Submit for Review queues each policy for admin approval.</p>
+        <div id="restore-summary" class="p-3 rounded-lg text-xs" style="background:#0f172a;border:1px solid #334155;color:#94a3b8">No backup loaded.</div>
+      </div>
+    </div>
+    <div id="restore-msg" class="hidden mb-3 p-3 rounded-lg text-sm flex-shrink-0"></div>
+    <div class="flex-1 overflow-auto rounded-lg mb-4" style="border:1px solid #1e293b">
+      <table class="w-full text-sm">
+        <thead style="background:#0f172a">
+          <tr>
+            <th class="th">Policy</th><th class="th">Scope</th><th class="th">Mode</th><th class="th">Enforcer</th><th class="th">Conflict</th><th class="th">Action</th>
+          </tr>
+        </thead>
+        <tbody id="restore-preview-body">
+          <tr><td colspan="6" class="td text-center" style="color:#64748b">Run Preview first.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="flex gap-3 justify-end flex-shrink-0">
+      <button onclick="previewPolicyRestore()" class="btn btn-ghost">Preview</button>
+      <button id="btn-restore-submit" onclick="submitPolicyRestore()" class="btn btn-ghost">Submit for Review</button>
+      <button id="btn-restore-direct" onclick="restorePoliciesDirect()" class="btn btn-primary">Restore Directly</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECRET PICKER MODAL -->
+<div id="modal-secret-picker" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:38rem;max-height:80vh;border-color:#475569">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">&#128273; Pick Secret for Header Mutation</h3>
+      <button onclick="closeSecretPickerModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <div class="flex gap-2 mb-3 flex-shrink-0">
+      <button onclick="loadSecretsForPicker()" class="btn btn-ghost btn-sm">&#x21BA; Reload</button>
+      <button onclick="openCreateSecretModal()" class="btn btn-primary btn-sm">+ Create Secret</button>
+    </div>
+    <div id="secret-picker-loading" class="hidden py-4 flex justify-center flex-shrink-0">
+      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    </div>
+    <div id="secret-picker-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div id="secret-picker-list" class="flex-1 overflow-auto space-y-2"></div>
+    <p class="text-xs mt-3 flex-shrink-0" style="color:#64748b">Click a secret key to insert a <code style="color:#7dd3fc">secretRef</code> snippet into the Header Mutations textarea.</p>
+  </div>
+</div>
+
+<!-- CREATE SECRET MODAL -->
+<div id="modal-create-secret" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4" style="max-width:30rem;border-color:#475569">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Create Kubernetes Secret</h3>
+      <button onclick="closeCreateSecretModal()" class="btn btn-ghost btn-sm">&#10005;</button>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Secret Name <span style="color:#f87171">*</span></label>
+      <input id="inp-secret-name" type="text" class="form-input" placeholder="e.g. api-credentials"/>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Key-Value Pairs <span style="color:#475569;font-size:.75rem;font-weight:400">(one KEY=value per line)</span></label>
+      <textarea id="ta-secret-data" rows="4" class="form-input" style="font-family:monospace;resize:vertical" placeholder="token=my-secret-token&#10;api_key=abc123"></textarea>
+    </div>
+    <div id="create-secret-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeCreateSecretModal()" class="btn btn-ghost">Cancel</button>
+      <button onclick="doCreateSecret()" class="btn btn-primary">Create Secret</button>
+    </div>
+  </div>
+</div>
+
+<!-- POLICY ADVISOR MODAL -->
+<div id="modal-advisor" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:48rem;max-height:85vh;border-color:#166534">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <div>
+        <h3 class="text-base font-semibold" style="color:#f1f5f9">&#129302; Policy Advisor</h3>
+        <p id="advisor-model-name" class="font-mono text-xs mt-0.5" style="color:#4ade80"></p>
+      </div>
+      <button onclick="closeAdvisorModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+    </div>
+    <div id="advisor-loading" class="py-8 flex justify-center flex-shrink-0">
+      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    </div>
+    <div id="advisor-err" class="hidden p-3 rounded-lg text-sm mb-2 flex-shrink-0" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div id="advisor-body" class="hidden flex-1 overflow-auto"></div>
+  </div>
+</div>
+
+<!-- MODEL DETAIL MODAL (ArmorProfileModel) -->
+<div id="modal-model" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);backdrop-filter:blur(4px)">
+  <div class="card w-full mx-4 flex flex-col" style="max-width:64rem;max-height:90vh;border-color:#166534">
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <div>
+        <h3 class="text-base font-semibold" style="color:#f1f5f9">Behavior Model Detail</h3>
+        <p id="model-detail-name" class="font-mono text-sm mt-0.5" style="color:#4ade80"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="toggleModelView()" id="btn-model-view-toggle" class="btn btn-ghost btn-sm">&#128196; Raw YAML</button>
+        <button onclick="closeModelModal()" class="btn btn-ghost btn-sm">&#10005; Close</button>
+      </div>
+    </div>
+    <div id="model-detail-loading" class="py-8 flex justify-center">
+      <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    </div>
+    <div id="model-detail-err" class="hidden p-3 rounded-lg text-sm mb-2" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <!-- Structured view -->
+    <div id="model-detail-structured" class="hidden flex-1 overflow-auto"></div>
+    <!-- Raw YAML view -->
+    <div id="model-detail-body" class="hidden flex-1 overflow-auto rounded-lg p-4 text-xs font-mono" style="background:#0f172a;border:1px solid #334155;color:#4ade80;min-height:12rem;white-space:pre-wrap;word-break:break-all"></div>
+  </div>
+</div>

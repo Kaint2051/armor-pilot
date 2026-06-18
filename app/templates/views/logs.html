@@ -1,0 +1,176 @@
+<!-- ═══════════════ TAB: LOGS ═══════════════ -->
+    <div id="tab-logs" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
+
+      <!-- ── Summary bar ── -->
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-5">
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','DENIED')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#f87171">Denied</div>
+          <div id="sval-denied" class="text-xl font-bold" style="color:#f87171">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','AUDIT')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#fbbf24">Audit</div>
+          <div id="sval-audit-evt" class="text-xl font-bold" style="color:#fbbf24">—</div>
+          <div class="text-xs mt-0.5" style="color:#78716c">incl. A|A</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security');applySecFilter('action','ALLOWED')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#4ade80">Allowed</div>
+          <div id="sval-allowed" class="text-xl font-bold" style="color:#4ade80">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('security')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#93c5fd">AA Events</div>
+          <div id="sval-aa" class="text-xl font-bold" style="color:#93c5fd">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('profiles')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#fb923c">Not Ready</div>
+          <div id="sval-not-ready" class="text-xl font-bold" style="color:#fb923c">—</div>
+        </div>
+        <div class="card flex flex-col items-center py-2" style="padding:.625rem .75rem;cursor:pointer" onclick="switchLogsView('audit')">
+          <div class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:#f87171">Audit Fail</div>
+          <div id="sval-audit-fail" class="text-xl font-bold" style="color:#f87171">—</div>
+        </div>
+      </div>
+
+      <!-- ── Sub-nav ── -->
+      <div class="flex gap-2 mb-4 border-b pb-3" style="border-color:#1e293b">
+        <button id="lcnav-security" onclick="switchLogsView('security')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="background:#334155;color:#f1f5f9">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Security Events
+        </button>
+        <button id="lcnav-audit" onclick="switchLogsView('audit')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Console Audit
+        </button>
+        <button id="lcnav-profiles" onclick="switchLogsView('profiles')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          Profile Health
+        </button>
+      </div>
+
+      <!-- ── VIEW: Security Events ── -->
+      <div id="lcv-security">
+
+        <!-- Filter bar -->
+        <div class="card mb-4" style="padding:.75rem 1rem">
+          <!-- Row 1: primary controls -->
+          <div class="flex flex-wrap gap-2 items-center">
+            <div style="position:relative;flex:1 1 15rem;min-width:11rem">
+              <svg class="w-3.5 h-3.5" style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);color:#64748b" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z"/></svg>
+              <input id="sf-search" type="text" class="form-input" placeholder="Search logs..." style="padding:.42rem .65rem .42rem 2rem;font-size:.78rem;width:100%" oninput="debounceSecFilter()"/>
+            </div>
+            <select id="sf-action" class="form-input" style="padding:.38rem .55rem;font-size:.75rem;width:9.5rem" onchange="applySecFilters()">
+              <option value="">All actions</option>
+              <option value="DENIED">DENIED</option>
+              <option value="AUDIT">AUDIT</option>
+              <option value="ALLOWED">ALLOWED</option>
+              <option value="AUDIT|ALLOWED">AUDIT|ALLOWED</option>
+            </select>
+            <select id="sf-enforcer" class="form-input" style="padding:.38rem .55rem;font-size:.75rem;width:8rem" onchange="applySecFilters()">
+              <option value="">All enforcers</option>
+              <option value="AppArmor">AppArmor</option>
+              <option value="BPF">BPF</option>
+              <option value="Seccomp">Seccomp</option>
+            </select>
+            <button id="btn-adv-filters" onclick="toggleAdvFilters()" class="btn btn-ghost btn-sm text-xs" title="Namespace / Pod / Container / Time range">
+              <svg class="w-3 h-3 inline-block mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+              Filters<span id="adv-filter-dot" class="hidden ml-1" style="color:#f59e0b;font-size:.65rem">●</span>
+            </button>
+            <button onclick="clearSecFilters()" class="btn btn-ghost btn-sm text-xs" title="Clear all filters">Clear</button>
+            <div style="flex:1"></div>
+            <button id="btn-auto-refresh" onclick="toggleAutoRefresh()" class="btn btn-ghost btn-sm text-xs" title="Auto-refresh every 30s">
+              <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Auto
+            </button>
+            <button onclick="loadSecurityEvents()" class="btn btn-ghost btn-sm text-xs">
+              <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+          </div>
+          <!-- Row 2: advanced filters (collapsible) -->
+          <div id="adv-filters-panel" class="hidden mt-2 pt-2" style="border-top:1px solid #1e293b">
+            <div class="flex flex-wrap gap-2 items-center">
+              <div class="flex gap-1 items-center" style="background:#0f172a;border:1px solid #1e293b;border-radius:.5rem;padding:.18rem">
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="15m" onclick="setSecTimeRange('15m')">15m</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="1h" onclick="setSecTimeRange('1h')">1h</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="24h" onclick="setSecTimeRange('24h')">24h</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs" data-range="7d" onclick="setSecTimeRange('7d')">7d</button>
+                <button class="sf-time-btn btn btn-ghost btn-sm text-xs sf-time-active" data-range="" onclick="setSecTimeRange('')">All</button>
+              </div>
+              <input id="sf-ns" type="text" class="form-input" placeholder="Namespace" style="padding:.32rem .5rem;font-size:.74rem;width:9rem" oninput="applySecFilters()"/>
+              <input id="sf-pod" type="text" class="form-input" placeholder="Pod" style="padding:.32rem .5rem;font-size:.74rem;width:9rem" oninput="applySecFilters()"/>
+              <input id="sf-container" type="text" class="form-input" placeholder="Container" style="padding:.32rem .5rem;font-size:.74rem;width:9rem" oninput="applySecFilters()"/>
+            </div>
+          </div>
+          <!-- Row 3: active filter chips -->
+          <div id="filter-chips" class="hidden mt-2 flex flex-wrap gap-1"></div>
+        </div>
+
+        <div id="sec-loading" class="hidden py-8 flex justify-center">
+          <svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        </div>
+        <div id="sec-warn" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#1c1404;border:1px solid #713f12;color:#fde68a"></div>
+        <div id="sec-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div id="sec-empty" class="hidden py-8 text-center text-sm" style="color:#475569">No security events match current filters.</div>
+
+        <div class="card overflow-x-auto" style="padding:0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="th" style="min-width:7rem">Time</th>
+                <th class="th">Severity</th>
+                <th class="th">Src</th>
+                <th class="th">Namespace</th>
+                <th class="th">Pod</th>
+                <th class="th">Container</th>
+                <th class="th">Enforcer</th>
+                <th class="th">Operation</th>
+                <th class="th" style="min-width:10rem">Resource</th>
+                <th class="th">Profile</th>
+              </tr>
+            </thead>
+            <tbody id="sec-body"></tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs" style="color:#3a4a5c">Security Events = Violation Log (<code>/var/log/varmor/violations.log</code>) + AppArmor Kernel Events (<code>/var/log/kern.log</code>). Requires hostPath volume mounts.</p>
+      </div><!-- /lcv-security -->
+
+      <!-- ── VIEW: Console Audit ── -->
+      <div id="lcv-audit" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold" style="color:#94a3b8">Console actions by authenticated users</span>
+          <button onclick="loadAuditLogs()" class="btn btn-ghost btn-sm text-xs">
+            <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div id="audit-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+        <div id="audit-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No audit events recorded yet.</div>
+        <div id="audit-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div class="card overflow-x-auto" style="padding:0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="th">Time</th><th class="th">User</th><th class="th">Action</th>
+                <th class="th">Policy</th><th class="th">Namespace</th><th class="th">Status</th><th class="th">Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-body"></tbody>
+          </table>
+        </div>
+      </div><!-- /lcv-audit -->
+
+      <!-- ── VIEW: Profile Health ── -->
+      <div id="lcv-profiles" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold" style="color:#94a3b8">ArmorProfile per-node load status</span>
+          <button onclick="loadArmorProfiles()" class="btn btn-ghost btn-sm text-xs">
+            <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div id="ap-status-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+        <div id="ap-status-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No ArmorProfiles found in this namespace.</div>
+        <div id="ap-status-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div id="ap-status-body"></div>
+      </div><!-- /lcv-profiles -->
+
+    </div>
