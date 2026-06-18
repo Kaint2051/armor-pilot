@@ -9,13 +9,18 @@
 </head>
 <body class="min-h-screen">
   {% include "partials/login.html" %}
-  {% include "partials/app-shell-header.html" %}
-  {% include "views/dashboard.html" %}
-  {% include "views/policy.html" %}
-  {% include "views/logs.html" %}
-  {% include "views/access-control.html" %}
-  </main>
-</div>
+
+  <div id="pg-dash" class="hidden min-h-screen flex flex-col">
+    {% include "partials/app-shell-header.html" %}
+
+    <main id="app-content" class="flex-1">
+      {% include "views/dashboard.html" %}
+      {% include "views/policy.html" %}
+      {% include "views/logs.html" %}
+      {% include "views/access-control.html" %}
+    </main>
+  </div>
+
   {% include "partials/overlays.html" %}
 
   <script src="{{ url_for('static', filename='js/core-policy.js') }}"></script>

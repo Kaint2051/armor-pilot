@@ -225,85 +225,122 @@
 
 <!-- ACTIVATION REQUEST MODAL -->
 <div id="modal-activation-request" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.78);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeActivationRequestModal()">
-  <div class="card w-full mx-4" style="max-width:38rem;border-color:#1e3a5f;max-height:90vh;overflow-y:auto">
+  <div class="card w-full mx-4" style="max-width:46rem;border-color:#1e3a5f;max-height:90vh;overflow-y:auto">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-base font-semibold" style="color:#f1f5f9">Download Activation Request</h3>
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Request a License</h3>
       <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm" style="padding:.25rem .5rem;min-height:0">&#x2715;</button>
     </div>
+    <p class="text-xs mb-4" style="color:#64748b;line-height:1.6">Customer and commercial request details are validated and signed into the activation request.</p>
 
-    <!-- Section: Thong tin lien he -->
-    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#3b82f6">Thong tin lien he</p>
+    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#3b82f6">Customer Information</p>
     <div class="flex flex-col gap-3 mb-4">
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ho va ten <span style="color:#f87171">*</span></label>
-          <input id="ar-contact-name" type="text" class="form-input" placeholder="Nguyen Van A" autocomplete="name" />
+          <label class="form-label">Organization Name <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-company" type="text" class="form-input" placeholder="Customer Company" autocomplete="organization" maxlength="200" />
         </div>
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Cong ty / To chuc <span style="color:#f87171">*</span></label>
-          <input id="ar-contact-company" type="text" class="form-input" placeholder="Acme Corp" autocomplete="organization" />
+          <label class="form-label">Tax ID</label>
+          <input id="ar-tax-id" type="text" class="form-input" placeholder="Tax or registration number" maxlength="80" />
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Email lien he <span style="color:#f87171">*</span></label>
-          <input id="ar-contact-email" type="email" class="form-input" placeholder="contact@example.com" autocomplete="email" />
+          <label class="form-label">Contact Name <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-name" type="text" class="form-input" placeholder="Full name" autocomplete="name" maxlength="160" />
         </div>
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So dien thoai <span style="color:#64748b;font-weight:400">(tuy chon)</span></label>
-          <input id="ar-contact-phone" type="text" class="form-input" placeholder="+84 xxx xxx xxx" autocomplete="tel" />
+          <label class="form-label">Contact Email <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-email" type="email" class="form-input" placeholder="contact@example.com" autocomplete="email" maxlength="254" />
         </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div>
+          <label class="form-label">Contact Phone</label>
+          <input id="ar-contact-phone" type="text" class="form-input" placeholder="+84 ..." autocomplete="tel" maxlength="80" />
+        </div>
+        <div>
+          <label class="form-label">Country</label>
+          <input id="ar-country" type="text" class="form-input" placeholder="Vietnam" autocomplete="country-name" maxlength="100" />
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Address</label>
+        <input id="ar-address" type="text" class="form-input" placeholder="Business address" autocomplete="street-address" maxlength="500" />
       </div>
     </div>
 
-    <!-- Section: Yeu cau license -->
     <div style="border-top:1px solid #1e293b;margin-bottom:.75rem"></div>
-    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#34d399">Yeu cau license</p>
+    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#34d399">License Request</p>
     <div class="flex flex-col gap-3 mb-4">
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Edition <span style="color:#f87171">*</span></label>
-          <select id="ar-req-edition" class="form-input">
-            <option value="enterprise">Enterprise</option>
-            <option value="starter">Starter</option>
+          <label class="form-label">Request Type <span style="color:#f87171">*</span></label>
+          <select id="ar-request-type" class="form-input">
+            <option value="new">New License</option>
+            <option value="renewal">Renewal</option>
+            <option value="upgrade">Upgrade</option>
+            <option value="rehost">Rehost / Migration</option>
+            <option value="replacement">Replacement</option>
             <option value="trial">Trial</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Thoi han <span style="color:#f87171">*</span></label>
+          <label class="form-label">Edition <span style="color:#f87171">*</span></label>
+          <select id="ar-req-edition" class="form-input">
+            <option value="professional">Professional</option>
+            <option value="starter">Starter</option>
+            <option value="enterprise">Enterprise</option>
+            <option value="enterprise_plus">Enterprise Plus</option>
+            <option value="trial">Trial</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Term <span style="color:#f87171">*</span></label>
           <select id="ar-req-duration" class="form-input" onchange="arToggleCustomDays()">
-            <option value="365">1 nam (365 ngay)</option>
-            <option value="730">2 nam (730 ngay)</option>
-            <option value="90">3 thang (90 ngay)</option>
-            <option value="30">1 thang / trial (30 ngay)</option>
-            <option value="custom">Khac...</option>
+            <option value="365">1 year</option>
+            <option value="730">2 years</option>
+            <option value="1095">3 years</option>
+            <option value="90">90 days</option>
+            <option value="30">30 days</option>
+            <option value="custom">Custom</option>
           </select>
         </div>
       </div>
       <div id="ar-custom-days-row" class="hidden">
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So ngay cu the</label>
+        <label class="form-label">Custom Days</label>
         <input id="ar-req-custom-days" type="number" class="form-input" min="1" max="3650" placeholder="365" style="max-width:10rem" />
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So node toi da <span style="color:#64748b;font-weight:400">(0 = khong gioi han)</span></label>
-          <input id="ar-req-max-nodes" type="number" class="form-input" value="0" min="0" />
+          <label class="form-label">Requested Nodes <span style="color:#f87171">*</span></label>
+          <input id="ar-req-max-nodes" type="number" class="form-input" value="10" min="1" max="100000" />
         </div>
         <div>
-          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So policy toi da <span style="color:#64748b;font-weight:400">(0 = khong gioi han)</span></label>
-          <input id="ar-req-max-policies" type="number" class="form-input" value="0" min="0" />
+          <label class="form-label">Requested Policies <span style="color:#f87171">*</span></label>
+          <input id="ar-req-max-policies" type="number" class="form-input" value="500" min="1" max="10000000" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div>
+          <label class="form-label">Existing License ID</label>
+          <input id="ar-existing-license-id" type="text" class="form-input" placeholder="Required for renewal/rehost" maxlength="120" />
+        </div>
+        <div>
+          <label class="form-label">Quote / Contract Reference</label>
+          <input id="ar-quote-reference" type="text" class="form-input" placeholder="PO, quote, or contract number" maxlength="120" />
         </div>
       </div>
       <div>
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ghi chu / Muc dich su dung <span style="color:#64748b;font-weight:400">(tuy chon)</span></label>
-        <textarea id="ar-contact-notes" class="form-input" rows="2" placeholder="Mo ta muc dich su dung, moi truong trien khai..." style="resize:vertical"></textarea>
+        <label class="form-label">Notes / Intended Use</label>
+        <textarea id="ar-contact-notes" class="form-input" rows="3" maxlength="2000" placeholder="Deployment environment, use case, compliance requirements..." style="resize:vertical"></textarea>
       </div>
     </div>
 
     <div id="ar-error-msg" class="hidden mb-3 p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
     <div class="flex gap-3 justify-end">
-      <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Huy</button>
-      <button id="btn-ar-confirm" onclick="confirmDownloadActivationRequest()" class="btn btn-primary btn-sm">Tai xuong</button>
+      <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Cancel</button>
+      <button id="btn-ar-confirm" onclick="confirmDownloadActivationRequest()" class="btn btn-primary btn-sm">Download Request</button>
     </div>
   </div>
 </div>

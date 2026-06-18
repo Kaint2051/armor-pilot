@@ -136,13 +136,18 @@ function arToggleCustomDays(){
 }
 
 function downloadActivationRequest(){
-  ["ar-contact-name","ar-contact-company","ar-contact-email","ar-contact-phone","ar-contact-notes","ar-req-custom-days"].forEach(function(id){
+  [
+    "ar-contact-name","ar-contact-company","ar-tax-id","ar-contact-email",
+    "ar-contact-phone","ar-country","ar-address","ar-contact-notes",
+    "ar-req-custom-days","ar-existing-license-id","ar-quote-reference"
+  ].forEach(function(id){
     var el=$(id); if(el) el.value="";
   });
-  var ed=$("ar-req-edition");     if(ed) ed.value="enterprise";
+  var rt=$("ar-request-type");     if(rt) rt.value="new";
+  var ed=$("ar-req-edition");     if(ed) ed.value="professional";
   var dur=$("ar-req-duration");   if(dur) dur.value="365";
-  var mn=$("ar-req-max-nodes");   if(mn) mn.value="0";
-  var mp=$("ar-req-max-policies");if(mp) mp.value="0";
+  var mn=$("ar-req-max-nodes");   if(mn) mn.value="10";
+  var mp=$("ar-req-max-policies");if(mp) mp.value="500";
   var row=$("ar-custom-days-row");if(row) row.classList.add("hidden");
   var errEl=$("ar-error-msg"); if(errEl) errEl.classList.add("hidden");
   var btn=$("btn-ar-confirm"); if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
@@ -160,44 +165,68 @@ async function confirmDownloadActivationRequest(){
 
   var name   =($("ar-contact-name")||{}).value||"";
   var company=($("ar-contact-company")||{}).value||"";
+  var taxId  =($("ar-tax-id")||{}).value||"";
   var email  =($("ar-contact-email")||{}).value||"";
   var phone  =($("ar-contact-phone")||{}).value||"";
+  var country=($("ar-country")||{}).value||"";
+  var address=($("ar-address")||{}).value||"";
   var notes  =($("ar-contact-notes")||{}).value||"";
-  var edition=($("ar-req-edition")||{}).value||"enterprise";
+  var requestType=($("ar-request-type")||{}).value||"new";
+  var edition=($("ar-req-edition")||{}).value||"professional";
   var durSel =($("ar-req-duration")||{}).value||"365";
   var days   =durSel==="custom"?parseInt(($("ar-req-custom-days")||{}).value||"0",10):parseInt(durSel,10);
   var maxNodes   =parseInt(($("ar-req-max-nodes")||{}).value||"0",10);
   var maxPolicies=parseInt(($("ar-req-max-policies")||{}).value||"0",10);
+  var existingLicenseId=($("ar-existing-license-id")||{}).value||"";
+  var quoteReference=($("ar-quote-reference")||{}).value||"";
 
   if(!name.trim()||!company.trim()||!email.trim()){
-    showEl(errEl,"Vui long dien day du cac truong bat buoc (*).");
+    showEl(errEl,"Complete all required customer fields.");
     return;
   }
   var emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if(!emailRe.test(email.trim())){
-    showEl(errEl,"Dia chi email khong hop le.");
+    showEl(errEl,"Enter a valid contact email address.");
     return;
   }
   if(!days||days<1){
-    showEl(errEl,"Vui long nhap so ngay hop le.");
+    showEl(errEl,"Enter a valid license term.");
+    return;
+  }
+  if(!maxNodes||maxNodes<1||!maxPolicies||maxPolicies<1){
+    showEl(errEl,"Requested nodes and policies must be greater than zero.");
+    return;
+  }
+  if(["renewal","rehost","replacement"].indexOf(requestType)>=0&&!existingLicenseId.trim()){
+    showEl(errEl,"Existing License ID is required for renewal, rehost, or replacement requests.");
     return;
   }
 
   var btn=$("btn-ar-confirm");
-  if(btn){btn.disabled=true;btn.textContent="Dang tao...";}
+  if(btn){btn.disabled=true;btn.textContent="Creating...";}
   try{
-    var r=await api("/api/license/activation-request"),data=await r.json();
+    var customerRequest={
+      request_type:requestType,
+      organization_name:company.trim(),
+      tax_id:taxId.trim(),
+      contact_name:name.trim(),
+      contact_email:email.trim(),
+      contact_phone:phone.trim(),
+      country:country.trim(),
+      address:address.trim(),
+      requested_edition:edition,
+      requested_days:days,
+      requested_nodes:maxNodes,
+      requested_policies:maxPolicies,
+      existing_license_id:existingLicenseId.trim(),
+      quote_reference:quoteReference.trim(),
+      notes:notes.trim()
+    };
+    var r=await api("/api/license/activation-request",{
+      method:"POST",
+      body:JSON.stringify({customer_request:customerRequest})
+    }),data=await r.json();
     if(!r.ok) throw new Error(data.error||"Failed to create activation request");
-
-    var contact={name:name.trim(),company:company.trim(),email:email.trim()};
-    if(phone.trim()) contact.phone=phone.trim();
-    if(notes.trim()) contact.notes=notes.trim();
-    data.contact=contact;
-
-    var licReq={edition:edition,days:days};
-    if(maxNodes>0)    licReq.max_nodes=maxNodes;
-    if(maxPolicies>0) licReq.max_policies=maxPolicies;
-    data.license_request=licReq;
 
     var blob=new Blob([JSON.stringify(data,null,2)+"\n"],{type:"application/json"});
     var url=URL.createObjectURL(blob),a=document.createElement("a");
@@ -206,9 +235,9 @@ async function confirmDownloadActivationRequest(){
     document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
     closeActivationRequestModal();
   }catch(e){
-    showEl(errEl,e.message||"Co loi xay ra khi tao activation request.");
+    showEl(errEl,e.message||"Failed to create activation request.");
   }finally{
-    if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
+    if(btn){btn.disabled=false;btn.textContent="Download Request";}
   }
 }
 

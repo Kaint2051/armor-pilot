@@ -17,6 +17,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import secrets
 import threading
 import uuid
@@ -41,6 +42,9 @@ SERVICE_ACCOUNT_CA_FILE = os.environ.get(
 )
 
 _identity_lock = threading.Lock()
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_REQUEST_TYPES = frozenset({"new", "renewal", "upgrade", "rehost", "replacement", "trial"})
+_REQUEST_EDITIONS = frozenset({"trial", "starter", "professional", "enterprise", "enterprise_plus"})
 
 
 def _canonical(value: dict[str, Any]) -> bytes:
@@ -178,7 +182,87 @@ def get_installation_identity() -> dict[str, Any]:
     }
 
 
-def create_activation_request() -> dict[str, Any]:
+def _request_text(
+    request_info: dict[str, Any],
+    name: str,
+    max_length: int,
+    required: bool = False,
+) -> str:
+    value = str(request_info.get(name) or "").strip()
+    if required and not value:
+        raise ValueError(f"{name} is required")
+    if len(value) > max_length:
+        raise ValueError(f"{name} must not exceed {max_length} characters")
+    return value
+
+
+def _request_int(
+    request_info: dict[str, Any],
+    name: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    try:
+        value = int(request_info.get(name))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if value < minimum or value > maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
+def normalize_customer_request(request_info: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(request_info, dict):
+        raise ValueError("customer_request must be an object")
+
+    request_type = _request_text(request_info, "request_type", 32, True)
+    if request_type not in _REQUEST_TYPES:
+        raise ValueError("request_type is invalid")
+
+    requested_edition = _request_text(request_info, "requested_edition", 32, True)
+    if requested_edition not in _REQUEST_EDITIONS:
+        raise ValueError("requested_edition is invalid")
+
+    contact_email = _request_text(request_info, "contact_email", 254, True)
+    if not _EMAIL_RE.fullmatch(contact_email):
+        raise ValueError("contact_email is invalid")
+
+    return {
+        "request_type": request_type,
+        "organization_name": _request_text(
+            request_info,
+            "organization_name",
+            200,
+            True,
+        ),
+        "tax_id": _request_text(request_info, "tax_id", 80),
+        "contact_name": _request_text(request_info, "contact_name", 160, True),
+        "contact_email": contact_email,
+        "contact_phone": _request_text(request_info, "contact_phone", 80),
+        "country": _request_text(request_info, "country", 100),
+        "address": _request_text(request_info, "address", 500),
+        "requested_edition": requested_edition,
+        "requested_days": _request_int(request_info, "requested_days", 1, 3650),
+        "requested_nodes": _request_int(request_info, "requested_nodes", 1, 100000),
+        "requested_policies": _request_int(
+            request_info,
+            "requested_policies",
+            1,
+            10000000,
+        ),
+        "existing_license_id": _request_text(
+            request_info,
+            "existing_license_id",
+            120,
+        ),
+        "quote_reference": _request_text(request_info, "quote_reference", 120),
+        "notes": _request_text(request_info, "notes", 2000),
+    }
+
+
+def create_activation_request(
+    customer_request: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     private_key, _ = _load_or_create_identity_material()
     identity = get_installation_identity()
     payload = {
@@ -186,6 +270,8 @@ def create_activation_request() -> dict[str, Any]:
         "generated_at": _utc_now_text(),
         "nonce": secrets.token_urlsafe(24),
     }
+    if customer_request is not None:
+        payload["customer_request"] = normalize_customer_request(customer_request)
     return {
         "version": "varmor-activation-request/v1",
         "payload": payload,
