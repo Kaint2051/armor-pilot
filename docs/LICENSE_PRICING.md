@@ -3,6 +3,10 @@
 > Status: commercial proposal for internal review.
 > Currency conversions are indicative. Final quotations should be issued in
 > VND, exclude VAT, and define the exact support scope.
+> Pricing strategy: penetration pricing, targeting approximately 50% below
+> comparable enterprise Kubernetes security quotations for equivalent scope.
+> Major vendors commonly use custom quotations, so this is a commercial target,
+> not a guarantee against every competitor or negotiated deal.
 
 ## 1. Recommended Commercial Model
 
@@ -64,7 +68,7 @@ features=*
 
 ### Starter
 
-Proposed list price: **36,000,000 VND/year** (approximately **USD 1,400/year**).
+Proposed penetration price: **18,000,000 VND/year** (approximately **USD 700/year**).
 
 Included:
 
@@ -77,14 +81,14 @@ Included:
 - Email support during business hours.
 - Two remote support sessions per year.
 
-Additional node: **2,400,000 VND/node/year**.
+Additional node: **1,200,000 VND/node/year**.
 
 Target customers: small businesses, private labs, small Kubernetes production
 environments, and security teams starting runtime policy enforcement.
 
 ### Professional
 
-Proposed list price: **120,000,000 VND/year** (approximately **USD 4,700/year**).
+Proposed penetration price: **60,000,000 VND/year** (approximately **USD 2,350/year**).
 
 Included:
 
@@ -99,14 +103,14 @@ Included:
 - Business-hours support with a next-business-day response target.
 - Quarterly health check and template update package.
 
-Additional node: **1,800,000 VND/node/year**.
+Additional node: **900,000 VND/node/year**.
 
 Target customers: medium enterprises, managed private clouds, financial
 technology teams, and organizations operating several Kubernetes environments.
 
 ### Enterprise
 
-Proposed list price: **300,000,000 VND/year** (approximately **USD 11,800/year**).
+Proposed penetration price: **150,000,000 VND/year** (approximately **USD 5,900/year**).
 
 Included:
 
@@ -121,14 +125,14 @@ Included:
 - Up to 10 custom policy templates per year.
 - Deployment and hardening documentation.
 
-Additional node: **1,200,000 VND/node/year**.
+Additional node: **600,000 VND/node/year**.
 
 Target customers: large enterprises, government, telecommunications, banking,
 and regulated multi-cluster environments.
 
 ### Enterprise Plus
 
-Price: custom quotation, recommended starting point **600,000,000 VND/year**.
+Price: custom quotation, recommended starting point **300,000,000 VND/year**.
 
 Use this edition when the customer requires:
 
@@ -156,9 +160,9 @@ annual_price =
 Example for Professional with 70 nodes:
 
 ```text
-Professional base, 50 nodes       120,000,000 VND
-20 additional nodes                36,000,000 VND
-Annual subscription total         156,000,000 VND
+Professional base, 50 nodes        60,000,000 VND
+20 additional nodes                18,000,000 VND
+Annual subscription total          78,000,000 VND
 VAT                                calculated separately
 ```
 
@@ -196,15 +200,15 @@ unbounded customization inside the annual license price.
 Suggested maximum discounts:
 
 - One-year subscription: list price.
-- Two-year prepaid: up to 8%.
-- Three-year prepaid: up to 15%.
-- Education/non-profit: up to 30%, subject to approval.
-- Reseller: 20%-35%, depending on who provides first-line support.
+- Two-year prepaid: up to 5%.
+- Three-year prepaid: up to 10%.
+- Education/non-profit: up to 20%, subject to approval.
+- Reseller: 15%-25%, depending on who provides first-line support.
 - Proof of concept: free or fixed fee; credit the fee against the purchase.
 
-Avoid discounts greater than 20% for direct annual deals without management
-approval. Discount the service component only when the delivery scope is also
-reduced.
+These prices already include a substantial market-entry discount. Avoid
+discounts greater than 10% for direct annual deals without management approval.
+Discount the service component only when the delivery scope is also reduced.
 
 ## 6. Perpetual License
 
@@ -382,4 +386,3 @@ References checked on June 18, 2026:
 - Sysdig pricing: https://www.sysdig.com/pricing
 - Calico Cloud editions: https://www.calicocloud.io/
 - Aqua Security pricing: https://www.aquasec.com/pricing/
-
