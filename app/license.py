@@ -239,10 +239,67 @@ def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _get_builtin_trial_status() -> dict[str, Any] | None:
+    """Return a synthetic trial license status based on installation creation date.
+
+    Returns None if trial is disabled, expired, or installation data is unavailable.
+    Controlled by VARMOR_TRIAL_DAYS (default 30, set 0 to disable).
+    """
+    trial_days = int(os.environ.get("VARMOR_TRIAL_DAYS", "30") or "0")
+    if trial_days <= 0:
+        return None
+
+    installation_file = os.environ.get("VARMOR_INSTALLATION_METADATA_FILE", "/app/data/installation.json")
+    try:
+        inst = json.loads(Path(installation_file).read_text(encoding="utf-8"))
+        created_raw = inst.get("created_at")
+        if not created_raw:
+            return None
+        created_at = dt.datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+    now = _utc_now()
+    elapsed = (now - created_at).total_seconds() / 86400
+    days_remaining = int(trial_days - elapsed)
+
+    if days_remaining < 0:
+        return None
+
+    expires_at = (created_at + dt.timedelta(days=trial_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    payload = {
+        "license_id": "BUILTIN-TRIAL",
+        "customer": "Trial",
+        "edition": "trial",
+        "issued_at": created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "expires_at": expires_at,
+        "grace_days": 0,
+        "features": ["*"],
+        "limits": {},
+    }
+    return {
+        "present": True,
+        "valid": True,
+        "status": "trial",
+        "reason": f"built-in trial — {days_remaining} day(s) remaining",
+        "payload": payload,
+        "effective_features": ["*"],
+        "days_remaining": days_remaining,
+        "in_grace": False,
+        "algorithm": "builtin-trial",
+        "compliant": True,
+        "warnings": [f"Trial license — {days_remaining} day(s) remaining. Please obtain a full license."],
+        "violations": [],
+    }
+
+
 def get_license_status() -> dict[str, Any]:
     status = _base_status()
     path = Path(LICENSE_FILE)
     if not path.exists():
+        trial = _get_builtin_trial_status()
+        if trial:
+            return {**status, **trial}
         return status
     status["present"] = True
     try:
