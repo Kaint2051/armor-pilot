@@ -1,20 +1,20 @@
-# vArmor Console — Tổng quan hệ thống
+# vArmor Console — System Overview
 
-## 1. Giới thiệu
+## 1. Introduction
 
-**vArmor** là hệ thống bảo mật container (Cloud-Native Runtime Security) chạy trên Kubernetes. vArmor Console là giao diện quản trị web cho phép tạo, quản lý và giám sát các **Policy bảo mật** áp dụng trực tiếp lên workload (Deployment, StatefulSet, DaemonSet, Pod) trong cluster.
+**vArmor** is a cloud-native container runtime security system running on Kubernetes. The vArmor Console is a web-based management interface for creating, managing, and monitoring **security policies** applied directly to workloads (Deployments, StatefulSets, DaemonSets, Pods) within the cluster.
 
-Hệ thống hoạt động theo mô hình **eBPF + LSM** (Linux Security Module), can thiệp ở tầng kernel để ngăn chặn hành vi nguy hiểm mà không cần thay đổi container image hay cấu hình ứng dụng.
+The system operates on an **eBPF + LSM** (Linux Security Module) model, intercepting at the kernel level to block dangerous behaviors without modifying container images or application configuration.
 
 ---
 
-## 2. Kiến trúc hệ thống
+## 2. System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   vArmor Console                     │
 │            (Web UI - Python/Flask)                   │
-│         Giao diện quản trị: port 30080               │
+│           Management interface: port 30080            │
 └────────────────────┬────────────────────────────────┘
                      │ REST API
 ┌────────────────────▼────────────────────────────────┐
@@ -24,7 +24,7 @@ Hệ thống hoạt động theo mô hình **eBPF + LSM** (Linux Security Module
                      │
 ┌────────────────────▼────────────────────────────────┐
 │              vArmor Agent (DaemonSet)                │
-│    Chạy trên mỗi node, áp dụng policy vào kernel    │
+│    Runs on each node, applies policies to the kernel │
 └────────────────────┬────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────┐
@@ -33,115 +33,115 @@ Hệ thống hoạt động theo mô hình **eBPF + LSM** (Linux Security Module
 └─────────────────────────────────────────────────────┘
 ```
 
-### Thành phần chính
+### Key Components
 
-| Thành phần | Mô tả |
+| Component | Description |
 |---|---|
-| **vArmor Console** | Web UI quản trị, REST API server |
-| **vArmor Manager** | Controller xử lý CRD VarmorPolicy/VarmorClusterPolicy |
-| **vArmor Agent** | DaemonSet chạy trên mỗi node, nhận lệnh từ Manager |
-| **Enforcement Engines** | AppArmor, BPF, Seccomp, NetworkProxy — tầng thực thi |
-| **Database (SQLite)** | Lưu users, roles, audit log nội bộ console |
-| **PVC Storage** | Lưu license, installation key, behavior models |
+| **vArmor Console** | Web management UI and REST API server |
+| **vArmor Manager** | Controller that processes VarmorPolicy / VarmorClusterPolicy CRDs |
+| **vArmor Agent** | DaemonSet running on each node, receiving instructions from the Manager |
+| **Enforcement Engines** | AppArmor, BPF, Seccomp, NetworkProxy — the enforcement layer |
+| **Database (SQLite)** | Stores users, roles, and the internal console audit log |
+| **PVC Storage** | Stores the license, installation key, and behavioral models |
 
 ---
 
-## 3. Các chế độ Policy (Policy Modes)
+## 3. Policy Modes
 
 ### 3.1 AlwaysAllow
-- **Mục đích**: Không áp dụng bất kỳ hạn chế nào.
-- **Dùng khi**: Tắt bảo vệ tạm thời để debug, hoặc đánh dấu workload tin tưởng hoàn toàn.
-- **Rủi ro**: Cao — container có toàn quyền.
+- **Purpose**: Applies no restrictions whatsoever.
+- **Use when**: Temporarily disabling protection for debugging, or marking a fully trusted workload.
+- **Risk**: High — the container has unrestricted access.
 
 ### 3.2 RuntimeDefault
-- **Mục đích**: Áp dụng profile bảo mật mặc định của container runtime (containerd/Docker).
-- **Dùng khi**: Baseline bảo mật tối thiểu cho workload thông thường.
-- **Đặc điểm**: Chặn các syscall nguy hiểm phổ biến, không cần cấu hình thêm.
+- **Purpose**: Applies the default security profile of the container runtime (containerd / Docker).
+- **Use when**: Establishing a minimum security baseline for general workloads.
+- **Characteristics**: Blocks common dangerous syscalls; no additional configuration required.
 
-### 3.3 EnhanceProtect ⭐ (phổ biến nhất)
-- **Mục đích**: Bảo vệ chủ động dựa trên luật (rule-based) với ba lớp:
-  - **Hardening Rules**: Khóa các điểm yếu hệ thống (mount, insmod, capabilities)
-  - **Attack Protection Rules**: Chặn kỹ thuật tấn công sau khi xâm nhập (shell, wget, metadata service)
-  - **Vulnerability Mitigation Rules**: Vá các CVE đã biết (Dirty Pipe, runc override, v.v.)
-- **Dùng khi**: Môi trường production cần bảo vệ nâng cao.
-- **Enforcers hỗ trợ**: AppArmor, BPF, Seccomp, NetworkProxy.
+### 3.3 EnhanceProtect ⭐ (most commonly used)
+- **Purpose**: Active, rule-based protection with three layers:
+  - **Hardening Rules**: Lock down system weaknesses (mount, insmod, capabilities)
+  - **Attack Protection Rules**: Block post-intrusion techniques (shell, wget, metadata service access)
+  - **Vulnerability Mitigation Rules**: Patch known CVEs (Dirty Pipe, runc override, etc.)
+- **Use when**: Production environments requiring advanced protection.
+- **Supported Enforcers**: AppArmor, BPF, Seccomp, NetworkProxy.
 
 ### 3.4 BehaviorModeling
-- **Mục đích**: Quan sát và ghi lại hành vi thực tế của workload (learning mode).
-- **Dùng khi**: Giai đoạn đầu — để hệ thống tự học profile trước khi áp dụng bảo vệ.
-- **Luồng**: BehaviorModeling → (hoàn thành) → DefenseInDepth
-- **Chú ý**: Trong khi modeling, workload không bị hạn chế.
+- **Purpose**: Observes and records the actual runtime behavior of the workload (learning mode).
+- **Use when**: The initial phase — letting the system learn a behavioral profile before enforcing protection.
+- **Flow**: BehaviorModeling → (complete) → DefenseInDepth
+- **Note**: While modeling, the workload is not restricted in any way.
 
 ### 3.5 DefenseInDepth
-- **Mục đích**: Allowlist nghiêm ngặt — chỉ cho phép đúng những hành vi đã được model.
-- **Dùng khi**: Sau khi hoàn thành BehaviorModeling, áp profile đã học.
-- **Đặc điểm**: Mạnh nhất, nhưng dễ gây lỗi nếu profile không đầy đủ.
+- **Purpose**: Strict allowlist — permits only the exact behaviors captured during modeling.
+- **Use when**: After BehaviorModeling is complete, to enforce the learned profile.
+- **Characteristics**: The strongest mode, but prone to blocking legitimate actions if the profile is incomplete.
 
 ---
 
 ## 4. Enforcement Engines
 
 ### 4.1 AppArmor
-- **Tầng**: LSM (Linux Security Module) trong kernel.
-- **Kiểm soát**: File system access, capabilities, network, mount.
-- **Yêu cầu**: Kernel có AppArmor enabled (Ubuntu, Debian mặc định có).
-- **Profile**: Dạng text rule, áp trực tiếp vào kernel.
+- **Layer**: LSM (Linux Security Module) in the kernel.
+- **Controls**: File system access, capabilities, network, mounts.
+- **Requirements**: Kernel with AppArmor enabled (enabled by default on Ubuntu and Debian).
+- **Profile**: Text-based rules applied directly to the kernel.
 
 ### 4.2 BPF (eBPF)
-- **Tầng**: eBPF programs hook vào kernel events.
-- **Kiểm soát**: Syscall-level, network, file, process.
-- **Yêu cầu**: Kernel ≥ 5.10, BTF enabled, CAP_SYS_ADMIN.
-- **Ưu điểm**: Linh hoạt hơn AppArmor, hỗ trợ NetworkProxy.
+- **Layer**: eBPF programs hooked into kernel events.
+- **Controls**: Syscall-level, network, file, process.
+- **Requirements**: Kernel ≥ 5.10, BTF enabled, CAP_SYS_ADMIN.
+- **Advantages**: More flexible than AppArmor; supports NetworkProxy.
 
 ### 4.3 Seccomp
-- **Tầng**: Syscall filter ở tầng process.
-- **Kiểm soát**: Danh sách syscall được phép/bị chặn.
-- **Yêu cầu**: Kernel ≥ 3.17 (hầu hết distro hiện đại).
-- **Hành động**: SCMP_ACT_KILL, SCMP_ACT_ERRNO, SCMP_ACT_LOG, SCMP_ACT_ALLOW.
+- **Layer**: Syscall filter at the process level.
+- **Controls**: Allowlist or blocklist of syscalls.
+- **Requirements**: Kernel ≥ 3.17 (most modern distributions).
+- **Actions**: SCMP_ACT_KILL, SCMP_ACT_ERRNO, SCMP_ACT_LOG, SCMP_ACT_ALLOW.
 
 ### 4.4 NetworkProxy
-- **Tầng**: Transparent proxy cho network traffic.
-- **Kiểm soát**: Egress traffic theo domain/IP/port.
-- **Yêu cầu**: BPF engine phải available.
-- **Dùng khi**: Cần kiểm soát kết nối ra ngoài của container.
+- **Layer**: Transparent proxy for network traffic.
+- **Controls**: Egress traffic by domain, IP, or port.
+- **Requirements**: BPF engine must be available.
+- **Use when**: Fine-grained control over outbound container traffic is required.
 
-### Bảng kết hợp Enforcer hợp lệ
+### Valid Enforcer Combinations
 
-| Kết hợp | Ghi chú |
+| Combination | Notes |
 |---|---|
-| AppArmor | Cơ bản nhất |
-| BPF | Mạnh hơn AppArmor |
-| Seccomp | Lọc syscall |
-| AppArmor + BPF | Kết hợp file + syscall |
-| AppArmor + Seccomp | Phổ biến cho production |
+| AppArmor | Most basic |
+| BPF | More powerful than AppArmor |
+| Seccomp | Syscall filtering |
+| AppArmor + BPF | Combines file + syscall protection |
+| AppArmor + Seccomp | Common production setup |
 | BPF + Seccomp | eBPF + syscall filter |
-| BPF + NetworkProxy | Network control |
-| AppArmor + BPF + Seccomp | Bảo vệ toàn diện |
+| BPF + NetworkProxy | Network egress control |
+| AppArmor + BPF + Seccomp | Comprehensive protection |
 
 ---
 
-## 5. Policy Scope (Phạm vi áp dụng)
+## 5. Policy Scope
 
-| Scope | CRD | Áp dụng cho |
+| Scope | CRD | Applies To |
 |---|---|---|
-| **Namespace** | `VarmorPolicy` | Workload trong một namespace cụ thể |
-| **Cluster** | `VarmorClusterPolicy` | Workload trong bất kỳ namespace nào (cluster-wide) |
+| **Namespace** | `VarmorPolicy` | Workloads in a specific namespace |
+| **Cluster** | `VarmorClusterPolicy` | Workloads in any namespace (cluster-wide) |
 
 ---
 
-## 6. Target (Đối tượng áp dụng)
+## 6. Target (Workload Selection)
 
-Policy áp dụng cho workload thông qua hai cách:
+Policies are applied to workloads in two ways:
 
-### 6.1 Theo tên (Name)
+### 6.1 By Name
 ```yaml
 target:
   kind: Deployment
   name: nginx-frontend
 ```
-Áp dụng đúng cho 1 Deployment/StatefulSet/DaemonSet/Pod có tên chỉ định.
+Applies to exactly one Deployment / StatefulSet / DaemonSet / Pod with the specified name.
 
-### 6.2 Theo Label Selector
+### 6.2 By Label Selector
 ```yaml
 target:
   kind: Deployment
@@ -153,203 +153,203 @@ target:
         operator: In
         values: [production, staging]
 ```
-Áp dụng cho tất cả workload khớp label. Các operator: `In`, `NotIn`, `Exists`, `DoesNotExist`.
+Applies to all workloads matching the labels. Supported operators: `In`, `NotIn`, `Exists`, `DoesNotExist`.
 
 ---
 
-## 7. Hệ thống License
+## 7. License System
 
-### 7.1 Các trạng thái License
+### 7.1 License States
 
-| Trạng thái | Màu | Ý nghĩa |
+| State | Color | Meaning |
 |---|---|---|
-| **trial** | Xanh | Built-in trial 30 ngày từ ngày cài đặt |
-| **valid** | Xanh | License đầy đủ, còn hạn |
-| **in_grace** | Vàng | Hết hạn nhưng trong grace period |
-| **missing** | Đỏ | Chưa có license, hết trial |
-| **invalid** | Đỏ | License lỗi (sai chữ ký, sai installation) |
+| **trial** | Green | Built-in 30-day trial, starting from the installation date |
+| **valid** | Green | Full license, not yet expired |
+| **in_grace** | Yellow | Expired but within the grace period |
+| **missing** | Red | No license installed and trial has expired |
+| **invalid** | Red | License error (invalid signature, wrong installation) |
 
-### 7.2 Cơ chế License
+### 7.2 License Mechanism
 
-- **Thuật toán**: Ed25519 digital signature.
-- **Format key**: `VARMOR1.<base64url_payload>.<base64url_signature>`
-- **Installation binding**: License có thể bind vào đúng một installation (cluster) cụ thể thông qua `installation_id`.
-- **Offline**: Không cần kết nối internet để verify.
+- **Algorithm**: Ed25519 digital signature.
+- **Key format**: `VARMOR1.<base64url_payload>.<base64url_signature>`
+- **Installation binding**: A license can be bound to a specific installation (cluster) via `installation_id`.
+- **Offline**: No internet connection is required to verify the license.
 
-### 7.3 Các trường trong License
+### 7.3 License Fields
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 |---|---|
-| `license_id` | Mã định danh license (VD: LIC-VNNIC-001) |
-| `customer` | Tên khách hàng |
-| `edition` | Phiên bản: `trial`, `starter`, `enterprise` |
-| `issued_at` | Ngày phát hành (ISO 8601) |
-| `expires_at` | Ngày hết hạn (ISO 8601) |
-| `grace_days` | Số ngày gia hạn sau khi hết hạn |
-| `features` | Danh sách tính năng: `["*"]` = tất cả |
-| `limits.max_nodes` | Số node tối đa (0 = không giới hạn) |
-| `limits.max_policies` | Số policy tối đa (0 = không giới hạn) |
-| `installation_id` | Binding với installation cụ thể (`vmi_<hash>`) |
-| `cluster_uid` | UID của kube-system namespace |
+| `license_id` | License identifier (e.g., LIC-VNNIC-001) |
+| `customer` | Customer name |
+| `edition` | License edition: `trial`, `starter`, `enterprise` |
+| `issued_at` | Issue date (ISO 8601) |
+| `expires_at` | Expiry date (ISO 8601) |
+| `grace_days` | Number of grace days after expiry |
+| `features` | Feature list: `["*"]` = all features |
+| `limits.max_nodes` | Maximum number of nodes (0 = unlimited) |
+| `limits.max_policies` | Maximum number of policies (0 = unlimited) |
+| `installation_id` | Binding to a specific installation (`vmi_<hash>`) |
+| `cluster_uid` | UID of the kube-system namespace |
 
 ### 7.4 Installation Identity
 
-Mỗi lần cài đặt vArmor tạo ra một **installation identity** duy nhất:
+Each vArmor installation generates a unique **installation identity**:
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 |---|---|
-| `installation_uuid` | UUID ngẫu nhiên tạo khi cài |
-| `installation_public_key` | Public key Ed25519 của installation |
-| `installation_id` | `vmi_` + SHA256 của canonical JSON identity |
-| `cluster_uid` | UID của namespace `kube-system` |
-| `api_ca_sha256` | SHA256 của CA certificate kube-apiserver |
-| `created_at` | Thời điểm cài đặt |
+| `installation_uuid` | Random UUID generated at install time |
+| `installation_public_key` | Ed25519 public key of the installation |
+| `installation_id` | `vmi_` + SHA256 of the canonical JSON identity |
+| `cluster_uid` | UID of the `kube-system` namespace |
+| `api_ca_sha256` | SHA256 of the kube-apiserver CA certificate |
+| `created_at` | Timestamp of the installation |
 
 ---
 
-## 8. Hệ thống RBAC (Phân quyền)
+## 8. RBAC (Role-Based Access Control)
 
 ### 8.1 Built-in Roles
 
 #### admin
-Toàn quyền hệ thống. Dành cho người quản trị hệ thống.
+Full system access. Intended for system administrators.
 
 #### operator
-Quyền tạo và submit policy để admin duyệt. Không thể apply trực tiếp.
+Can create and submit policies for admin approval. Cannot apply policies directly.
 
 #### viewer
-Chỉ xem. Không thể tạo, sửa, xóa bất kỳ resource nào.
+Read-only. Cannot create, edit, or delete any resources.
 
-### 8.2 Danh sách Permissions
+### 8.2 Permission List
 
-| Permission | Mô tả |
+| Permission | Description |
 |---|---|
-| `dashboard:view` | Xem Dashboard |
-| `policies:view` | Xem danh sách policy |
-| `policies:create` | Tạo policy mới |
-| `policies:validate` | Validate policy trước khi apply |
-| `policies:submit` | Submit policy để admin duyệt |
-| `policies:edit` | Sửa policy đã có |
-| `policies:delete` | Xóa policy |
-| `policies:apply_direct` | Apply policy trực tiếp (không cần duyệt) |
-| `policies:import` | Import policy từ file |
-| `policies:export` | Export policy ra file |
-| `review:view` | Xem hàng đợi duyệt |
-| `review:approve` | Duyệt policy |
-| `review:reject` | Từ chối policy |
-| `review:cancel` | Hủy yêu cầu đang chờ |
-| `logs:view` | Xem security logs |
-| `logs:audit` | Xem audit trail |
-| `logs:violations` | Xem security violations |
-| `logs:apparmor` | Xem AppArmor events |
-| `models:view` | Xem behavior models |
-| `models:advisor` | Xem gợi ý từ model |
-| `models:apply` | Áp dụng model |
-| `users:view` | Xem danh sách user |
-| `users:create` | Tạo user mới |
-| `users:update_role` | Thay đổi role của user |
-| `users:reset_password` | Reset mật khẩu user khác |
-| `users:delete` | Xóa user |
-| `license:view` | Xem thông tin license |
-| `license:manage` | Cài đặt/xóa license |
+| `dashboard:view` | View the Dashboard |
+| `policies:view` | View the policy list |
+| `policies:create` | Create new policies |
+| `policies:validate` | Validate a policy before applying |
+| `policies:submit` | Submit a policy for admin approval |
+| `policies:edit` | Edit existing policies |
+| `policies:delete` | Delete policies |
+| `policies:apply_direct` | Apply a policy directly (no approval required) |
+| `policies:import` | Import policies from a file |
+| `policies:export` | Export policies to a file |
+| `review:view` | View the approval queue |
+| `review:approve` | Approve a policy |
+| `review:reject` | Reject a policy |
+| `review:cancel` | Cancel a pending request |
+| `logs:view` | View security logs |
+| `logs:audit` | View the audit trail |
+| `logs:violations` | View security violations |
+| `logs:apparmor` | View AppArmor events |
+| `models:view` | View behavioral models |
+| `models:advisor` | View model-based recommendations |
+| `models:apply` | Apply a behavioral model |
+| `users:view` | View the user list |
+| `users:create` | Create new users |
+| `users:update_role` | Change a user's role |
+| `users:reset_password` | Reset another user's password |
+| `users:delete` | Delete users |
+| `license:view` | View license information |
+| `license:manage` | Install or remove a license |
 
 ### 8.3 Custom Roles
-Admin có thể tạo role tùy chỉnh với bất kỳ tập hợp permission nào từ danh sách trên.
+Admins can create custom roles with any combination of permissions from the list above.
 
 ---
 
 ## 9. Policy Templates
 
-Hệ thống cung cấp sẵn 72 template chia thành 8 nhóm:
+The system ships with 72 built-in templates organized into 8 groups:
 
-| Nhóm | Số template | Yêu cầu License |
+| Group | Templates | License Required |
 |---|---|---|
-| Baseline Hardening | 10 | Không |
-| CVE Mitigation | 9 | Không |
-| Compliance | 13 | Không |
-| Workload Type | 18 | Không |
-| Network Egress | 7 | Không |
+| Baseline Hardening | 10 | No |
+| CVE Mitigation | 9 | No |
+| Compliance | 13 | No |
+| Workload Type | 18 | No |
+| Network Egress | 7 | No |
 | Data Protection | 5 | Enterprise |
 | Platform Infrastructure | 15 | Enterprise |
 | Incident Response | 2 | Enterprise |
 
 ---
 
-## 10. API Endpoints chính
+## 10. Key API Endpoints
 
-| Method | Endpoint | Quyền | Mô tả |
+| Method | Endpoint | Permission | Description |
 |---|---|---|---|
-| GET | `/api/namespaces/:ns/policies` | policies:view | Liệt kê policy theo namespace |
-| POST | `/api/policies` | policies:apply_direct | Tạo policy mới |
-| PUT | `/api/namespaces/:ns/policies/:name` | policies:edit | Sửa policy |
-| DELETE | `/api/namespaces/:ns/policies/:name` | policies:delete | Xóa policy |
-| GET | `/api/cluster-policies` | policies:view | Liệt kê cluster policy |
-| GET | `/api/license` | license:view | Trạng thái license |
-| POST | `/api/license` | license:manage | Cài license |
-| DELETE | `/api/license` | license:manage | Xóa license |
-| GET | `/api/license/activation-request` | license:view | Lấy activation request |
-| GET | `/api/users` | users:view | Danh sách user |
-| POST | `/api/users` | users:create | Tạo user |
-| DELETE | `/api/users/:username` | users:delete | Xóa user |
-| GET | `/api/audit-logs` | logs:audit | Audit trail |
-| GET | `/api/apparmor-events` | logs:apparmor | AppArmor events |
-| GET | `/api/policy-templates` | policies:view | Danh sách template |
+| GET | `/api/namespaces/:ns/policies` | policies:view | List policies in a namespace |
+| POST | `/api/policies` | policies:apply_direct | Create a new policy |
+| PUT | `/api/namespaces/:ns/policies/:name` | policies:edit | Edit a policy |
+| DELETE | `/api/namespaces/:ns/policies/:name` | policies:delete | Delete a policy |
+| GET | `/api/cluster-policies` | policies:view | List cluster policies |
+| GET | `/api/license` | license:view | Get license status |
+| POST | `/api/license` | license:manage | Install a license |
+| DELETE | `/api/license` | license:manage | Remove the license |
+| GET | `/api/license/activation-request` | license:view | Get activation request data |
+| GET | `/api/users` | users:view | List users |
+| POST | `/api/users` | users:create | Create a user |
+| DELETE | `/api/users/:username` | users:delete | Delete a user |
+| GET | `/api/audit-logs` | logs:audit | Get audit trail |
+| GET | `/api/apparmor-events` | logs:apparmor | Get AppArmor events |
+| GET | `/api/policy-templates` | policies:view | List policy templates |
 | GET | `/api/policies/backup` | policies:export | Backup policies |
-| POST | `/api/policies/restore` | policies:apply_direct | Restore trực tiếp |
-| POST | `/api/policies/restore/submit` | policies:submit | Restore qua hàng đợi |
+| POST | `/api/policies/restore` | policies:apply_direct | Restore directly |
+| POST | `/api/policies/restore/submit` | policies:submit | Restore via approval queue |
 
 ---
 
-## 11. Cấu hình môi trường (Environment Variables)
+## 11. Environment Variables
 
-| Biến | Mặc định | Ý nghĩa |
+| Variable | Default | Description |
 |---|---|---|
-| `VARMOR_LICENSE_REQUIRED` | false | Bắt buộc phải có license |
-| `VARMOR_LICENSE_FAIL_OPEN` | true | Cho phép chạy khi license lỗi |
-| `VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING` | false | Bắt buộc license bind với installation |
-| `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY` | false | Cho phép override public key qua env |
-| `VARMOR_LICENSE_ALLOW_HS256` | false | Cho phép license dạng HS256 (legacy) |
-| `VARMOR_TRIAL_DAYS` | 30 | Số ngày trial built-in (0 = tắt) |
-| `VARMOR_LICENSE_FILE` | /app/data/license.json | Đường dẫn file license |
+| `VARMOR_LICENSE_REQUIRED` | false | Require a valid license to operate |
+| `VARMOR_LICENSE_FAIL_OPEN` | true | Allow operation when the license is invalid |
+| `VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING` | false | Require the license to be bound to this installation |
+| `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY` | false | Allow overriding the public key via an environment variable |
+| `VARMOR_LICENSE_ALLOW_HS256` | false | Allow HS256-format licenses (legacy) |
+| `VARMOR_TRIAL_DAYS` | 30 | Built-in trial duration in days (0 = disabled) |
+| `VARMOR_LICENSE_FILE` | /app/data/license.json | Path to the license file |
 
 ---
 
-## 12. Luồng hoạt động tổng quát
+## 12. Operational Workflows
 
-### Tạo và áp Policy (Admin)
+### Creating and Applying a Policy (Admin)
 ```
-Admin tạo policy → Validate → Apply trực tiếp
-                                   ↓
-                          VarmorPolicy CRD tạo trên k8s
-                                   ↓
-                          vArmor Manager nhận event
-                                   ↓
-                          vArmor Agent trên node nhận profile
-                                   ↓
-                          Kernel AppArmor/BPF/Seccomp áp dụng
-                                   ↓
-                          Policy Status: Ready
-```
-
-### Tạo Policy (Operator — qua review)
-```
-Operator tạo policy → Submit → Hàng đợi chờ duyệt
-                                   ↓
-                          Admin xem Review Queue
-                                   ↓
-                          Approve → Apply → Ready
-                          Reject  → Hủy bỏ
+Admin creates policy → Validate → Apply directly
+                                      ↓
+                           VarmorPolicy CRD created in k8s
+                                      ↓
+                           vArmor Manager receives event
+                                      ↓
+                           vArmor Agent on node receives profile
+                                      ↓
+                           Kernel AppArmor/BPF/Seccomp enforces it
+                                      ↓
+                           Policy Status: Ready
 ```
 
-### Quy trình License
+### Creating a Policy (Operator — via review)
 ```
-Cài đặt mới → Built-in Trial 30 ngày tự động
-                   ↓ (hết trial)
-          Tải Activation Request (có thông tin installation + yêu cầu)
-                   ↓
-          Gửi cho Vendor
-                   ↓
-          Vendor ký license bằng private key → VARMOR1.xxx.yyy
-                   ↓
-          Paste key vào Console → License Valid
+Operator creates policy → Submit → Pending approval queue
+                                      ↓
+                           Admin views Review Queue
+                                      ↓
+                           Approve → Apply → Ready
+                           Reject  → Discarded
+```
+
+### License Lifecycle
+```
+Fresh install → Built-in 30-day trial starts automatically
+                    ↓ (trial expires)
+         Download Activation Request (contains installation info + license request)
+                    ↓
+         Send to Vendor
+                    ↓
+         Vendor signs license with private key → VARMOR1.xxx.yyy
+                    ↓
+         Paste key into Console → License Valid
 ```
