@@ -5,8 +5,8 @@
 # Nguon goc ky thuat: CVE-2022-0492, CVE-2019-5736, etc.
 # ============================================================
 
-API="http://127.0.0.1:8080"
-AUTH="admin:Admin@ArmorPilot2026!"
+API="${ARMORPILOT_API_URL:-http://127.0.0.1:30080}"
+AUTH="${ARMORPILOT_USERNAME:-admin}:${ARMORPILOT_PASSWORD:?Set ARMORPILOT_PASSWORD before running this lab}"
 NS="default"
 POLICY_ESCAPE="lab05-escape-prevention"
 POLICY_PRIVESC="lab05-privesc-prevention"

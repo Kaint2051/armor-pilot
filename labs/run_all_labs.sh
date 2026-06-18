@@ -5,6 +5,10 @@
 # ============================================================
 
 LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARMORPILOT_API_URL="${ARMORPILOT_API_URL:-http://127.0.0.1:30080}"
+ARMORPILOT_USERNAME="${ARMORPILOT_USERNAME:-admin}"
+: "${ARMORPILOT_PASSWORD:?Set ARMORPILOT_PASSWORD before running the lab suite}"
+export ARMORPILOT_API_URL ARMORPILOT_USERNAME ARMORPILOT_PASSWORD
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -92,7 +96,7 @@ preflight() {
     fi
 
     # Console API accessible
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ 2>/dev/null)
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${ARMORPILOT_API_URL}/" 2>/dev/null)
     if [ "${HTTP_CODE}" = "200" ]; then
         echo -e "  ${GREEN}[OK]${NC} Console API hoat dong (HTTP 200)"
     else
@@ -103,7 +107,8 @@ preflight() {
 
     # Auth working
     AUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-        -u "admin:Admin@ArmorPilot2026!" http://127.0.0.1:8080/api/namespaces/default/deployments 2>/dev/null)
+        -u "${ARMORPILOT_USERNAME}:${ARMORPILOT_PASSWORD}" \
+        "${ARMORPILOT_API_URL}/api/namespaces/default/deployments" 2>/dev/null)
     if [ "${AUTH_CODE}" = "200" ]; then
         echo -e "  ${GREEN}[OK]${NC} Xac thuc admin hoat dong"
     else

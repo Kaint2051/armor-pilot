@@ -6,8 +6,8 @@
 #        ca tren mang phang quan ly (API) lan lop thuc thi (pod).
 # ============================================================
 
-API="http://127.0.0.1:8080"
-AUTH="admin:Admin@ArmorPilot2026!"
+API="${ARMORPILOT_API_URL:-http://127.0.0.1:30080}"
+AUTH="${ARMORPILOT_USERNAME:-admin}:${ARMORPILOT_PASSWORD:?Set ARMORPILOT_PASSWORD before running this lab}"
 NS="default"
 TEST_DEPLOY="lab04-target-app"
 TEST_POLICY="lab04-banned-files-policy"

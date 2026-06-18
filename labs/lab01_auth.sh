@@ -2,13 +2,15 @@
 # ============================================================
 # LAB 01: Xác thực & Bảo mật (Authentication & Security)
 # Mục tiêu: Kiểm tra toàn bộ cơ chế xác thực Basic Auth
-# Chạy trên: server 172.30.2.129 (hoặc bất kỳ máy có curl)
+# Chạy trên server ArmorPilot hoặc bất kỳ máy có curl
 # ============================================================
 
-API="http://127.0.0.1:8080"
-VALID_AUTH="admin:Admin@ArmorPilot2026!"
+API="${ARMORPILOT_API_URL:-http://127.0.0.1:30080}"
+USERNAME="${ARMORPILOT_USERNAME:-admin}"
+PASSWORD="${ARMORPILOT_PASSWORD:?Set ARMORPILOT_PASSWORD before running this lab}"
+VALID_AUTH="${USERNAME}:${PASSWORD}"
 WRONG_PASS="admin:wrongpassword"
-WRONG_USER="hacker:Admin@ArmorPilot2026!"
+WRONG_USER="hacker:${PASSWORD}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
