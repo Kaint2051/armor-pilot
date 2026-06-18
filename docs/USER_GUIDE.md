@@ -1,243 +1,243 @@
-# vArmor Console — Hướng dẫn sử dụng
+# vArmor Console — User Guide
 
-## Mục lục
-1. [Đăng nhập](#1-đăng-nhập)
+## Table of Contents
+1. [Login](#1-login)
 2. [Dashboard](#2-dashboard)
-3. [Quản lý Policy](#3-quản-lý-policy)
-4. [Tạo Policy mới — Hướng dẫn từng bước](#4-tạo-policy-mới--hướng-dẫn-từng-bước)
-5. [Xem và chỉnh sửa Policy](#5-xem-và-chỉnh-sửa-policy)
-6. [Backup và Restore Policy](#6-backup-và-restore-policy)
-7. [Quản lý License](#7-quản-lý-license)
-8. [Quản lý Users và Phân quyền](#8-quản-lý-users-và-phân-quyền)
-9. [Xem Logs](#9-xem-logs)
-10. [Tìm kiếm và lọc Policy](#10-tìm-kiếm-và-lọc-policy)
+3. [Policy Management](#3-policy-management)
+4. [Creating a New Policy — Step by Step](#4-creating-a-new-policy--step-by-step)
+5. [Viewing and Editing a Policy](#5-viewing-and-editing-a-policy)
+6. [Backup and Restore Policies](#6-backup-and-restore-policies)
+7. [License Management](#7-license-management)
+8. [User and Role Management](#8-user-and-role-management)
+9. [Viewing Logs](#9-viewing-logs)
+10. [Searching and Filtering Policies](#10-searching-and-filtering-policies)
 
 ---
 
-## 1. Đăng nhập
+## 1. Login
 
-### Truy cập hệ thống
-Mở trình duyệt và vào địa chỉ:
+### Accessing the System
+Open a browser and navigate to:
 ```
-http://<địa-chỉ-server>:30080
+http://<server-address>:30080
 ```
 
-### Thông tin đăng nhập mặc định
-| Tài khoản | Mật khẩu | Quyền |
+### Default Credentials
+| Account | Password | Access Level |
 |---|---|---|
-| `admin` | `Admin@varmor2024` | Toàn quyền |
-| `operator1` | `pass1234` | Tạo & submit policy |
+| `admin` | `Admin@varmor2024` | Full access |
+| `operator1` | `pass1234` | Create & submit policies |
 
-### Giải thích màn hình đăng nhập
+### Login Screen Fields
 
-**Username**: Tên tài khoản (không phân biệt hoa thường).
+**Username**: Your account name (case-insensitive).
 
-**Password**: Mật khẩu (phân biệt hoa thường, tối thiểu 6 ký tự).
+**Password**: Your password (case-sensitive, minimum 6 characters).
 
-> Sau khi đăng nhập thành công, hệ thống tự động load Dashboard. Thông tin đăng nhập được lưu trong `localStorage` của trình duyệt — đóng tab không bị logout.
+> After a successful login, the system automatically loads the Dashboard. Credentials are stored in the browser's `localStorage` — closing the tab does not log you out.
 
 ---
 
 ## 2. Dashboard
 
-Dashboard hiển thị tổng quan tình trạng hệ thống. Để vào Dashboard, click tab **Dashboard** trên thanh điều hướng.
+The Dashboard shows a high-level overview of the system state. Click the **Dashboard** tab in the navigation bar to access it.
 
-### Các thẻ thống kê (Stats Cards)
+### Stats Cards
 
-| Thẻ | Ý nghĩa |
+| Card | Meaning |
 |---|---|
-| **Total Policies** | Tổng số policy đang tồn tại (namespace + cluster) |
-| **NS Policies** | Số VarmorPolicy (namespace-scoped) |
-| **Cluster Policies** | Số VarmorClusterPolicy (cluster-wide) |
-| **Policies Active** | Số policy đang ở trạng thái Ready (đang bảo vệ) |
+| **Total Policies** | Total number of existing policies (namespace + cluster) |
+| **NS Policies** | Number of VarmorPolicy objects (namespace-scoped) |
+| **Cluster Policies** | Number of VarmorClusterPolicy objects (cluster-wide) |
+| **Policies Active** | Number of policies currently in the Ready state (actively protecting) |
 
-### Biểu đồ phân bố
+### Distribution Charts
 
-**Policies by Mode**: Phân bố policy theo chế độ bảo mật (EnhanceProtect, RuntimeDefault, v.v.)
+**Policies by Mode**: Distribution of policies by security mode (EnhanceProtect, RuntimeDefault, etc.)
 
-**Policies by Enforcer**: Phân bố theo engine thực thi (AppArmor, BPF, Seccomp)
+**Policies by Enforcer**: Distribution by enforcement engine (AppArmor, BPF, Seccomp)
 
-### License Status (góc phải header)
-Hiển thị trạng thái license hiện tại. Màu xanh = hợp lệ, màu vàng = sắp hết hạn/grace, màu đỏ = cần chú ý.
+### License Status (top-right header)
+Shows the current license state. Green = valid, yellow = expiring soon / in grace period, red = attention required.
 
 ---
 
-## 3. Quản lý Policy
+## 3. Policy Management
 
-Click tab **Policy** trên thanh điều hướng để vào mục quản lý policy.
+Click the **Policy** tab in the navigation bar to enter the policy management section.
 
-### Giao diện danh sách Policy
+### Policy List Interface
 
-#### Thanh tìm kiếm và lọc
-- **Ô Search**: Gõ để tìm theo tên policy, tên target, mode hoặc enforcer.
-- **All Scope**: Lọc theo phạm vi — `Namespace` (policy namespace) hoặc `Cluster` (policy toàn cluster).
-- **All Mode**: Lọc theo chế độ bảo mật.
-- **All Status**: Lọc theo trạng thái — `Ready` (đang chạy), `Pending` (đang xử lý), `Error` (có lỗi).
+#### Search and Filter Bar
+- **Search box**: Type to search by policy name, target name, mode, or enforcer.
+- **All Scope**: Filter by scope — `Namespace` (namespace policy) or `Cluster` (cluster-wide policy).
+- **All Mode**: Filter by security mode.
+- **All Status**: Filter by status — `Ready` (running), `Pending` (processing), `Error` (has errors).
 
-> Khi đang lọc, dropdown sẽ đổi màu xanh để báo hiệu filter đang active.
+> When a filter is active, the dropdown highlights in blue to indicate it is in use.
 
-#### Bảng danh sách
+#### Policy Table
 
-| Cột | Ý nghĩa |
+| Column | Meaning |
 |---|---|
-| ☐ (checkbox) | Chọn nhiều policy để xóa hàng loạt |
-| **Name** | Tên policy (màu xanh, dạng monospace) |
-| **Scope** | `NS` (namespace) hoặc `Cluster` (toàn cluster) |
-| **Target** | Tên workload hoặc `selector` nếu dùng label |
-| **Mode** | Chế độ bảo mật đang áp dụng |
-| **Enforcer** | Engine thực thi (AppArmor/BPF/Seccomp) |
-| **Status** | Trạng thái: `Ready` (xanh), `Pending` (vàng), lỗi (đỏ) |
-| **Created** | Ngày tạo policy |
-| **Actions** | ✏️ Sửa \| View \| ⬇ Export \| Del |
+| ☐ (checkbox) | Select multiple policies for bulk deletion |
+| **Name** | Policy name (blue, monospace font) |
+| **Scope** | `NS` (namespace) or `Cluster` (cluster-wide) |
+| **Target** | Workload name or `selector` if using label selection |
+| **Mode** | Active security mode |
+| **Enforcer** | Enforcement engine (AppArmor / BPF / Seccomp) |
+| **Status** | State: `Ready` (green), `Pending` (yellow), error (red) |
+| **Created** | Policy creation date |
+| **Actions** | ✏️ Edit \| View \| ⬇ Export \| Del |
 
-#### Phân trang
-- Mỗi trang hiển thị **10 policy**.
-- Dùng nút **← Prev / Next →** hoặc số trang để di chuyển.
-- Thông tin trang hiện tại hiển thị dạng: `Trang 1/3 (25 policy)`.
-
----
-
-## 4. Tạo Policy mới — Hướng dẫn từng bước
-
-Click nút **+ New Policy** để mở wizard tạo policy.
+#### Pagination
+- Each page displays **10 policies**.
+- Use **← Prev / Next →** buttons or page numbers to navigate.
+- Current page information is shown as: `Page 1/3 (25 policies)`.
 
 ---
 
-### Bước 1: Target (Đối tượng áp dụng)
+## 4. Creating a New Policy — Step by Step
+
+Click the **+ New Policy** button to open the policy creation wizard.
+
+---
+
+### Step 1: Target (Workload to Protect)
 
 #### Namespace
-**Ý nghĩa**: Namespace Kubernetes nơi workload đang chạy.
-**Ví dụ**: `default`, `production`, `monitoring`
-> Chỉ có tác dụng khi tạo **Namespace Policy**. Cluster Policy bỏ qua trường này.
+**Meaning**: The Kubernetes namespace where the workload is running.
+**Example**: `default`, `production`, `monitoring`
+> Only applies when creating a **Namespace Policy**. Cluster Policies ignore this field.
 
 #### Scope
-| Giá trị | Ý nghĩa |
+| Value | Meaning |
 |---|---|
-| **Namespace** | Tạo `VarmorPolicy` — áp dụng trong namespace chỉ định |
-| **Cluster** | Tạo `VarmorClusterPolicy` — áp dụng trên toàn cluster |
+| **Namespace** | Creates a `VarmorPolicy` — applies within the specified namespace |
+| **Cluster** | Creates a `VarmorClusterPolicy` — applies across the entire cluster |
 
-> Cluster Policy cần quyền `policies:apply_direct` và thường dùng cho system workloads.
+> Cluster Policies require the `policies:apply_direct` permission and are typically used for system workloads.
 
 #### Target Kind
-Loại workload cần bảo vệ:
+The type of workload to protect:
 
-| Kind | Mô tả |
+| Kind | Description |
 |---|---|
-| **Deployment** | Ứng dụng stateless phổ biến nhất (web server, API) |
-| **StatefulSet** | Ứng dụng có state (database, message queue) |
-| **DaemonSet** | Chạy trên mọi node (log agent, monitoring) |
-| **Pod** | Pod đơn lẻ, không quản lý bởi controller |
+| **Deployment** | The most common stateless application (web servers, APIs) |
+| **StatefulSet** | Stateful applications (databases, message queues) |
+| **DaemonSet** | Runs on every node (log agents, monitoring) |
+| **Pod** | A standalone Pod not managed by a controller |
 
-#### Target Selection — Theo tên (Name)
-**Target Name**: Nhập đúng tên Deployment/StatefulSet/DaemonSet/Pod.
+#### Target Selection — By Name
+**Target Name**: Enter the exact name of the Deployment / StatefulSet / DaemonSet / Pod.
 
-> Dropdown sẽ tự load danh sách workload trong namespace đã chọn.
+> The dropdown will automatically load workloads available in the selected namespace.
 
-#### Target Selection — Theo Label Selector
-Dùng khi muốn áp policy cho nhiều workload cùng lúc theo label.
+#### Target Selection — By Label Selector
+Use this when you want to apply a policy to multiple workloads at once based on labels.
 
-**matchLabels**: Key-value pairs phải khớp hoàn toàn.
+**matchLabels**: Key-value pairs that must all match exactly.
 ```
 app = nginx
 env = production
 ```
 
-**matchExpressions**: Điều kiện linh hoạt hơn.
+**matchExpressions**: More flexible conditions.
 
-| Operator | Ý nghĩa | Ví dụ |
+| Operator | Meaning | Example |
 |---|---|---|
-| `In` | Giá trị phải thuộc tập hợp | `tier In [frontend, backend]` |
-| `NotIn` | Giá trị không được thuộc tập hợp | `env NotIn [dev, test]` |
-| `Exists` | Key phải tồn tại (không cần value) | `app Exists` |
-| `DoesNotExist` | Key không được tồn tại | `debug DoesNotExist` |
+| `In` | Value must be one of the listed set | `tier In [frontend, backend]` |
+| `NotIn` | Value must not be in the listed set | `env NotIn [dev, test]` |
+| `Exists` | Key must exist (no value needed) | `app Exists` |
+| `DoesNotExist` | Key must not exist | `debug DoesNotExist` |
 
 ---
 
-### Bước 2: Policy (Chế độ bảo mật)
+### Step 2: Policy (Security Mode)
 
 #### Policy Name
-**Ý nghĩa**: Tên định danh duy nhất của policy trong namespace/cluster.
-**Quy tắc**: Chỉ dùng chữ thường, số, dấu gạch ngang (`-`). Không dùng dấu chấm, gạch dưới hay khoảng trắng.
-**Ví dụ**: `protect-nginx`, `harden-payment-api`, `secure-database`
+**Meaning**: A unique identifier for the policy within the namespace / cluster.
+**Rules**: Use only lowercase letters, numbers, and hyphens (`-`). Do not use dots, underscores, or spaces.
+**Example**: `protect-nginx`, `harden-payment-api`, `secure-database`
 
-> Sau khi tạo, **không thể đổi tên** policy. Muốn đổi tên phải xóa và tạo lại.
+> Once created, the policy name **cannot be changed**. You must delete and recreate the policy to rename it.
 
-#### Mode (Chế độ bảo mật)
+#### Mode (Security Mode)
 
-Chọn một trong 5 chế độ:
+Choose one of 5 modes:
 
-| Mode | Mức độ bảo vệ | Dùng khi |
+| Mode | Protection Level | Use When |
 |---|---|---|
-| **AlwaysAllow** | Không bảo vệ | Debug, testing |
-| **RuntimeDefault** | Thấp - baseline | Workload thông thường |
-| **EnhanceProtect** | Trung-Cao | Production, cần bảo vệ nâng cao |
-| **BehaviorModeling** | Chỉ quan sát | Giai đoạn học hành vi |
-| **DefenseInDepth** | Cao nhất | Sau khi đã có model |
+| **AlwaysAllow** | None | Debugging, testing |
+| **RuntimeDefault** | Low — baseline | General workloads |
+| **EnhanceProtect** | Medium–High | Production, requiring advanced protection |
+| **BehaviorModeling** | Observe only | Learning phase |
+| **DefenseInDepth** | Highest | After a behavioral model has been built |
 
-#### Enforcer (Engine thực thi)
+#### Enforcer (Enforcement Engine)
 
-Chọn một hoặc nhiều engine. Có thể chọn kết hợp:
+Select one or more engines. Combinations are supported:
 
-| Engine | Bảo vệ | Yêu cầu |
+| Engine | Protects | Requirements |
 |---|---|---|
-| **AppArmor** | File, capabilities, network | AppArmor kernel module |
-| **BPF** | Syscall, file, network, process | Kernel ≥ 5.10, BTF |
+| **AppArmor** | Files, capabilities, network | AppArmor kernel module |
+| **BPF** | Syscalls, files, network, processes | Kernel ≥ 5.10, BTF |
 | **Seccomp** | Syscall filtering | Kernel ≥ 3.17 |
-| **NetworkProxy** | Egress network control | BPF available |
+| **NetworkProxy** | Egress network control | BPF must be available |
 
-> Nếu node không hỗ trợ engine đã chọn, policy sẽ ở trạng thái **Error**.
+> If a node does not support the selected engine, the policy will enter an **Error** state.
 
 ---
 
-### Bước 3: Rules (Luật bảo mật)
+### Step 3: Rules (Security Rules)
 
-Chỉ áp dụng khi chọn mode **EnhanceProtect**.
+Only applicable when the **EnhanceProtect** mode is selected.
 
-#### 3.1 Hardening Rules (Khóa điểm yếu hệ thống)
+#### 3.1 Hardening Rules (Lock Down System Weaknesses)
 
-Chọn từ danh sách các rule có sẵn. Mỗi rule khóa một vector tấn công cụ thể.
+Select from the list of built-in rules. Each rule blocks a specific attack vector.
 
-| Rule | Bảo vệ khỏi |
+| Rule | Protects Against |
 |---|---|
-| `disable-cap-all` | Tước toàn bộ Linux capabilities (mạnh nhất) |
-| `disable-cap-privileged` | Tước các capability nguy hiểm (CAP_SYS_ADMIN, v.v.) |
-| `disable-cap-all-except-net-bind-service` | Chỉ giữ lại quyền bind port |
-| `disallow-mount` | Chặn mount filesystem |
-| `disallow-insmod` | Chặn load kernel module |
-| `disallow-load-bpf-prog` | Chặn load eBPF program |
-| `disallow-write-core-pattern` | Ngăn ghi /proc/sys/kernel/core_pattern |
-| `disallow-mount-procfs` | Ngăn mount /proc |
-| `disallow-create-user-ns` | Ngăn tạo user namespace (chặn container escape) |
-| `disallow-abuse-user-ns` | Ngăn lạm dụng user namespace |
-| `disallow-access-procfs-root` | Ngăn truy cập /proc/[pid]/root |
-| `disallow-access-kallsyms` | Ngăn đọc /proc/kallsyms (lộ kernel address) |
-| `disallow-debug-disk-device` | Ngăn truy cập raw disk device |
+| `disable-cap-all` | Removes all Linux capabilities (strongest option) |
+| `disable-cap-privileged` | Removes dangerous capabilities (CAP_SYS_ADMIN, etc.) |
+| `disable-cap-all-except-net-bind-service` | Retains only the port-binding capability |
+| `disallow-mount` | Blocks filesystem mounting |
+| `disallow-insmod` | Blocks loading kernel modules |
+| `disallow-load-bpf-prog` | Blocks loading eBPF programs |
+| `disallow-write-core-pattern` | Prevents writes to /proc/sys/kernel/core_pattern |
+| `disallow-mount-procfs` | Prevents mounting /proc |
+| `disallow-create-user-ns` | Prevents creating user namespaces (blocks container escapes) |
+| `disallow-abuse-user-ns` | Prevents abusing user namespaces |
+| `disallow-access-procfs-root` | Prevents access to /proc/[pid]/root |
+| `disallow-access-kallsyms` | Prevents reading /proc/kallsyms (exposes kernel addresses) |
+| `disallow-debug-disk-device` | Prevents raw disk device access |
 
-#### 3.2 Attack Protection Rules (Chặn kỹ thuật tấn công)
+#### 3.2 Attack Protection Rules (Block Post-Intrusion Techniques)
 
-Chặn các kỹ thuật tấn công sau khi attacker đã vào được container.
+Blocks attack techniques once an attacker has gained access to a container.
 
-**Chặn công cụ nguy hiểm trong container**:
-| Rule | Tác dụng |
+**Block dangerous tools inside the container**:
+| Rule | Effect |
 |---|---|
-| `disable-shell` | Chặn bash, sh, zsh, dash (không RCE qua shell) |
-| `disable-wget` | Chặn wget (không download payload) |
-| `disable-curl` | Chặn curl |
-| `disable-chmod` | Chặn chmod (không thay đổi quyền file) |
-| `disable-su-sudo` | Chặn su/sudo (không leo thang quyền) |
-| `disable-busybox` | Chặn busybox (Swiss Army knife của attacker) |
+| `disable-shell` | Blocks bash, sh, zsh, dash (prevents RCE via shell) |
+| `disable-wget` | Blocks wget (prevents payload downloads) |
+| `disable-curl` | Blocks curl |
+| `disable-chmod` | Blocks chmod (prevents changing file permissions) |
+| `disable-su-sudo` | Blocks su/sudo (prevents privilege escalation) |
+| `disable-busybox` | Blocks busybox (an attacker's Swiss Army knife) |
 
-**Chặn truy cập thông tin nhạy cảm**:
-| Rule | Tác dụng |
+**Block access to sensitive information**:
+| Rule | Effect |
 |---|---|
-| `disable-write-etc` | Ngăn ghi vào /etc (không sửa hosts, passwd) |
-| `disable-access-passwd` | Ngăn đọc /etc/passwd |
-| `disable-access-shadow` | Ngăn đọc /etc/shadow (mật khẩu hash) |
-| `disable-access-ssh-dir` | Ngăn đọc ~/.ssh (private key) |
-| `mitigate-sa-leak` | Ngăn đọc ServiceAccount token (k8s credential) |
-| `mitigate-host-ip-leak` | Ngăn lộ IP của host node |
+| `disable-write-etc` | Prevents writes to /etc (e.g., modifying hosts, passwd) |
+| `disable-access-passwd` | Prevents reading /etc/passwd |
+| `disable-access-shadow` | Prevents reading /etc/shadow (password hashes) |
+| `disable-access-ssh-dir` | Prevents reading ~/.ssh (private keys) |
+| `mitigate-sa-leak` | Prevents reading the ServiceAccount token (Kubernetes credentials) |
+| `mitigate-host-ip-leak` | Prevents leaking the host node IP |
 
-**Chặn truy cập metadata cloud**:
+**Block cloud metadata access**:
 | Rule | Cloud Provider |
 |---|---|
 | `block-access-to-metadata-service` | Generic (169.254.169.254) |
@@ -245,199 +245,199 @@ Chặn các kỹ thuật tấn công sau khi attacker đã vào được contain
 | `block-access-to-alibaba-metadata-service` | Alibaba Cloud |
 | `block-access-to-oci-metadata-service` | Oracle Cloud |
 
-**Kiểm soát network**:
-| Rule | Tác dụng |
+**Network control**:
+| Rule | Effect |
 |---|---|
-| `disable-network` | Chặn toàn bộ network |
-| `disable-inet` | Chặn IPv4 và IPv6 |
-| `disable-ipv4` / `disable-inet` | Chặn IPv4 |
-| `disable-ipv6` / `disable-inet6` | Chặn IPv6 |
-| `disable-tcp` | Chặn TCP |
-| `disable-udp` | Chặn UDP |
-| `disable-icmp` | Chặn ICMP (ping) |
-| `block-access-to-kube-apiserver` | Chặn truy cập k8s API server |
-| `block-access-to-container-runtime` | Chặn socket container runtime (Docker escape) |
+| `disable-network` | Blocks all network traffic |
+| `disable-inet` | Blocks IPv4 and IPv6 |
+| `disable-ipv4` / `disable-inet` | Blocks IPv4 |
+| `disable-ipv6` / `disable-inet6` | Blocks IPv6 |
+| `disable-tcp` | Blocks TCP |
+| `disable-udp` | Blocks UDP |
+| `disable-icmp` | Blocks ICMP (ping) |
+| `block-access-to-kube-apiserver` | Blocks access to the Kubernetes API server |
+| `block-access-to-container-runtime` | Blocks the container runtime socket (prevents Docker escape) |
 
-#### 3.3 Vulnerability Mitigation Rules (Vá CVE)
+#### 3.3 Vulnerability Mitigation Rules (Patch Known CVEs)
 
-| Rule | CVE | Mô tả |
+| Rule | CVE | Description |
 |---|---|---|
-| `dirty-pipe-mitigation` | CVE-2022-0847 | Dirty Pipe — ghi vào file read-only |
-| `runc-override-mitigation` | CVE-2019-5736 | runc override — escape container |
-| `cgroups-lxcfs-escape-mitigation` | - | Thoát container qua cgroups/lxcfs |
-| `ingress-nightmare-mitigation` | CVE-2025-1974 | IngressNightmare — RCE qua ingress |
-| `copy-fail-mitigation` | - | Lỗi liên quan đến copy trong container |
+| `dirty-pipe-mitigation` | CVE-2022-0847 | Dirty Pipe — write to read-only files |
+| `runc-override-mitigation` | CVE-2019-5736 | runc override — container escape |
+| `cgroups-lxcfs-escape-mitigation` | — | Container escape via cgroups/lxcfs |
+| `ingress-nightmare-mitigation` | CVE-2025-1974 | IngressNightmare — RCE via ingress |
+| `copy-fail-mitigation` | — | Copy-related container bug |
 
 #### 3.4 AppArmor Raw Rules
-Nhập trực tiếp các rule AppArmor profile nếu cần kiểm soát chi tiết hơn.
+Enter AppArmor profile rules directly for fine-grained control:
 ```
 /etc/nginx/nginx.conf r,
 /var/log/nginx/ rw,
 ```
 
 #### 3.5 BPF Raw Rules
-Cấu hình eBPF rules trực tiếp khi cần kiểm soát đặc biệt.
+Configure eBPF rules directly when special-case control is needed.
 
 #### 3.6 Seccomp Rules
-Chỉ định danh sách syscall được phép hoặc bị chặn.
+Specify the list of syscalls to allow or block.
 
 **Syscall Actions**:
-| Action | Ý nghĩa |
+| Action | Meaning |
 |---|---|
-| `SCMP_ACT_KILL` | Kill process ngay lập tức khi gọi syscall này |
-| `SCMP_ACT_ERRNO` | Trả về lỗi (EPERM) — process tiếp tục chạy |
-| `SCMP_ACT_LOG` | Ghi log nhưng cho phép |
-| `SCMP_ACT_ALLOW` | Cho phép hoàn toàn |
+| `SCMP_ACT_KILL` | Kill the process immediately when this syscall is invoked |
+| `SCMP_ACT_ERRNO` | Return an error (EPERM) — process continues running |
+| `SCMP_ACT_LOG` | Log the call but allow it |
+| `SCMP_ACT_ALLOW` | Allow unconditionally |
 
 ---
 
-### Bước 4: Review (Xem lại trước khi apply)
+### Step 4: Review (Review Before Applying)
 
-Xem lại toàn bộ cấu hình trước khi tạo policy.
+Review the full configuration before creating the policy.
 
-#### Nút Validate
-Kiểm tra cú pháp và tính hợp lệ của policy. Phải validate thành công trước khi có thể apply.
+#### Validate Button
+Checks the syntax and validity of the policy. Validation must succeed before you can apply.
 
-**Kết quả Validate**:
-- ✅ **Valid**: Policy hợp lệ, có thể apply.
-- ❌ **Invalid**: Có lỗi cú pháp, xem thông báo lỗi bên dưới.
+**Validation Results**:
+- ✅ **Valid**: Policy is correct and ready to apply.
+- ❌ **Invalid**: There are syntax errors — see the error message below.
 
-#### Nút Apply (Chỉ Admin)
-Apply policy trực tiếp vào cluster. Policy sẽ xuất hiện trong danh sách ngay.
+#### Apply Button (Admin Only)
+Applies the policy directly to the cluster. The policy appears in the list immediately.
 
-#### Nút Submit for Review (Operator)
-Gửi policy vào hàng đợi chờ Admin duyệt. Admin sẽ thấy trong tab Review.
-
----
-
-## 5. Xem và chỉnh sửa Policy
-
-### Xem chi tiết policy
-Click nút **View** trong cột Actions để xem chi tiết đầy đủ CRD YAML của policy.
-
-### Sửa policy
-Click nút **✏️ (Edit)** để mở lại wizard với thông tin đã điền sẵn.
-
-> Không thể thay đổi: **tên policy**, **scope** (namespace/cluster), **namespace**.
-
-### Export policy
-Click nút **⬇** để tải về file YAML của policy.
-
-### Xóa policy
-Click nút **Del** → confirm dialog → policy bị xóa khỏi cluster.
-
-> Xóa policy sẽ **dừng bảo vệ ngay lập tức** cho workload đó.
-
-### Xóa hàng loạt
-Tick checkbox nhiều policy → Nút **Delete Selected** xuất hiện → Confirm xóa tất cả đã chọn.
+#### Submit for Review Button (Operator)
+Sends the policy to a queue awaiting Admin approval. The admin will see it in the Review tab.
 
 ---
 
-## 6. Backup và Restore Policy
+## 5. Viewing and Editing a Policy
+
+### View Policy Details
+Click the **View** button in the Actions column to see the full CRD YAML for the policy.
+
+### Edit a Policy
+Click the **✏️ (Edit)** button to reopen the wizard with the existing configuration pre-filled.
+
+> The following fields **cannot be changed**: **policy name**, **scope** (namespace/cluster), **namespace**.
+
+### Export a Policy
+Click the **⬇** button to download the YAML file for the policy.
+
+### Delete a Policy
+Click **Del** → confirm the dialog → the policy is removed from the cluster.
+
+> Deleting a policy **immediately stops protection** for the targeted workload.
+
+### Bulk Delete
+Tick the checkboxes for multiple policies → the **Delete Selected** button appears → confirm to delete all selected policies.
+
+---
+
+## 6. Backup and Restore Policies
 
 ### Backup
-Click nút **⬇ Backup** trên thanh toolbar.
+Click the **⬇ Backup** button on the toolbar.
 
-**Tùy chọn**:
-- ☑ **Namespace policies**: Backup VarmorPolicy trong namespace hiện tại.
-- ☑ **Cluster policies**: Backup VarmorClusterPolicy.
+**Options**:
+- ☑ **Namespace policies**: Back up VarmorPolicy objects in the current namespace.
+- ☑ **Cluster policies**: Back up VarmorClusterPolicy objects.
 
-File backup là JSON array chứa spec của tất cả policy (không có runtime fields như status, uid, resourceVersion).
+The backup file is a JSON array containing the spec of all policies — runtime fields such as status, uid, and resourceVersion are excluded.
 
 ### Restore
 
-Click nút **↺ Restore** để mở panel restore.
+Click the **↺ Restore** button to open the restore panel.
 
-**Bước 1**: Chọn file backup JSON đã tải trước đó.
+**Step 1**: Select the JSON backup file downloaded previously.
 
-**Bước 2**: Chọn chế độ xử lý khi policy đã tồn tại:
+**Step 2**: Choose how to handle policies that already exist:
 
-| Chế độ | Hành vi |
+| Mode | Behavior |
 |---|---|
-| **Skip existing** | Bỏ qua policy đã có, chỉ tạo mới những cái chưa có |
-| **Overwrite existing** | Ghi đè lên policy đã có bằng version từ backup |
+| **Skip existing** | Skip policies that already exist; only create new ones |
+| **Overwrite existing** | Overwrite existing policies with the version from the backup |
 
-**Bước 3**:
-- **Restore Directly** (Admin): Apply ngay không cần duyệt.
-- **Submit for Review** (Operator): Gửi vào hàng đợi.
+**Step 3**:
+- **Restore Directly** (Admin): Apply immediately without requiring approval.
+- **Submit for Review** (Operator): Send to the approval queue.
 
 ---
 
-## 7. Quản lý License
+## 7. License Management
 
-Click tab **Users/Access Control** → chọn **License** trong sub-menu bên trái.
+Click the **Users/Access Control** tab → select **License** in the left sub-menu.
 
-### 7.1 Xem trạng thái License
+### 7.1 Viewing License Status
 
-**License Status Card** hiển thị:
+**License Status Card** displays:
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 |---|---|
 | **Status** | trial / valid / in_grace / missing / invalid |
 | **Edition** | trial / starter / enterprise |
-| **Customer** | Tên khách hàng trong license |
-| **License ID** | Mã license (VD: LIC-VNNIC-001) |
-| **Issued At** | Ngày phát hành |
-| **Expires At** | Ngày hết hạn |
-| **Days Remaining** | Số ngày còn lại |
-| **Grace Days** | Số ngày gia hạn sau hết hạn |
-| **Installation ID** | Mã nhận dạng installation (`vmi_...`) |
-| **Cluster UID** | UID của kube-system namespace |
-| **Max Nodes** | Giới hạn số node (0 = không giới hạn) |
-| **Max Policies** | Giới hạn số policy (0 = không giới hạn) |
-| **Features** | `["*"]` = tất cả tính năng |
+| **Customer** | Customer name recorded in the license |
+| **License ID** | License identifier (e.g., LIC-VNNIC-001) |
+| **Issued At** | Issue date |
+| **Expires At** | Expiry date |
+| **Days Remaining** | Number of days left |
+| **Grace Days** | Number of grace days after expiry |
+| **Installation ID** | Installation identifier (`vmi_...`) |
+| **Cluster UID** | UID of the kube-system namespace |
+| **Max Nodes** | Node limit (0 = unlimited) |
+| **Max Policies** | Policy limit (0 = unlimited) |
+| **Features** | `["*"]` = all features enabled |
 
-### 7.2 Tải Activation Request (Yêu cầu cấp License)
+### 7.2 Downloading an Activation Request
 
-Khi cần xin license từ vendor:
+When you need to request a license from the vendor:
 
-1. Click nút **Download Activation Request**.
-2. Điền thông tin liên hệ:
+1. Click **Download Activation Request**.
+2. Fill in the contact information:
 
-| Trường | Bắt buộc | Ý nghĩa |
+| Field | Required | Meaning |
 |---|---|---|
-| **Họ và tên** | ✅ | Người liên hệ |
-| **Công ty / Tổ chức** | ✅ | Tên đơn vị sử dụng |
-| **Email liên hệ** | ✅ | Email nhận license |
-| **Số điện thoại** | ❌ | Số điện thoại liên hệ |
+| **Full Name** | ✅ | Contact person |
+| **Company / Organization** | ✅ | Name of the organization |
+| **Contact Email** | ✅ | Email address to receive the license |
+| **Phone Number** | ❌ | Contact phone number |
 
-3. Điền thông tin yêu cầu license:
+3. Fill in the license request details:
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 |---|---|
-| **Edition** | `Enterprise` (đầy đủ) / `Starter` / `Trial` |
-| **Thời hạn** | 1 năm / 2 năm / 3 tháng / 30 ngày / Khác |
-| **Max nodes** | Số node tối đa cần dùng (0 = không giới hạn) |
-| **Max policies** | Số policy tối đa cần dùng (0 = không giới hạn) |
-| **Ghi chú** | Mô tả thêm về môi trường, mục đích sử dụng |
+| **Edition** | `Enterprise` (full) / `Starter` / `Trial` |
+| **Duration** | 1 year / 2 years / 3 months / 30 days / Custom |
+| **Max nodes** | Maximum number of nodes required (0 = unlimited) |
+| **Max policies** | Maximum number of policies required (0 = unlimited) |
+| **Notes** | Additional details about the environment or intended use |
 
-4. Click **Tải xuống** — file `varmor-activation-request.json` được tải về.
-5. Gửi file này cho vendor.
+4. Click **Download** — the file `varmor-activation-request.json` is saved.
+5. Send this file to the vendor.
 
-### 7.3 Nhập License Key
+### 7.3 Entering a License Key
 
-Sau khi nhận license từ vendor (dạng `VARMOR1.xxx.yyy`):
+After receiving a license from the vendor (format: `VARMOR1.xxx.yyy`):
 
-1. Paste chuỗi license vào ô **License Key**.
+1. Paste the license string into the **License Key** field.
 2. Click **Save License**.
-3. Hệ thống verify và cập nhật trạng thái ngay lập tức.
+3. The system verifies and updates the license status immediately.
 
-**Lỗi thường gặp**:
+**Common Errors**:
 
-| Lỗi | Nguyên nhân |
+| Error | Cause |
 |---|---|
-| `invalid signature` | License bị sửa hoặc ký sai key |
-| `installation_id mismatch` | License bind cho máy khác |
-| `license has expired` | License đã hết hạn và qua grace period |
-| `license key string is required` | Ô nhập trống |
+| `invalid signature` | License was modified or signed with a wrong key |
+| `installation_id mismatch` | License is bound to a different installation |
+| `license has expired` | License has expired and the grace period is over |
+| `license key string is required` | The input field is empty |
 
-### 7.4 Xóa License
+### 7.4 Removing a License
 
-Click **Remove License** (màu đỏ) → confirm → license bị xóa. Hệ thống quay về trạng thái chưa activate (nếu hết trial sẽ vào trạng thái locked).
+Click **Remove License** (red button) → confirm → the license is deleted. The system returns to an unactivated state (if the trial has also expired, it enters a locked state).
 
-### 7.5 Tạo License (Dành cho Vendor)
+### 7.5 Creating a License (For Vendors)
 
-Vendor dùng CLI tool trên máy có private key:
+Vendors use the CLI tool on a machine that holds the private key:
 
 ```powershell
 cd varmor-console
@@ -446,170 +446,170 @@ python tools/license_tool.py sign `
   --private-key license-test/test-license-private.pem `
   --activation-request path\to\varmor-activation-request.json `
   --license-id LIC-CUSTOMER-001 `
-  --customer "Ten khach hang" `
+  --customer "Customer Name" `
   --edition enterprise `
   --days 365 `
   --output customer-license.key
 ```
 
-**Tham số đầy đủ**:
+**Full Parameter Reference**:
 
-| Tham số | Bắt buộc | Ý nghĩa |
+| Parameter | Required | Meaning |
 |---|---|---|
-| `--private-key` | ✅ | Đường dẫn file PEM vendor private key |
-| `--activation-request` | ✅ | File JSON activation request của khách |
-| `--license-id` | ✅ | Mã license (VD: LIC-VNNIC-001) |
-| `--customer` | ✅ | Tên khách hàng |
-| `--edition` | ❌ | trial / starter / enterprise (mặc định: enterprise) |
-| `--days` | ❌ | Số ngày hợp lệ (mặc định: 365) |
-| `--grace-days` | ❌ | Số ngày gia hạn sau hết hạn (mặc định: 14) |
-| `--max-nodes` | ❌ | Giới hạn node (0 = không giới hạn) |
-| `--max-policies` | ❌ | Giới hạn policy (0 = không giới hạn) |
-| `--features` | ❌ | Tính năng: `*` hoặc `f1,f2,...` |
-| `--output` | ❌ | File output (mặc định: in ra màn hình) |
+| `--private-key` | ✅ | Path to the vendor Ed25519 private key PEM file |
+| `--activation-request` | ✅ | Customer's activation request JSON file |
+| `--license-id` | ✅ | License identifier (e.g., LIC-VNNIC-001) |
+| `--customer` | ✅ | Customer name |
+| `--edition` | ❌ | trial / starter / enterprise (default: enterprise) |
+| `--days` | ❌ | Validity period in days (default: 365) |
+| `--grace-days` | ❌ | Grace days after expiry (default: 14) |
+| `--max-nodes` | ❌ | Node limit (0 = unlimited) |
+| `--max-policies` | ❌ | Policy limit (0 = unlimited) |
+| `--features` | ❌ | Features: `*` or a comma-separated list |
+| `--output` | ❌ | Output file (default: print to screen) |
 
 ---
 
-## 8. Quản lý Users và Phân quyền
+## 8. User and Role Management
 
-Click tab **Users/Access Control** → chọn **Users** trong sub-menu.
+Click the **Users/Access Control** tab → select **Users** in the left sub-menu.
 
-> Chỉ tài khoản **admin** mới thấy mục này.
+> Only the **admin** account can see this section.
 
-### 8.1 Danh sách Users
+### 8.1 User List
 
-Bảng hiển thị tất cả tài khoản trong hệ thống:
+The table shows all accounts in the system:
 
-| Cột | Ý nghĩa |
+| Column | Meaning |
 |---|---|
-| **Username** | Tên đăng nhập |
-| **Role** | Vai trò: `admin` / `operator` / `viewer` hoặc custom role |
-| **Created** | Ngày tạo tài khoản |
-| **Actions** | Đổi mật khẩu \| Đổi role \| Xóa |
+| **Username** | Login name |
+| **Role** | Role: `admin` / `operator` / `viewer` or a custom role |
+| **Created** | Account creation date |
+| **Actions** | Change password \| Change role \| Delete |
 
-### 8.2 Tạo User mới
+### 8.2 Creating a New User
 
 Click **+ New User**.
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 |---|---|
-| **Username** | Tên đăng nhập, duy nhất trong hệ thống |
-| **Password** | Mật khẩu (tối thiểu 6 ký tự) |
-| **Role** | Vai trò ban đầu của user |
+| **Username** | Login name, must be unique in the system |
+| **Password** | Password (minimum 6 characters) |
+| **Role** | Initial role for the user |
 
-### 8.3 Các Roles (Vai trò)
+### 8.3 Built-in Roles
 
-| Role | Mô tả tóm tắt |
+| Role | Summary |
 |---|---|
-| **admin** | Toàn quyền — tạo/sửa/xóa/apply policy, quản lý user, quản lý license |
-| **operator** | Tạo và submit policy để admin duyệt; xem logs, models |
-| **viewer** | Chỉ xem — không thể tạo, sửa, xóa bất kỳ thứ gì |
+| **admin** | Full access — create/edit/delete/apply policies, manage users and licenses |
+| **operator** | Create and submit policies for admin approval; view logs and models |
+| **viewer** | Read-only — cannot create, edit, or delete anything |
 
 ### 8.4 Custom Roles
 
-Click **Roles** trong sub-menu để xem và quản lý custom roles.
+Click **Roles** in the sub-menu to view and manage custom roles.
 
-Có thể tạo role với bất kỳ tập hợp permission nào từ 26 permission có sẵn. Ví dụ: tạo role `log-analyst` chỉ có `logs:view` + `logs:violations` + `logs:apparmor`.
+You can create a role with any combination of the 26 available permissions. For example, create a `log-analyst` role with only `logs:view` + `logs:violations` + `logs:apparmor`.
 
-### 8.5 Đổi mật khẩu
+### 8.5 Changing Passwords
 
-- **Tự đổi mật khẩu của mình**: Vào profile → Change Password.
-- **Admin đổi mật khẩu người khác**: Click icon chìa khóa cạnh tên user.
+- **Change your own password**: Go to your profile → Change Password.
+- **Admin resets another user's password**: Click the key icon next to the user's name.
 
 ---
 
-## 9. Xem Logs
+## 9. Viewing Logs
 
-Click tab **Logs** trên thanh điều hướng.
+Click the **Logs** tab in the navigation bar.
 
-### 9.1 Security Events (Vi phạm bảo mật)
+### 9.1 Security Events (Security Violations)
 
-Hiển thị các sự kiện bị chặn bởi policy (AppArmor denials, BPF blocks).
+Displays events blocked by policies (AppArmor denials, BPF blocks).
 
-| Cột | Ý nghĩa |
+| Column | Meaning |
 |---|---|
-| **Time** | Thời gian xảy ra sự kiện |
-| **Namespace** | Namespace của pod |
-| **Pod** | Tên pod phát sinh sự kiện |
-| **Profile** | AppArmor profile đang áp dụng |
-| **Operation** | Hành động bị chặn (exec, open, connect, v.v.) |
-| **Denied** | Resource bị chặn (file path, network address) |
-| **Severity** | Mức độ nghiêm trọng |
+| **Time** | When the event occurred |
+| **Namespace** | Namespace of the pod |
+| **Pod** | Name of the pod that generated the event |
+| **Profile** | AppArmor profile applied at the time |
+| **Operation** | The blocked action (exec, open, connect, etc.) |
+| **Denied** | The resource that was blocked (file path, network address) |
+| **Severity** | Severity level |
 
-Click vào một sự kiện để xem chi tiết và gợi ý xử lý.
+Click an event to view details and remediation suggestions.
 
-### 9.2 Audit Trail (Lịch sử hành động)
+### 9.2 Audit Trail
 
-Ghi lại mọi hành động trong console (ai làm gì, lúc nào, kết quả ra sao).
+Records every action performed in the console (who did what, when, and the outcome).
 
-| Cột | Ý nghĩa |
+| Column | Meaning |
 |---|---|
-| **Time** | Thời gian thực hiện |
-| **User** | Tài khoản thực hiện |
-| **Action** | Hành động: CREATE_POLICY, DELETE_USER, UPDATE_LICENSE, v.v. |
-| **Resource** | Loại tài nguyên bị tác động |
-| **Target** | Tên cụ thể của tài nguyên |
+| **Time** | When the action was performed |
+| **User** | Account that performed the action |
+| **Action** | Action type: CREATE_POLICY, DELETE_USER, UPDATE_LICENSE, etc. |
+| **Resource** | Type of resource affected |
+| **Target** | Specific name of the resource |
 | **Result** | SUCCESS / FAILURE |
-| **Detail** | Thông tin chi tiết |
+| **Detail** | Additional details |
 
 ### 9.3 AppArmor Profiles
 
-Hiển thị trạng thái các AppArmor profile đang được load trên các node.
+Shows the status of AppArmor profiles currently loaded on nodes.
 
-| Trạng thái | Ý nghĩa |
+| State | Meaning |
 |---|---|
-| **loaded** | Profile đang active trên node |
-| **unloaded** | Profile chưa/không được load |
+| **loaded** | Profile is active on the node |
+| **unloaded** | Profile is not / no longer loaded |
 
 ---
 
-## 10. Tìm kiếm và lọc Policy
+## 10. Searching and Filtering Policies
 
-### Search (Tìm theo từ khóa)
-Gõ vào ô search để tìm theo:
-- Tên policy
-- Tên target workload
-- Tên mode
-- Tên enforcer
+### Search (Keyword Search)
+Type in the search box to find policies by:
+- Policy name
+- Target workload name
+- Mode name
+- Enforcer name
 - Scope
 
 ### Filter Scope
-| Giá trị | Hiện |
+| Value | Shows |
 |---|---|
-| All Scope | Tất cả |
-| Namespace | Chỉ VarmorPolicy (namespace-scoped) |
-| Cluster | Chỉ VarmorClusterPolicy |
+| All Scope | All policies |
+| Namespace | Only VarmorPolicy (namespace-scoped) |
+| Cluster | Only VarmorClusterPolicy |
 
 ### Filter Mode
-Chọn một mode cụ thể để chỉ hiện policy của mode đó.
+Select a specific mode to show only policies using that mode.
 
 ### Filter Status
-| Giá trị | Hiện |
+| Value | Shows |
 |---|---|
-| All Status | Tất cả |
-| Ready | Chỉ policy đang hoạt động bình thường |
-| Pending | Policy đang xử lý (vừa tạo hoặc đang cập nhật) |
-| Error | Policy bị lỗi (node không hỗ trợ enforcer, spec sai, v.v.) |
+| All Status | All policies |
+| Ready | Only policies that are running normally |
+| Pending | Policies being processed (newly created or updating) |
+| Error | Policies with errors (node doesn't support enforcer, invalid spec, etc.) |
 
-> Các filter kết hợp với nhau và với search đồng thời.
-> Khi filter active, dropdown đổi màu xanh để dễ nhận biết.
+> All filters work together and combine with the search input simultaneously.
+> When a filter is active, the dropdown turns blue for easy identification.
 
 ---
 
-## Phụ lục: Giải thích trạng thái Policy
+## Appendix: Policy Status Explained
 
-| Status | Phase | Ý nghĩa | Cần làm |
+| Status | Phase | Meaning | Action Required |
 |---|---|---|---|
-| Ready | Protecting | Policy đang bảo vệ workload | Không |
-| Pending | Pending | Đang tạo/cập nhật | Chờ |
-| Pending | Modeling | BehaviorModeling đang chạy | Chờ đủ thời gian |
-| Pending | Completed | Modeling xong, chờ apply | Apply DefenseInDepth |
-| Error | Error | Lỗi không thể áp dụng | Xem detail → sửa |
-| Error | Failed | Thất bại khi load profile | Kiểm tra node logs |
+| Ready | Protecting | Policy is actively protecting the workload | None |
+| Pending | Pending | Being created or updated | Wait |
+| Pending | Modeling | BehaviorModeling is running | Wait for completion |
+| Pending | Completed | Modeling finished, waiting to apply | Apply DefenseInDepth |
+| Error | Error | Error preventing policy application | View details → fix |
+| Error | Failed | Failed to load the profile | Check node logs |
 
-## Phụ lục: Phím tắt và mẹo
+## Appendix: Tips and Shortcuts
 
-- **Ctrl+Shift+R**: Reload trang, xóa browser cache — dùng khi không thấy thay đổi mới nhất.
-- **Refresh button** (↺) trên bảng policy: Reload danh sách từ k8s mà không reload toàn trang.
-- **Select All**: Tick checkbox ở header để chọn tất cả policy đang hiển thị trong trang.
-- **Export YAML**: Click ⬇ để tải YAML của một policy, dùng để backup hoặc apply thủ công qua `kubectl`.
+- **Ctrl+Shift+R**: Hard reload the page, clearing the browser cache — use this if you don't see the latest changes.
+- **Refresh button** (↺) on the policy table: Reloads the list from Kubernetes without reloading the whole page.
+- **Select All**: Tick the header checkbox to select all policies visible on the current page.
+- **Export YAML**: Click ⬇ to download the YAML for a policy — useful for backup or manual application via `kubectl`.
