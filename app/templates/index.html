@@ -1946,38 +1946,83 @@
 
 <!-- ACTIVATION REQUEST MODAL -->
 <div id="modal-activation-request" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.78);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeActivationRequestModal()">
-  <div class="card w-full mx-4" style="max-width:32rem;border-color:#1e3a5f">
-    <div class="flex items-center justify-between mb-4">
+  <div class="card w-full mx-4" style="max-width:38rem;border-color:#1e3a5f;max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-3">
       <h3 class="text-base font-semibold" style="color:#f1f5f9">Download Activation Request</h3>
       <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm" style="padding:.25rem .5rem;min-height:0">&#x2715;</button>
     </div>
-    <p class="text-xs mb-4" style="color:#64748b;line-height:1.6">
-      Dien thong tin lien he de vendor co the xac nhan va phat hanh license. Thong tin nay se duoc dinh kem vao file activation request.
-    </p>
-    <div class="flex flex-col gap-3">
-      <div>
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ho va ten <span style="color:#f87171">*</span></label>
-        <input id="ar-contact-name" type="text" class="form-input" placeholder="Nguyen Van A" autocomplete="name" />
+
+    <!-- Section: Thong tin lien he -->
+    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#3b82f6">Thong tin lien he</p>
+    <div class="flex flex-col gap-3 mb-4">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ho va ten <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-name" type="text" class="form-input" placeholder="Nguyen Van A" autocomplete="name" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Cong ty / To chuc <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-company" type="text" class="form-input" placeholder="Acme Corp" autocomplete="organization" />
+        </div>
       </div>
-      <div>
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Cong ty / To chuc <span style="color:#f87171">*</span></label>
-        <input id="ar-contact-company" type="text" class="form-input" placeholder="Acme Corp" autocomplete="organization" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Email lien he <span style="color:#f87171">*</span></label>
-        <input id="ar-contact-email" type="email" class="form-input" placeholder="contact@example.com" autocomplete="email" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So dien thoai / WeChat <span style="color:#94a3b8;font-weight:400">(tuy chon)</span></label>
-        <input id="ar-contact-phone" type="text" class="form-input" placeholder="+84 xxx xxx xxx" autocomplete="tel" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ghi chu / Muc dich su dung <span style="color:#94a3b8;font-weight:400">(tuy chon)</span></label>
-        <textarea id="ar-contact-notes" class="form-input" rows="2" placeholder="Mo ta muc dich su dung, so luong node, moi truong..." style="resize:vertical"></textarea>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Email lien he <span style="color:#f87171">*</span></label>
+          <input id="ar-contact-email" type="email" class="form-input" placeholder="contact@example.com" autocomplete="email" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So dien thoai <span style="color:#64748b;font-weight:400">(tuy chon)</span></label>
+          <input id="ar-contact-phone" type="text" class="form-input" placeholder="+84 xxx xxx xxx" autocomplete="tel" />
+        </div>
       </div>
     </div>
-    <div id="ar-error-msg" class="hidden mt-3 p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-    <div class="flex gap-3 justify-end mt-4">
+
+    <!-- Section: Yeu cau license -->
+    <div style="border-top:1px solid #1e293b;margin-bottom:.75rem"></div>
+    <p class="text-xs mb-2 font-medium uppercase tracking-wide" style="color:#34d399">Yeu cau license</p>
+    <div class="flex flex-col gap-3 mb-4">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Edition <span style="color:#f87171">*</span></label>
+          <select id="ar-req-edition" class="form-input">
+            <option value="enterprise">Enterprise</option>
+            <option value="starter">Starter</option>
+            <option value="trial">Trial</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Thoi han <span style="color:#f87171">*</span></label>
+          <select id="ar-req-duration" class="form-input" onchange="arToggleCustomDays()">
+            <option value="365">1 nam (365 ngay)</option>
+            <option value="730">2 nam (730 ngay)</option>
+            <option value="90">3 thang (90 ngay)</option>
+            <option value="30">1 thang / trial (30 ngay)</option>
+            <option value="custom">Khac...</option>
+          </select>
+        </div>
+      </div>
+      <div id="ar-custom-days-row" class="hidden">
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So ngay cu the</label>
+        <input id="ar-req-custom-days" type="number" class="form-input" min="1" max="3650" placeholder="365" style="max-width:10rem" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So node toi da <span style="color:#64748b;font-weight:400">(0 = khong gioi han)</span></label>
+          <input id="ar-req-max-nodes" type="number" class="form-input" value="0" min="0" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So policy toi da <span style="color:#64748b;font-weight:400">(0 = khong gioi han)</span></label>
+          <input id="ar-req-max-policies" type="number" class="form-input" value="0" min="0" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ghi chu / Muc dich su dung <span style="color:#64748b;font-weight:400">(tuy chon)</span></label>
+        <textarea id="ar-contact-notes" class="form-input" rows="2" placeholder="Mo ta muc dich su dung, moi truong trien khai..." style="resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <div id="ar-error-msg" class="hidden mb-3 p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div class="flex gap-3 justify-end">
       <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Huy</button>
       <button id="btn-ar-confirm" onclick="confirmDownloadActivationRequest()" class="btn btn-primary btn-sm">Tai xuong</button>
     </div>
@@ -4897,11 +4942,21 @@ function renderLicenseStatus(status){
   if(copyBtn) copyBtn.disabled=!(status.installation&&status.installation.installation_id);
 }
 
+function arToggleCustomDays(){
+  var sel=$("ar-req-duration");
+  var row=$("ar-custom-days-row");
+  if(sel&&row) row.classList.toggle("hidden", sel.value!=="custom");
+}
+
 function downloadActivationRequest(){
-  // reset form
-  ["ar-contact-name","ar-contact-company","ar-contact-email","ar-contact-phone","ar-contact-notes"].forEach(function(id){
+  ["ar-contact-name","ar-contact-company","ar-contact-email","ar-contact-phone","ar-contact-notes","ar-req-custom-days"].forEach(function(id){
     var el=$(id); if(el) el.value="";
   });
+  var ed=$("ar-req-edition");     if(ed) ed.value="enterprise";
+  var dur=$("ar-req-duration");   if(dur) dur.value="365";
+  var mn=$("ar-req-max-nodes");   if(mn) mn.value="0";
+  var mp=$("ar-req-max-policies");if(mp) mp.value="0";
+  var row=$("ar-custom-days-row");if(row) row.classList.add("hidden");
   var errEl=$("ar-error-msg"); if(errEl) errEl.classList.add("hidden");
   var btn=$("btn-ar-confirm"); if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
   show("modal-activation-request");
@@ -4921,6 +4976,11 @@ async function confirmDownloadActivationRequest(){
   var email  =($("ar-contact-email")||{}).value||"";
   var phone  =($("ar-contact-phone")||{}).value||"";
   var notes  =($("ar-contact-notes")||{}).value||"";
+  var edition=($("ar-req-edition")||{}).value||"enterprise";
+  var durSel =($("ar-req-duration")||{}).value||"365";
+  var days   =durSel==="custom"?parseInt(($("ar-req-custom-days")||{}).value||"0",10):parseInt(durSel,10);
+  var maxNodes   =parseInt(($("ar-req-max-nodes")||{}).value||"0",10);
+  var maxPolicies=parseInt(($("ar-req-max-policies")||{}).value||"0",10);
 
   if(!name.trim()||!company.trim()||!email.trim()){
     showEl(errEl,"Vui long dien day du cac truong bat buoc (*).");
@@ -4929,6 +4989,10 @@ async function confirmDownloadActivationRequest(){
   var emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if(!emailRe.test(email.trim())){
     showEl(errEl,"Dia chi email khong hop le.");
+    return;
+  }
+  if(!days||days<1){
+    showEl(errEl,"Vui long nhap so ngay hop le.");
     return;
   }
 
@@ -4942,6 +5006,11 @@ async function confirmDownloadActivationRequest(){
     if(phone.trim()) contact.phone=phone.trim();
     if(notes.trim()) contact.notes=notes.trim();
     data.contact=contact;
+
+    var licReq={edition:edition,days:days};
+    if(maxNodes>0)    licReq.max_nodes=maxNodes;
+    if(maxPolicies>0) licReq.max_policies=maxPolicies;
+    data.license_request=licReq;
 
     var blob=new Blob([JSON.stringify(data,null,2)+"\n"],{type:"application/json"});
     var url=URL.createObjectURL(blob),a=document.createElement("a");
