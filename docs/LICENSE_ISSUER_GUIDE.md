@@ -1,4 +1,4 @@
-# vArmor Console License Issuer Guide
+# ArmorPilot License Issuer Guide
 
 This document is for the vendor or authorized license-issuing team. It contains
 private signing-key operations and must not be distributed as customer
@@ -53,7 +53,7 @@ Expected result:
 
 ```text
 activation request signature ok
-installation_id=vmi_...
+installation_id=api_...
 cluster_uid=...
 ```
 
@@ -89,7 +89,7 @@ verified activation request into the signed payload.
 The output is one line:
 
 ```text
-VARMOR1.<base64url-payload>.<ed25519-signature>
+ARMORPILOT1.<base64url-payload>.<ed25519-signature>
 ```
 
 ## 5. Verify Before Delivery
@@ -125,7 +125,7 @@ Deliver only `customer-license.key` through the approved secure channel.
 Tell the customer to follow [`LICENSING.md`](LICENSING.md):
 
 1. Open **Users > License**.
-2. Paste the complete `VARMOR1...` key.
+2. Paste the complete `ARMORPILOT1...` key.
 3. Click **Save License**.
 4. Confirm `Bound license: yes`.
 

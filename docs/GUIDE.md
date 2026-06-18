@@ -1,8 +1,8 @@
-# vArmor Console — Hướng Dẫn Sử Dụng Đầy Đủ
+# ArmorPilot — Hướng Dẫn Sử Dụng Đầy Đủ
 
 > **Phiên bản:** 1.0 | **Cập nhật:** 2026-05-13  
 > **Hệ thống triển khai:** `http://172.30.2.129:8080`  
-> **Thông tin đăng nhập mặc định:** `admin / Admin@vArmor2026!`
+> **Thông tin đăng nhập mặc định:** `admin / Admin@ArmorPilot2026!`
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## 1. Tổng quan hệ thống
 
-**vArmor Console** là giao diện đồ hoạ (Web GUI) quản trị bảo mật cho hệ thống **vArmor** — giải pháp sandbox container mã nguồn mở của ByteDance. Thay vì gõ lệnh `kubectl apply -f policy.yaml` thủ công, bạn có thể:
+**ArmorPilot** là giao diện đồ hoạ (Web GUI) quản trị bảo mật cho hệ thống **vArmor** — giải pháp sandbox container mã nguồn mở của ByteDance. Thay vì gõ lệnh `kubectl apply -f policy.yaml` thủ công, bạn có thể:
 
 | Tác vụ | Không có Console | Có Console |
 |---|---|---|
@@ -53,19 +53,19 @@
                              │ HTTP
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              systemd: varmor-console-pf.service             │
+│              systemd: armor-pilot-pf.service             │
 │        kubectl port-forward 0.0.0.0:8080 → svc:80          │
 └────────────────────────────┬────────────────────────────────┘
                              │ Kubernetes Service
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│           Kubernetes Service: varmor-console-svc            │
+│           Kubernetes Service: armor-pilot-svc            │
 │                   (NodePort 80:30080)                       │
 └────────────────────────────┬────────────────────────────────┘
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Pod: varmor-console (namespace: default)        │
+│              Pod: armor-pilot (namespace: default)        │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  gunicorn (2 workers) — port 5000                   │   │
 │  │  Flask App (Python 3.12)                            │   │
@@ -74,7 +74,7 @@
 │  │  ├─ k8s_client.py ← In-cluster config               │   │
 │  │  └─ routes/api.py ← REST API endpoints              │   │
 │  └─────────────────────────────────────────────────────┘   │
-│  ServiceAccount: varmor-console-sa (ClusterRole bound)      │
+│  ServiceAccount: armor-pilot-sa (ClusterRole bound)      │
 └────────────────────────────┬────────────────────────────────┘
                              │ Kubernetes API
                              ▼
@@ -110,7 +110,7 @@ http://172.30.2.129:8080
 | Trường | Giá trị |
 |---|---|
 | Username | `admin` |
-| Password | `Admin@vArmor2026!` |
+| Password | `Admin@ArmorPilot2026!` |
 
 Nhấn **Sign In**.
 
@@ -135,7 +135,7 @@ Sau khi đăng nhập thành công, giao diện gồm 3 vùng chính:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ HEADER: [vArmor Console]  [Namespace: default] [Load] [Logout]│
+│ HEADER: [ArmorPilot]  [Namespace: default] [Load] [Logout]│
 ├───────────────────────────────────────┬─────────────────────┤
 │                                       │                     │
 │  FORM: Tạo VarmorPolicy mới          │   SIDEBAR:          │
@@ -320,7 +320,7 @@ Bảng **Active Policies** tự động load sau khi nhấn **Load** hoặc sau 
 
 ```bash
 # Lấy tên pod
-kubectl get pods -l app=varmor-console
+kubectl get pods -l app=armor-pilot
 
 # Xem log realtime
 kubectl logs -f <pod-name>
@@ -357,13 +357,13 @@ Vì log đẩy ra STDOUT theo chuẩn JSON-friendly, Fluentd/Loki tự thu thậ
 
 ```yaml
 # Loki query để lọc audit events
-{app="varmor-console"} |= "[AUDIT]"
+{app="armor-pilot"} |= "[AUDIT]"
 
 # Lọc theo action
-{app="varmor-console"} |= "[AUDIT]" |= "action=CREATE"
+{app="armor-pilot"} |= "[AUDIT]" |= "action=CREATE"
 
 # Lọc failures
-{app="varmor-console"} |= "[AUDIT]" |= "status=FAILURE"
+{app="armor-pilot"} |= "[AUDIT]" |= "status=FAILURE"
 ```
 
 ---
@@ -393,7 +393,7 @@ Lấy danh sách Deployment và trạng thái vArmor.
 
 **Ví dụ curl:**
 ```bash
-curl -s -u admin:Admin@vArmor2026! \
+curl -s -u admin:Admin@ArmorPilot2026! \
   http://172.30.2.129:8080/api/namespaces/default/deployments | python3 -m json.tool
 ```
 
@@ -439,7 +439,7 @@ Tạo VarmorPolicy mới.
 
 **Ví dụ curl:**
 ```bash
-curl -s -u admin:Admin@vArmor2026! \
+curl -s -u admin:Admin@ArmorPilot2026! \
   -X POST http://172.30.2.129:8080/api/policies \
   -H "Content-Type: application/json" \
   -d '{
@@ -460,7 +460,7 @@ Xóa VarmorPolicy.
 
 **Ví dụ curl:**
 ```bash
-curl -s -u admin:Admin@vArmor2026! \
+curl -s -u admin:Admin@ArmorPilot2026! \
   -X DELETE \
   http://172.30.2.129:8080/api/namespaces/default/policies/protect-nginx
 ```
@@ -473,28 +473,28 @@ curl -s -u admin:Admin@vArmor2026! \
 
 ```bash
 # Kiểm tra port-forward service
-systemctl status varmor-console-pf
+systemctl status armor-pilot-pf
 
 # Khởi động lại nếu cần
-systemctl restart varmor-console-pf
+systemctl restart armor-pilot-pf
 
 # Xem log
-journalctl -u varmor-console-pf -n 20
+journalctl -u armor-pilot-pf -n 20
 ```
 
 ### Pod không khởi động được (CrashLoopBackOff)
 
 ```bash
-kubectl describe pod -l app=varmor-console
-kubectl logs -l app=varmor-console --previous
+kubectl describe pod -l app=armor-pilot
+kubectl logs -l app=armor-pilot --previous
 ```
 
 ### Lỗi 401 dù nhập đúng password
 
 ```bash
 # Kiểm tra secret
-kubectl get secret varmor-console-secret -o jsonpath='{.data.ADMIN_USER}' | base64 -d
-kubectl get secret varmor-console-secret -o jsonpath='{.data.ADMIN_PASS}' | base64 -d
+kubectl get secret armor-pilot-secret -o jsonpath='{.data.ADMIN_USER}' | base64 -d
+kubectl get secret armor-pilot-secret -o jsonpath='{.data.ADMIN_PASS}' | base64 -d
 ```
 
 ### Policy tạo nhưng không chuyển sang Ready
@@ -509,13 +509,13 @@ kubectl logs -n varmor -l app=varmor-agent --tail=50
 
 ```bash
 # Xóa secret cũ và tạo mới
-kubectl delete secret varmor-console-secret
-kubectl create secret generic varmor-console-secret \
+kubectl delete secret armor-pilot-secret
+kubectl create secret generic armor-pilot-secret \
   --from-literal=ADMIN_USER=admin \
   --from-literal=ADMIN_PASS=NewStrongPassword!
 
 # Restart pod để áp dụng
-kubectl rollout restart deployment/varmor-console
+kubectl rollout restart deployment/armor-pilot
 ```
 
 ---
@@ -535,11 +535,11 @@ kubectl rollout restart deployment/varmor-console
 
 Chạy từng lab:
 ```bash
-cd /opt/varmor-console/labs
+cd /opt/armor-pilot/labs
 bash lab01_auth.sh
 ```
 
 Chạy tất cả:
 ```bash
-bash /opt/varmor-console/labs/run_all_labs.sh
+bash /opt/armor-pilot/labs/run_all_labs.sh
 ```

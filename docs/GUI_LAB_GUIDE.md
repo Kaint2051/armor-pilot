@@ -1,8 +1,8 @@
-# Hướng Dẫn Tự Lab: vArmor Console — Giao Diện + Dòng Lệnh
+# Hướng Dẫn Tự Lab: ArmorPilot — Giao Diện + Dòng Lệnh
 ## Học Bảo Mật Container Qua Giao Diện Đồ Hoạ và Xác Minh Bằng CLI
 
 > **Truy cập Console:** mở trình duyệt → `http://172.30.2.129:8080`  
-> **Tài khoản:** `admin` / `Admin@vArmor2026!`  
+> **Tài khoản:** `admin` / `Admin@ArmorPilot2026!`
 > **SSH vào server:** `ssh root@172.30.2.129` (password: `abc@123`)  
 > **Triết lý hướng dẫn:** Làm trên GUI → Kiểm chứng bằng `kubectl` → Hiểu tại sao
 
@@ -34,7 +34,7 @@ Bạn sẽ thấy **trang đăng nhập**:
 │                                             │
 │          ┌──────────────────────┐           │
 │          │   [🛡]               │           │
-│          │   vArmor Console     │           │
+│          │   ArmorPilot     │           │
 │          │   Kubernetes Security│           │
 │          │   Policy Manager     │           │
 │          │                      │           │
@@ -62,14 +62,14 @@ Console giao tiếp với Kubernetes API — nếu không có auth, bất kỳ a
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [🛡] vArmor Console    Namespace: [default] [Load]    👤 admin [Logout]│
+│ [🛡] ArmorPilot    Namespace: [default] [Load]    👤 admin [Logout]│
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                        │
 │  ┌──────────────────────────────────────┐  ┌─────────────────────────┐│
 │  │ ➕ Create VarmorPolicy               │  │ 🖥 Deployments          ││
 │  │                                      │  │                         ││
 │  │  Policy Name *  Target Deployment *  │  │ ┌─────────────────────┐ ││
-│  │  [__________]   [▼ select deploy ]   │  │ │ varmor-console      │ ││
+│  │  [__________]   [▼ select deploy ]   │  │ │ armor-pilot      │ ││
 │  │                                      │  │ │ 1/1 replicas        │ ││
 │  │  Kernel Enforcers:                   │  │ │     🛡 Protected     │ ││
 │  │  [✓] AppArmor [ ] Seccomp            │  │ └─────────────────────┘ ││
@@ -149,7 +149,7 @@ Nhấn **Sign In**.
 ### Bước 1.2 — Đăng nhập đúng
 
 - **Username:** `admin`  
-- **Password:** `Admin@vArmor2026!`
+- **Password:** `Admin@ArmorPilot2026!`
 
 Nhấn **Sign In** → Dashboard xuất hiện.
 
@@ -160,7 +160,7 @@ Browser                          Server
   │                                │
   ├─ POST  /api/namespaces/...  ──►│   (test credentials)
   │   Authorization: Basic YWRtaW4...
-  │                                ├─ decode base64 → admin:Admin@vArmor2026!
+  │                                ├─ decode base64 → admin:Admin@ArmorPilot2026!
   │                                ├─ so sánh với env ADMIN_USER/ADMIN_PASS
   │◄─ 200 OK ─────────────────────┤
   │                                │
@@ -225,7 +225,7 @@ Sau khi đăng nhập, nhìn vào **sidebar bên phải** (Deployments panel):
 │ 🖥 Deployments          [⟳]     │
 │                                  │
 │ ┌──────────────────────────────┐ │
-│ │ varmor-console               │ │
+│ │ armor-pilot               │ │
 │ │ 1/1 replicas   🛡 Protected  │ │
 │ └──────────────────────────────┘ │
 │                                  │
@@ -732,7 +732,7 @@ Xem audit log xuất hiện real-time khi thao tác trên GUI, hiểu format và
 **Cửa sổ 1 (Terminal SSH):**
 ```bash
 # Lấy tên console pod
-CONSOLE_POD=$(kubectl get pods -l app=varmor-console \
+CONSOLE_POD=$(kubectl get pods -l app=armor-pilot \
   -o jsonpath='{.items[0].metadata.name}')
 
 # Follow audit logs real-time
@@ -862,15 +862,15 @@ Hiểu Console đang chạy với quyền gì, tại sao đó là quyền tối 
 Dashboard không hiện ServiceAccount info trực tiếp. Dùng CLI:
 
 ```bash
-kubectl get pods -l app=varmor-console \
+kubectl get pods -l app=armor-pilot \
   -o jsonpath='{.items[0].spec.serviceAccountName}'
-# → varmor-console-sa
+# → armor-pilot-sa
 ```
 
 ### Bước 7.2 — Hiểu ClusterRole của Console
 
 ```bash
-kubectl get clusterrole varmor-console-role -o yaml
+kubectl get clusterrole armor-pilot-role -o yaml
 ```
 
 **Đọc và hiểu từng rule:**
@@ -895,7 +895,7 @@ rules:
 ### Bước 7.3 — Test quyền thực tế
 
 ```bash
-SA="system:serviceaccount:default:varmor-console-sa"
+SA="system:serviceaccount:default:armor-pilot-sa"
 
 echo "=== QUYỀN ĐƯỢC PHÉP (phải là 'yes') ==="
 kubectl auth can-i get deployments --as="$SA" --all-namespaces
@@ -915,7 +915,7 @@ kubectl auth can-i get clusterroles --as="$SA" --all-namespaces
 ### Bước 7.4 — Kiểm tra security context container (không hiện trên GUI)
 
 ```bash
-kubectl get pods -l app=varmor-console -o json | python3 -c "
+kubectl get pods -l app=armor-pilot -o json | python3 -c "
 import sys, json
 pod = json.load(sys.stdin)['items'][0]
 c = pod['spec']['containers'][0]
@@ -979,9 +979,9 @@ kubectl get clusterroles    # → Forbidden
 Trên GUI, đảm bảo Console đang chạy:
 ```bash
 # Deployment spec có ServiceAccount
-kubectl get deployment varmor-console \
+kubectl get deployment armor-pilot \
   -o jsonpath='{.spec.template.spec.serviceAccountName}'
-# → varmor-console-sa
+# → armor-pilot-sa
 ```
 
 ---

@@ -3,6 +3,8 @@ import sys
 
 from flask import Flask, make_response, render_template
 
+from .product import PRODUCT_NAME, PRODUCT_TAGLINE
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -26,7 +28,11 @@ def create_app() -> Flask:
 
     @app.route("/")
     def index():
-        resp = make_response(render_template("index.html"))
+        resp = make_response(render_template(
+            "index.html",
+            product_name=PRODUCT_NAME,
+            product_tagline=PRODUCT_TAGLINE,
+        ))
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         resp.headers["Pragma"] = "no-cache"
         return resp

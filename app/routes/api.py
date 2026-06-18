@@ -13,6 +13,7 @@ from ..auth import (
     get_current_user, get_current_role, get_permissions_for_role,
     require_admin, require_auth, require_operator, require_permission,
 )
+from ..config import get_product_env
 from ..db import (get_queue_item, list_queue, queue_policy,
                   update_queue_status, VALID_ROLES, BUILTIN_ROLES)
 from ..k8s_client import (
@@ -83,12 +84,12 @@ VALID_SCMP_ACTIONS = frozenset(["SCMP_ACT_KILL", "SCMP_ACT_ERRNO", "SCMP_ACT_LOG
 VALID_DID_PROFILE_TYPES = frozenset(["BehaviorModel", "Custom"])
 VALID_LABEL_SELECTOR_OPERATORS = frozenset(["In", "NotIn", "Exists", "DoesNotExist"])
 VALID_QUEUE_STATUSES = frozenset(["pending", "approved", "rejected", "cancelled"])
-POLICY_BACKUP_VERSION = "varmor-console-backup/v1"
+POLICY_BACKUP_VERSION = "armor-pilot-backup/v1"
 
 
 def _license_runtime_usage() -> dict:
     usage = {
-        "cluster_uid": os.environ.get("VARMOR_CLUSTER_UID", "").strip() or None,
+        "cluster_uid": get_product_env("CLUSTER_UID").strip() or None,
         "nodes": 0,
         "policies": 0,
         "namespace_policies": 0,
@@ -2502,7 +2503,7 @@ def backup_policies():
 
     audit_logger.log(user, "BACKUP_POLICIES", "policies", namespace, "SUCCESS", f"count={len(items)}")
     ts = _utc_backup_timestamp().replace(":", "").replace("-", "")[:15]
-    filename = f"varmor-backup-{namespace}-{ts}.json"
+    filename = f"armor-pilot-backup-{namespace}-{ts}.json"
     resp = jsonify({
         "version": POLICY_BACKUP_VERSION,
         "created_at": _utc_backup_timestamp(),

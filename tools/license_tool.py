@@ -25,7 +25,7 @@ def _b64url_decode(value: str) -> bytes:
 
 def _parse_license_text(raw: str) -> dict:
     value = raw.strip()
-    if value.startswith("VARMOR1."):
+    if value.startswith(("ARMORPILOT1.", "VARMOR1.")):
         parts = value.split(".")
         if len(parts) != 3:
             raise SystemExit("license key format is invalid")
@@ -60,14 +60,18 @@ def _verify_activation_request(path: Path) -> dict:
     except Exception as exc:
         raise SystemExit(f"activation request signature is invalid: {exc}") from exc
 
+    identity_version = payload.get("version")
+    if identity_version not in {"armor-pilot-installation/v1", "varmor-installation/v1"}:
+        raise SystemExit("activation request contains an unsupported installation identity version")
     identity_payload = {
-        "version": "varmor-installation/v1",
+        "version": identity_version,
         "installation_uuid": payload.get("installation_uuid"),
         "installation_public_key": payload.get("installation_public_key"),
         "cluster_uid": payload.get("cluster_uid"),
         "api_ca_sha256": payload.get("api_ca_sha256"),
     }
-    expected_id = "vmi_" + hashlib.sha256(_canonical(identity_payload)).hexdigest()
+    id_prefix = "vmi_" if identity_version == "varmor-installation/v1" else "api_"
+    expected_id = id_prefix + hashlib.sha256(_canonical(identity_payload)).hexdigest()
     actual_id = str(payload.get("installation_id") or "")
     if not hmac.compare_digest(expected_id, actual_id):
         raise SystemExit("activation request installation_id is invalid")
@@ -108,7 +112,7 @@ def cmd_gen_key(args) -> None:
     )
     print(f"private_key={args.private_key}")
     print(f"public_key={args.public_key}")
-    print(f"VARMOR_LICENSE_PUBLIC_KEY={base64.b64encode(raw_public).decode('ascii')}")
+    print(f"ARMORPILOT_LICENSE_PUBLIC_KEY={base64.b64encode(raw_public).decode('ascii')}")
 
 
 def cmd_sign(args) -> None:
@@ -146,7 +150,7 @@ def cmd_sign(args) -> None:
         "signature": signature,
     }
     if args.format == "key":
-        license_text = f"VARMOR1.{_b64url(_canonical(payload))}.{signature}\n"
+        license_text = f"ARMORPILOT1.{_b64url(_canonical(payload))}.{signature}\n"
     else:
         license_text = json.dumps(doc, indent=2, sort_keys=True) + "\n"
     args.output.write_text(license_text, encoding="utf-8")
@@ -180,7 +184,7 @@ def cmd_verify_request(args) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create and verify vArmor Console licenses.")
+    parser = argparse.ArgumentParser(description="Create and verify ArmorPilot licenses.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("gen-key", help="generate an Ed25519 signing key pair")

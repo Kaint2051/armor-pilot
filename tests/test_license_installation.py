@@ -29,16 +29,16 @@ class LicenseInstallationTest(unittest.TestCase):
         self.addCleanup(self.temp_dir.cleanup)
         root = Path(self.temp_dir.name)
         self.env_names = [
-            "VARMOR_INSTALLATION_KEY_FILE",
-            "VARMOR_INSTALLATION_METADATA_FILE",
-            "VARMOR_INSTALLATION_CLUSTER_UID",
-            "VARMOR_INSTALLATION_CA_SHA256",
-            "VARMOR_LICENSE_FILE",
-            "VARMOR_LICENSE_REQUIRED",
-            "VARMOR_LICENSE_FAIL_OPEN",
-            "VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING",
-            "VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY",
-            "VARMOR_LICENSE_PUBLIC_KEY",
+            "ARMORPILOT_INSTALLATION_KEY_FILE",
+            "ARMORPILOT_INSTALLATION_METADATA_FILE",
+            "ARMORPILOT_INSTALLATION_CLUSTER_UID",
+            "ARMORPILOT_INSTALLATION_CA_SHA256",
+            "ARMORPILOT_LICENSE_FILE",
+            "ARMORPILOT_LICENSE_REQUIRED",
+            "ARMORPILOT_LICENSE_FAIL_OPEN",
+            "ARMORPILOT_LICENSE_REQUIRE_INSTALLATION_BINDING",
+            "ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY",
+            "ARMORPILOT_LICENSE_PUBLIC_KEY",
         ]
         self.previous_env = {name: os.environ.get(name) for name in self.env_names}
         self.addCleanup(self._restore_env)
@@ -50,16 +50,16 @@ class LicenseInstallationTest(unittest.TestCase):
         )
         self.vendor_private = vendor_private
         os.environ.update({
-            "VARMOR_INSTALLATION_KEY_FILE": str(root / "installation-private.pem"),
-            "VARMOR_INSTALLATION_METADATA_FILE": str(root / "installation.json"),
-            "VARMOR_INSTALLATION_CLUSTER_UID": "cluster-a",
-            "VARMOR_INSTALLATION_CA_SHA256": "a" * 64,
-            "VARMOR_LICENSE_FILE": str(root / "license.json"),
-            "VARMOR_LICENSE_REQUIRED": "true",
-            "VARMOR_LICENSE_FAIL_OPEN": "false",
-            "VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING": "true",
-            "VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY": "true",
-            "VARMOR_LICENSE_PUBLIC_KEY": base64.b64encode(raw_vendor_public).decode("ascii"),
+            "ARMORPILOT_INSTALLATION_KEY_FILE": str(root / "installation-private.pem"),
+            "ARMORPILOT_INSTALLATION_METADATA_FILE": str(root / "installation.json"),
+            "ARMORPILOT_INSTALLATION_CLUSTER_UID": "cluster-a",
+            "ARMORPILOT_INSTALLATION_CA_SHA256": "a" * 64,
+            "ARMORPILOT_LICENSE_FILE": str(root / "license.json"),
+            "ARMORPILOT_LICENSE_REQUIRED": "true",
+            "ARMORPILOT_LICENSE_FAIL_OPEN": "false",
+            "ARMORPILOT_LICENSE_REQUIRE_INSTALLATION_BINDING": "true",
+            "ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY": "true",
+            "ARMORPILOT_LICENSE_PUBLIC_KEY": base64.b64encode(raw_vendor_public).decode("ascii"),
         })
 
         import app.installation as installation
@@ -99,11 +99,13 @@ class LicenseInstallationTest(unittest.TestCase):
         first = self.installation.get_installation_identity()
         second = self.installation.get_installation_identity()
         self.assertEqual(first["installation_id"], second["installation_id"])
+        self.assertTrue(first["installation_id"].startswith("api_"))
+        self.assertEqual(first["version"], "armor-pilot-installation/v1")
 
         request = self.installation.create_activation_request()
         raw_public = base64.b64decode(request["payload"]["installation_public_key"], validate=True)
         installation_private = serialization.load_pem_private_key(
-            Path(os.environ["VARMOR_INSTALLATION_KEY_FILE"]).read_bytes(),
+            Path(os.environ["ARMORPILOT_INSTALLATION_KEY_FILE"]).read_bytes(),
             password=None,
         )
         installation_public = installation_private.public_key()
@@ -119,6 +121,23 @@ class LicenseInstallationTest(unittest.TestCase):
             self.installation._canonical(request["payload"]),
         )
 
+    def test_new_and_legacy_license_key_prefixes_are_accepted(self):
+        identity = self.installation.get_installation_identity()
+        document = self._license_document(identity["installation_id"])
+        payload = document["payload"]
+        encoded_payload = base64.urlsafe_b64encode(
+            self.license._canonical_payload(payload),
+        ).decode("ascii").rstrip("=")
+
+        for prefix in ("ARMORPILOT1", "VARMOR1"):
+            key = f"{prefix}.{encoded_payload}.{document['signature']}"
+            parsed = self.license.parse_license_text(key)
+            self.assertEqual(parsed["payload"], payload)
+            self.assertEqual(
+                self.license.verify_license_document(parsed)["installation_id"],
+                identity["installation_id"],
+            )
+
     @staticmethod
     def _decode_b64url(value):
         return base64.urlsafe_b64decode(value + "=" * ((4 - len(value) % 4) % 4))
@@ -131,7 +150,7 @@ class LicenseInstallationTest(unittest.TestCase):
             identity["installation_id"],
         )
 
-        os.environ["VARMOR_INSTALLATION_CLUSTER_UID"] = "cluster-b"
+        os.environ["ARMORPILOT_INSTALLATION_CLUSTER_UID"] = "cluster-b"
         with self.assertRaisesRegex(ValueError, "does not match this installation"):
             self.license.verify_license_document(document)
 

@@ -27,17 +27,19 @@ from typing import Any
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from .config import get_product_env
 
-INSTALLATION_KEY_FILE = os.environ.get(
-    "VARMOR_INSTALLATION_KEY_FILE",
+
+INSTALLATION_KEY_FILE = get_product_env(
+    "INSTALLATION_KEY_FILE",
     "/app/data/installation-private.pem",
 )
-INSTALLATION_METADATA_FILE = os.environ.get(
-    "VARMOR_INSTALLATION_METADATA_FILE",
+INSTALLATION_METADATA_FILE = get_product_env(
+    "INSTALLATION_METADATA_FILE",
     "/app/data/installation.json",
 )
-SERVICE_ACCOUNT_CA_FILE = os.environ.get(
-    "VARMOR_KUBERNETES_CA_FILE",
+SERVICE_ACCOUNT_CA_FILE = get_product_env(
+    "KUBERNETES_CA_FILE",
     "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 )
 
@@ -103,7 +105,7 @@ def _load_or_create_identity_material() -> tuple[Ed25519PrivateKey, dict[str, An
                 raise ValueError("installation metadata must be an object")
         else:
             metadata = {
-                "version": "varmor-installation-metadata/v1",
+                "version": "armor-pilot-installation-metadata/v1",
                 "installation_uuid": str(uuid.uuid4()),
                 "created_at": _utc_now_text(),
             }
@@ -120,7 +122,7 @@ def _load_or_create_identity_material() -> tuple[Ed25519PrivateKey, dict[str, An
 
 
 def _runtime_cluster_uid() -> str:
-    override = os.environ.get("VARMOR_INSTALLATION_CLUSTER_UID", "").strip()
+    override = get_product_env("INSTALLATION_CLUSTER_UID").strip()
     if override:
         return override
 
@@ -134,7 +136,7 @@ def _runtime_cluster_uid() -> str:
 
 
 def _runtime_ca_sha256() -> str:
-    override = os.environ.get("VARMOR_INSTALLATION_CA_SHA256", "").strip().lower()
+    override = get_product_env("INSTALLATION_CA_SHA256").strip().lower()
     if override:
         return override
 
@@ -150,8 +152,14 @@ def _identity_payload(
     cluster_uid: str,
     ca_sha256: str,
 ) -> dict[str, Any]:
+    metadata_version = str(metadata.get("version") or "")
+    identity_version = (
+        "varmor-installation/v1"
+        if metadata_version == "varmor-installation-metadata/v1"
+        else "armor-pilot-installation/v1"
+    )
     return {
-        "version": "varmor-installation/v1",
+        "version": identity_version,
         "installation_uuid": metadata["installation_uuid"],
         "installation_public_key": public_key_b64,
         "cluster_uid": cluster_uid,
@@ -174,7 +182,8 @@ def get_installation_identity() -> dict[str, Any]:
         cluster_uid,
         ca_sha256,
     )
-    installation_id = "vmi_" + hashlib.sha256(_canonical(identity_payload)).hexdigest()
+    id_prefix = "vmi_" if identity_payload["version"] == "varmor-installation/v1" else "api_"
+    installation_id = id_prefix + hashlib.sha256(_canonical(identity_payload)).hexdigest()
     return {
         **identity_payload,
         "installation_id": installation_id,

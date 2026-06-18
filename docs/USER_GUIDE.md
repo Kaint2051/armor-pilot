@@ -1,4 +1,4 @@
-# vArmor Console — User Guide
+# ArmorPilot — User Guide
 
 ## Table of Contents
 1. [Login](#1-login)
@@ -381,7 +381,7 @@ Click the **Users/Access Control** tab → select **License** in the left sub-me
 | **Expires At** | Expiry date |
 | **Days Remaining** | Number of days left |
 | **Grace Days** | Number of grace days after expiry |
-| **Installation ID** | Installation identifier (`vmi_...`) |
+| **Installation ID** | Installation identifier (`api_...`) |
 | **Cluster UID** | UID of the kube-system namespace |
 | **Max Nodes** | Node limit (0 = unlimited) |
 | **Max Policies** | Policy limit (0 = unlimited) |
@@ -416,7 +416,7 @@ When you need to request a license from the vendor:
 
 ### 7.3 Entering a License Key
 
-After receiving a license from the vendor (format: `VARMOR1.xxx.yyy`):
+After receiving a license from the vendor (format: `ARMORPILOT1.xxx.yyy`):
 
 1. Paste the license string into the **License Key** field.
 2. Click **Save License**.
@@ -440,7 +440,7 @@ Click **Remove License** (red button) → confirm → the license is deleted. Th
 Vendors use the CLI tool on a machine that holds the private key:
 
 ```powershell
-cd varmor-console
+cd armor-pilot
 
 python tools/license_tool.py sign `
   --private-key license-test/test-license-private.pem `

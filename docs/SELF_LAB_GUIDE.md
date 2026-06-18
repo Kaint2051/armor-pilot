@@ -1,8 +1,8 @@
-# Hướng Dẫn Tự Lab: vArmor Console Security
+# Hướng Dẫn Tự Lab: ArmorPilot Security
 ## Học Bảo Mật Container Bằng Thực Hành — Có Giải Thích Từng Bước
 
 > **Server lab:** `172.30.2.129` | **Console:** `http://172.30.2.129:8080`  
-> **Tài khoản:** `admin / Admin@vArmor2026!`  
+> **Tài khoản:** `admin / Admin@ArmorPilot2026!`
 > **Mức độ:** Beginner → Intermediate | **Thời gian ước tính:** 4-6 giờ
 
 ---
@@ -145,7 +145,7 @@ kubectl get pods -n varmor
 
 ```bash
 # Xem Console
-kubectl get pods -l app=varmor-console
+kubectl get pods -l app=armor-pilot
 ```
 
 ### Bước 1.4: Kiểm tra Console hoạt động
@@ -157,7 +157,7 @@ curl -s http://127.0.0.1:8080/ | head -5
 Console đang được expose qua `kubectl port-forward` — một dịch vụ systemd giữ tunnel này luôn mở:
 
 ```bash
-systemctl status varmor-console-pf
+systemctl status armor-pilot-pf
 ```
 
 **Tại sao dùng port-forward thay vì NodePort trực tiếp?** Kind cluster không map NodePort ra host machine mặc định. Port-forward là cách đơn giản nhất cho môi trường lab.
@@ -209,7 +209,7 @@ Client                          Server
 
 **Tại sao credential lưu trong K8s Secret, không hardcode?**
 ```bash
-kubectl get secret varmor-console-secret -o yaml
+kubectl get secret armor-pilot-secret -o yaml
 ```
 Bạn sẽ thấy `data.ADMIN_USER` và `data.ADMIN_PASS` được **base64 encode** (không encrypt). Lý do chính không phải để encrypt mà để:
 1. Tách config khỏi code (12-factor app)
@@ -229,19 +229,19 @@ curl -v http://127.0.0.1:8080/api/namespaces/default/policies
 **Phân tích output:**
 ```
 < HTTP/1.1 401 Unauthorized
-< WWW-Authenticate: Basic realm="vArmor Console"
+< WWW-Authenticate: Basic realm="ArmorPilot"
 < Content-Type: application/json
 ```
 
 - `401 Unauthorized`: Server hiểu request nhưng từ chối vì chưa có danh tính
 - `WWW-Authenticate`: Header thông báo phương thức auth yêu cầu (Basic)
-- `realm="vArmor Console"`: Tên "realm" — browser sẽ hiển thị cái này trong popup login
+- `realm="ArmorPilot"`: Tên "realm" — browser sẽ hiển thị cái này trong popup login
 
 **Bước 2: Tạo Basic Auth header thủ công để hiểu bên trong**
 
 ```bash
 # Encode user:pass thành base64
-echo -n "admin:Admin@vArmor2026!" | base64
+echo -n "admin:Admin@ArmorPilot2026!" | base64
 ```
 
 Output sẽ là: `YWRtaW46QWRtaW5AdkFybW9yMjAyNiE=`
@@ -257,7 +257,7 @@ curl -H "Authorization: Basic YWRtaW46QWRtaW5AdkFybW9yMjAyNiE=" \
 **Bước 3: Dùng flag -u của curl (cách thực tế)**
 
 ```bash
-curl -u "admin:Admin@vArmor2026!" \
+curl -u "admin:Admin@ArmorPilot2026!" \
      http://127.0.0.1:8080/api/namespaces/default/policies
 ```
 
@@ -339,7 +339,7 @@ kubectl get deployments -A
 **Bước 2: Gọi API để xem qua Console**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      http://127.0.0.1:8080/api/namespaces/default/deployments \
      | python3 -m json.tool
 ```
@@ -357,7 +357,7 @@ kubectl create deployment lab02-test --image=nginx:alpine
 **Bước 4: Kiểm tra varmor_enabled ban đầu**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      http://127.0.0.1:8080/api/namespaces/default/deployments \
      | python3 -c "
 import sys, json
@@ -379,7 +379,7 @@ kubectl label deployment lab02-test sandbox.varmor.org/enable=true
 **Bước 6: Kiểm tra lại**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      http://127.0.0.1:8080/api/namespaces/default/deployments \
      | python3 -c "
 import sys, json
@@ -403,7 +403,7 @@ kubectl get deployment lab02-test -o jsonpath='{.metadata.labels}' | python3 -m 
 ```bash
 kubectl label deployment lab02-test sandbox.varmor.org/enable-
 
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      http://127.0.0.1:8080/api/namespaces/default/deployments \
      | python3 -c "
 import sys, json
@@ -467,7 +467,7 @@ kubectl create deployment lab03-target --image=nginx:alpine
 **Bước 2: Tạo policy đơn giản qua API**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{
@@ -517,7 +517,7 @@ vArmor có nhiều mode:
 **Bước 4: Tạo policy với đầy đủ rules**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{
@@ -549,7 +549,7 @@ Bạn sẽ thấy `my-full-policy` chứa các rule cụ thể như `disallow-wr
 
 ```bash
 # Thiếu 'name'
-curl -v -u "admin:Admin@vArmor2026!" \
+curl -v -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{"namespace":"default","target_deployment":"nginx","enforcers":["AppArmor"]}' \
@@ -565,7 +565,7 @@ Server trả `400 Bad Request`. **Tại sao validation quan trọng?**
 
 ```bash
 # Xóa qua Console API
-curl -v -u "admin:Admin@vArmor2026!" \
+curl -v -u "admin:Admin@ArmorPilot2026!" \
      -X DELETE http://127.0.0.1:8080/api/namespaces/default/policies/my-first-policy
 
 # Xác minh không còn trong K8s
@@ -577,7 +577,7 @@ Output: `Error from server (NotFound)` — đúng như mong đợi.
 **Bước 8: Thử xóa policy không tồn tại**
 
 ```bash
-curl -v -u "admin:Admin@vArmor2026!" \
+curl -v -u "admin:Admin@ArmorPilot2026!" \
      -X DELETE http://127.0.0.1:8080/api/namespaces/default/policies/does-not-exist
 ```
 
@@ -656,7 +656,7 @@ kubectl create deployment lab04-target --image=ubuntu:22.04 -- sleep infinity
 **Bước 2: Tạo policy với banned files**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{
@@ -818,7 +818,7 @@ kubectl create deployment lab05-target --image=ubuntu:22.04 -- sleep infinity
 **Bước 2: Tạo policy ngăn container escape**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{
@@ -971,7 +971,7 @@ Audit log trả lời những câu hỏi này để **incident response** và **
 **Bước 1: Lấy tên Console pod**
 
 ```bash
-CONSOLE_POD=$(kubectl get pods -l app=varmor-console \
+CONSOLE_POD=$(kubectl get pods -l app=armor-pilot \
   -o jsonpath='{.items[0].metadata.name}')
 echo "Console pod: $CONSOLE_POD"
 ```
@@ -1001,7 +1001,7 @@ Giữ terminal này mở, mở terminal thứ 2.
 # Terminal 2: SSH vào server và tạo policy
 kubectl create deployment lab06-target --image=nginx:alpine
 
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{
@@ -1036,7 +1036,7 @@ Format `[2026-05-13T16:41:31Z]`:
 
 ```bash
 # Tạo policy trùng tên (sẽ bị 409 Conflict)
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X POST http://127.0.0.1:8080/api/policies \
      -H "Content-Type: application/json" \
      -d '{
@@ -1059,7 +1059,7 @@ curl -s -u "admin:Admin@vArmor2026!" \
 **Bước 7: Test DELETE log**
 
 ```bash
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
      -X DELETE http://127.0.0.1:8080/api/namespaces/default/policies/lab06-test-policy
 ```
 
@@ -1084,7 +1084,7 @@ kubectl logs $CONSOLE_POD --since=5m | grep '\[AUDIT\]'
 ```bash
 # Xem log file thật trong filesystem của node Kind
 docker exec varmor-lab-control-plane \
-  ls /var/log/containers/ | grep varmor-console
+  ls /var/log/containers/ | grep armor-pilot
 ```
 
 Đây là nơi Fluentd/Filebeat đọc log trong production.
@@ -1146,7 +1146,7 @@ Console KHÔNG cần:
 **Bước 1: Xem ServiceAccount của Console**
 
 ```bash
-kubectl get serviceaccount varmor-console-sa -n default -o yaml
+kubectl get serviceaccount armor-pilot-sa -n default -o yaml
 ```
 
 Chú ý không có secrets attached riêng — token được inject tự động vào pod.
@@ -1154,7 +1154,7 @@ Chú ý không có secrets attached riêng — token được inject tự độn
 **Bước 2: Xem ClusterRole**
 
 ```bash
-kubectl get clusterrole varmor-console-role -o yaml
+kubectl get clusterrole armor-pilot-role -o yaml
 ```
 
 **Đọc và hiểu từng rule:**
@@ -1174,23 +1174,23 @@ rules:
 **Bước 3: Xem ClusterRoleBinding**
 
 ```bash
-kubectl get clusterrolebinding varmor-console-binding -o yaml
+kubectl get clusterrolebinding armor-pilot-binding -o yaml
 ```
 
 ```yaml
 subjects:
 - kind: ServiceAccount
-  name: varmor-console-sa    # ← SA nào được cấp quyền
+  name: armor-pilot-sa    # ← SA nào được cấp quyền
   namespace: default         # ← SA trong namespace nào
 roleRef:
   kind: ClusterRole
-  name: varmor-console-role  # ← Được cấp role nào
+  name: armor-pilot-role  # ← Được cấp role nào
 ```
 
 **Bước 4: Test quyền trực tiếp với kubectl auth can-i**
 
 ```bash
-SA="system:serviceaccount:default:varmor-console-sa"
+SA="system:serviceaccount:default:armor-pilot-sa"
 
 # Quyền ĐƯỢC PHÉP
 echo "=== Quyên duoc phep ==="
@@ -1215,16 +1215,16 @@ kubectl auth can-i get clusterroles --as="$SA" --all-namespaces
 **Bước 5: Kiểm tra pod đang dùng đúng ServiceAccount**
 
 ```bash
-kubectl get pods -l app=varmor-console \
+kubectl get pods -l app=armor-pilot \
   -o jsonpath='{.items[0].spec.serviceAccountName}'
 ```
 
-Output phải là `varmor-console-sa`.
+Output phải là `armor-pilot-sa`.
 
 **Bước 6: Kiểm tra security context của container**
 
 ```bash
-kubectl get pods -l app=varmor-console -o json \
+kubectl get pods -l app=armor-pilot -o json \
   | python3 -c "
 import sys, json
 pod = json.load(sys.stdin)['items'][0]
@@ -1253,7 +1253,7 @@ Linux capabilities chia quyền root thành ~40 capabilities riêng biệt (CAP_
 
 ```bash
 # Lấy token của Console pod
-CONSOLE_POD=$(kubectl get pods -l app=varmor-console \
+CONSOLE_POD=$(kubectl get pods -l app=armor-pilot \
   -o jsonpath='{.items[0].metadata.name}')
 
 TOKEN=$(kubectl exec $CONSOLE_POD -- cat /var/run/secrets/kubernetes.io/serviceaccount/token)
@@ -1280,7 +1280,7 @@ curl -s --cacert $CACERT \
 
 Thử list secrets sẽ trả `403 Forbidden` với message rõ ràng:
 ```json
-{"message": "secrets is forbidden: User \"system:serviceaccount:default:varmor-console-sa\" cannot list resource..."}
+{"message": "secrets is forbidden: User \"system:serviceaccount:default:armor-pilot-sa\" cannot list resource..."}
 ```
 
 **Đây là RBAC đang làm việc** — token thật của Console không thể đọc Secrets.
@@ -1290,7 +1290,7 @@ Thử list secrets sẽ trả `403 Forbidden` với message rõ ràng:
 Nếu Console dùng `cluster-admin` ClusterRole:
 ```bash
 # (CHỈ ĐỂ MINH HỌA - KHÔNG CHẠY)
-# kubectl auth can-i '*' '*' --as="system:serviceaccount:default:varmor-console-sa" --all-namespaces
+# kubectl auth can-i '*' '*' --as="system:serviceaccount:default:armor-pilot-sa" --all-namespaces
 # → yes (có thể làm MỌI THỨ)
 ```
 
@@ -1338,7 +1338,7 @@ Nếu Console bị compromise với cluster-admin, attacker có thể:
 Sau khi tự lab, chạy automated test để xác nhận environment vẫn clean:
 
 ```bash
-cd /opt/varmor-console
+cd /opt/armor-pilot
 bash labs/run_all_labs.sh
 ```
 

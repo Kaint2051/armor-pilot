@@ -6,7 +6,7 @@
 # ============================================================
 
 API="http://127.0.0.1:8080"
-AUTH="admin:Admin@vArmor2026!"
+AUTH="admin:Admin@ArmorPilot2026!"
 NS="default"
 TEST_DEPLOY="lab03-target-app"
 POLICY_BASIC="lab03-policy-basic"

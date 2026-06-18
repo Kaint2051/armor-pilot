@@ -2,7 +2,7 @@
 ## 5 Labs Tấn Công & Phòng Thủ Thực Tế
 
 > **Phiên bản:** 1.0 | **Cập nhật:** 2026-05-15
-> **Console:** `http://172.30.2.129:8080` | **Tài khoản:** `admin / Admin@vArmor2026!`
+> **Console:** `http://172.30.2.129:8080` | **Tài khoản:** `admin / Admin@ArmorPilot2026!`
 > **SSH vào server:** `ssh root@172.30.2.129` (password: `abc@123`)
 > **Triết lý:** Web UI để áp dụng bảo vệ → CLI để tấn công và kiểm chứng → Hiểu tại sao
 
@@ -54,7 +54,7 @@ Container Process
       └── DENIED  → trả EPERM (Permission denied)
 ```
 
-### Luồng hoạt động của vArmor Console
+### Luồng hoạt động của ArmorPilot
 
 ```
 1. Tạo policy trên Web UI
@@ -178,7 +178,7 @@ HOSTNAME=lab1-webapp-7d9f8b6c4-xk2mp
 ```
 http://172.30.2.129:8080
 Username: admin
-Password: Admin@vArmor2026!
+Password: Admin@ArmorPilot2026!
 ```
 
 **Bước 3.2 — Nhấn "Load" để tải danh sách deployment:**
@@ -1262,7 +1262,7 @@ ssh root@172.30.2.129
 
 # Mở terminal thứ hai để theo dõi audit logs real-time
 # Terminal 1: theo dõi logs
-CONSOLE_POD=$(kubectl get pods -l app=varmor-console -o jsonpath='{.items[0].metadata.name}')
+CONSOLE_POD=$(kubectl get pods -l app=armor-pilot -o jsonpath='{.items[0].metadata.name}')
 echo "Console pod: $CONSOLE_POD"
 
 # Bắt đầu follow audit log (giữ terminal này mở)
@@ -1314,7 +1314,7 @@ echo "INCIDENT ACTIVE: Cần áp dụng emergency policy ngay lập tức!"
 **Bước 3.1 — Mở Console ngay lập tức:**
 ```
 http://172.30.2.129:8080
-Đăng nhập: admin / Admin@vArmor2026!
+Đăng nhập: admin / Admin@ArmorPilot2026!
 ```
 
 **Bước 3.2 — Nhấn Load để tải danh sách.**
@@ -1445,11 +1445,11 @@ kubectl logs $CONSOLE_POD | grep '\[AUDIT\]' | grep 'status=FAILURE' | wc -l
 ```bash
 # Tìm log file của console pod trong node
 docker exec varmor-lab-control-plane \
-  ls /var/log/containers/ | grep varmor-console
+  ls /var/log/containers/ | grep armor-pilot
 
 # Xem log từ node level (đây là nguồn Fluentd/Filebeat đọc)
 LOG_FILE=$(docker exec varmor-lab-control-plane \
-  ls /var/log/containers/ | grep varmor-console | head -1)
+  ls /var/log/containers/ | grep armor-pilot | head -1)
 
 echo "Log file: $LOG_FILE"
 
@@ -1465,7 +1465,7 @@ Trên trình duyệt, nhìn bảng **Active Policies**. Xác nhận:
 
 ```bash
 # Xác minh qua API
-curl -s -u "admin:Admin@vArmor2026!" \
+curl -s -u "admin:Admin@ArmorPilot2026!" \
   http://172.30.2.129:8080/api/namespaces/default/policies \
   | python3 -m json.tool | grep -A8 '"name": "emergency-lockdown"'
 ```
@@ -1573,7 +1573,7 @@ kubectl get varmorpolicies -n default
 kubectl get varmorpolicy <name> -n default -o yaml
 
 # Xem audit logs
-CONSOLE_POD=$(kubectl get pods -l app=varmor-console -o jsonpath='{.items[0].metadata.name}')
+CONSOLE_POD=$(kubectl get pods -l app=armor-pilot -o jsonpath='{.items[0].metadata.name}')
 kubectl logs $CONSOLE_POD | grep '\[AUDIT\]'
 
 # Dọn dẹp

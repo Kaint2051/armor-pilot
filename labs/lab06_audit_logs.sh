@@ -6,7 +6,7 @@
 # ============================================================
 
 API="http://127.0.0.1:8080"
-AUTH="admin:Admin@vArmor2026!"
+AUTH="admin:Admin@ArmorPilot2026!"
 NS="default"
 POLICY_LOG_TEST="lab06-audit-log-policy"
 DEPLOY_LOG_TEST="lab06-audit-target"
@@ -25,7 +25,7 @@ api() { curl -s -u "${AUTH}" "$@"; }
 
 # Lay ten pod Console
 get_pod() {
-    kubectl get pods -l app=varmor-console -n default \
+    kubectl get pods -l app=armor-pilot -n default \
         -o jsonpath='{.items[0].metadata.name}' 2>/dev/null
 }
 
@@ -214,8 +214,8 @@ fi
 # Kiem tra co the filter log bang label
 POD_LABELS=$(kubectl get pod "${CONSOLE_POD}" \
     -o jsonpath='{.metadata.labels}' 2>/dev/null)
-if echo "${POD_LABELS}" | grep -q "app.*varmor-console"; then
-    pass "Pod co label app=varmor-console (de filter log voi kubectl/Loki)"
+if echo "${POD_LABELS}" | grep -q "app.*armor-pilot"; then
+    pass "Pod co label app=armor-pilot (de filter log voi kubectl/Loki)"
 else
     fail "Pod thieu label de filter log"
 fi

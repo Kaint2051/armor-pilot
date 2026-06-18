@@ -6,7 +6,7 @@
 # ============================================================
 
 API="http://127.0.0.1:8080"
-AUTH="admin:Admin@vArmor2026!"
+AUTH="admin:Admin@ArmorPilot2026!"
 NS="default"
 POLICY_ESCAPE="lab05-escape-prevention"
 POLICY_PRIVESC="lab05-privesc-prevention"

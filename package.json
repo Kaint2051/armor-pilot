@@ -1,5 +1,5 @@
 {
-  "name": "varmor-console-frontend",
+  "name": "armor-pilot-frontend",
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i app/static/css/tailwind.input.css -o app/static/css/app.css --minify"

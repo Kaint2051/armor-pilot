@@ -6,9 +6,9 @@
 # ============================================================
 
 API="http://127.0.0.1:8080"
-VALID_AUTH="admin:Admin@vArmor2026!"
+VALID_AUTH="admin:Admin@ArmorPilot2026!"
 WRONG_PASS="admin:wrongpassword"
-WRONG_USER="hacker:Admin@vArmor2026!"
+WRONG_USER="hacker:Admin@ArmorPilot2026!"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -44,8 +44,8 @@ check_http "GET / tra ve HTTP 200" "200" "${API}/"
 
 info "Kiem tra noi dung HTML co chu ky vArmor"
 HTML=$(curl -s "${API}/")
-if echo "$HTML" | grep -q "vArmor Console"; then
-    pass "HTML chua chuoi 'vArmor Console'"
+if echo "$HTML" | grep -q "ArmorPilot"; then
+    pass "HTML chua chuoi 'ArmorPilot'"
 else
     fail "HTML khong chua chu ky he thong"
 fi
@@ -133,7 +133,7 @@ else
     fail "Server thieu header WWW-Authenticate"
 fi
 
-if echo "$HEADERS" | grep -qi 'realm="vArmor Console"'; then
+if echo "$HEADERS" | grep -qi 'realm="ArmorPilot"'; then
     pass "WWW-Authenticate chua realm chinh xac"
 else
     fail "WWW-Authenticate sai realm"

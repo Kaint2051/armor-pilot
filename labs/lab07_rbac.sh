@@ -6,9 +6,9 @@
 # ============================================================
 
 NS="default"
-SA="varmor-console-sa"
-CR="varmor-console-role"
-CRB="varmor-console-binding"
+SA="armor-pilot-sa"
+CR="armor-pilot-role"
+CRB="armor-pilot-binding"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -202,7 +202,7 @@ done
 section "7.6 Kiem tra Pod chay dung ServiceAccount"
 # ----------------------------------------------------------
 
-POD_SA=$(kubectl get pods -l app=varmor-console -n "${NS}" \
+POD_SA=$(kubectl get pods -l app=armor-pilot -n "${NS}" \
     -o jsonpath='{.items[0].spec.serviceAccountName}' 2>/dev/null)
 if [ "${POD_SA}" = "${SA}" ]; then
     pass "Console pod dang dung ServiceAccount '${SA}'"
@@ -211,7 +211,7 @@ else
 fi
 
 # Kiem tra token tu dong gan vao pod
-TOKEN_MOUNTED=$(kubectl get pods -l app=varmor-console -n "${NS}" \
+TOKEN_MOUNTED=$(kubectl get pods -l app=armor-pilot -n "${NS}" \
     -o jsonpath='{.items[0].spec.automountServiceAccountToken}' 2>/dev/null)
 info "automountServiceAccountToken: ${TOKEN_MOUNTED:-'true (default)'}"
 pass "ServiceAccount token duoc mount vao pod (in-cluster config hoat dong)"
@@ -220,7 +220,7 @@ pass "ServiceAccount token duoc mount vao pod (in-cluster config hoat dong)"
 section "7.7 Kiem tra bao mat container"
 # ----------------------------------------------------------
 
-POD_JSON=$(kubectl get pods -l app=varmor-console -n "${NS}" -o json 2>/dev/null)
+POD_JSON=$(kubectl get pods -l app=armor-pilot -n "${NS}" -o json 2>/dev/null)
 
 RUN_AS_NR=$(echo "${POD_JSON}" | python3 -c \
     "import sys,json; p=json.load(sys.stdin).get('items',[{}])[0]; \

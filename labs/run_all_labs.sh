@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # MASTER TEST RUNNER — Chay toan bo 7 Lab
-# Su dung: bash /opt/varmor-console/labs/run_all_labs.sh
+# Su dung: bash /opt/armor-pilot/labs/run_all_labs.sh
 # ============================================================
 
 LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +26,7 @@ print_banner() {
     echo -e "\n${BOLD}${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║                                                              ║"
-    echo "║          vArmor Console — MASTER TEST SUITE                 ║"
+    echo "║          ArmorPilot — MASTER TEST SUITE                 ║"
     echo "║          Thoi gian: $(date '+%Y-%m-%d %H:%M:%S')                     ║"
     echo "║                                                              ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
@@ -97,13 +97,13 @@ preflight() {
         echo -e "  ${GREEN}[OK]${NC} Console API hoat dong (HTTP 200)"
     else
         echo -e "  ${RED}[FAIL]${NC} Console API khong hoat dong (HTTP ${HTTP_CODE})"
-        echo -e "        Chay: systemctl restart varmor-console-pf"
+        echo -e "        Chay: systemctl restart armor-pilot-pf"
         ok=false
     fi
 
     # Auth working
     AUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-        -u "admin:Admin@vArmor2026!" http://127.0.0.1:8080/api/namespaces/default/deployments 2>/dev/null)
+        -u "admin:Admin@ArmorPilot2026!" http://127.0.0.1:8080/api/namespaces/default/deployments 2>/dev/null)
     if [ "${AUTH_CODE}" = "200" ]; then
         echo -e "  ${GREEN}[OK]${NC} Xac thuc admin hoat dong"
     else

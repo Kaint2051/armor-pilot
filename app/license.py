@@ -4,26 +4,20 @@ import datetime as dt
 import hashlib
 import hmac
 import json
-import os
 from pathlib import Path
 from typing import Any
 
+from .config import get_product_bool_env, get_product_env
 
-LICENSE_FILE = os.environ.get("VARMOR_LICENSE_FILE", "/app/data/license.json")
+
+LICENSE_FILE = get_product_env("LICENSE_FILE", "/app/data/license.json")
 
 # Public keys are safe to distribute, but they are the license trust anchor.
 # For production builds, replace this test key with the vendor Ed25519 public key
-# and keep VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY disabled.
+# and keep ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY disabled.
 EMBEDDED_LICENSE_PUBLIC_KEY = "OrsGfpk+/4XCzmE/m/CGhXSRFrKgQz8GQqSBcmA/5IE="
-LICENSE_KEY_PREFIX = "VARMOR1"
-
-
-def _bool_env(name: str, default: bool) -> bool:
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
+LICENSE_KEY_PREFIX = "ARMORPILOT1"
+LEGACY_LICENSE_KEY_PREFIXES = frozenset({"VARMOR1"})
 
 def _utc_now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
@@ -61,7 +55,8 @@ def parse_license_text(raw: str) -> dict[str, Any]:
     if len(value) > 65536:
         raise ValueError("license key is too large")
 
-    if value.startswith(f"{LICENSE_KEY_PREFIX}."):
+    key_prefix = value.partition(".")[0]
+    if key_prefix == LICENSE_KEY_PREFIX or key_prefix in LEGACY_LICENSE_KEY_PREFIXES:
         parts = value.split(".")
         if len(parts) != 3:
             raise ValueError("license key format is invalid")
@@ -90,11 +85,11 @@ def parse_license_text(raw: str) -> dict[str, Any]:
 
 
 def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
-    if not _bool_env("VARMOR_LICENSE_ALLOW_HS256", False):
+    if not get_product_bool_env("LICENSE_ALLOW_HS256", False):
         raise ValueError("HS256 licenses are disabled")
-    secret = os.environ.get("VARMOR_LICENSE_HMAC_SECRET", "")
+    secret = get_product_env("LICENSE_HMAC_SECRET")
     if not secret:
-        raise ValueError("VARMOR_LICENSE_HMAC_SECRET is not configured")
+        raise ValueError("ARMORPILOT_LICENSE_HMAC_SECRET is not configured")
     expected = hmac.new(secret.encode("utf-8"), _canonical_payload(payload), hashlib.sha256).digest()
     if not hmac.compare_digest(expected, _b64url_decode(signature)):
         raise ValueError("license signature is invalid")
@@ -102,8 +97,8 @@ def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
 
 def _load_ed25519_public_key():
     public_key = EMBEDDED_LICENSE_PUBLIC_KEY.strip()
-    if _bool_env("VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY", False):
-        public_key = os.environ.get("VARMOR_LICENSE_PUBLIC_KEY", "").strip() or public_key
+    if get_product_bool_env("LICENSE_ALLOW_ENV_PUBLIC_KEY", False):
+        public_key = get_product_env("LICENSE_PUBLIC_KEY").strip() or public_key
     if not public_key:
         raise ValueError("license public key is not configured")
     try:
@@ -114,7 +109,7 @@ def _load_ed25519_public_key():
     if public_key.startswith("-----BEGIN"):
         key = load_pem_public_key(public_key.encode("utf-8"))
         if not isinstance(key, Ed25519PublicKey):
-            raise ValueError("VARMOR_LICENSE_PUBLIC_KEY is not an Ed25519 public key")
+            raise ValueError("ARMORPILOT_LICENSE_PUBLIC_KEY is not an Ed25519 public key")
         return key
     try:
         raw = base64.b64decode(public_key, validate=True)
@@ -123,7 +118,7 @@ def _load_ed25519_public_key():
     try:
         return Ed25519PublicKey.from_public_bytes(raw)
     except Exception as exc:
-        raise ValueError(f"VARMOR_LICENSE_PUBLIC_KEY is not a valid Ed25519 public key: {exc}") from exc
+        raise ValueError(f"ARMORPILOT_LICENSE_PUBLIC_KEY is not a valid Ed25519 public key: {exc}") from exc
 
 
 def _verify_ed25519(payload: dict[str, Any], signature: str) -> None:
@@ -159,9 +154,9 @@ def _int_limit(limits: dict[str, Any], name: str) -> int:
 
 
 def _base_status() -> dict[str, Any]:
-    required = _bool_env("VARMOR_LICENSE_REQUIRED", False)
-    fail_open = _bool_env("VARMOR_LICENSE_FAIL_OPEN", not required)
-    binding_required = _bool_env("VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING", False)
+    required = get_product_bool_env("LICENSE_REQUIRED", False)
+    fail_open = get_product_bool_env("LICENSE_FAIL_OPEN", not required)
+    binding_required = get_product_bool_env("LICENSE_REQUIRE_INSTALLATION_BINDING", False)
     return {
         "path": LICENSE_FILE,
         "required": required,
@@ -213,12 +208,12 @@ def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("license issued_at is in the future")
 
     expected_cluster = (payload.get("cluster_uid") or "").strip()
-    runtime_cluster = os.environ.get("VARMOR_CLUSTER_UID", "").strip()
+    runtime_cluster = get_product_env("CLUSTER_UID").strip()
     if expected_cluster and runtime_cluster and expected_cluster != runtime_cluster:
         raise ValueError("license cluster_uid does not match this cluster")
 
     expected_installation = str(payload.get("installation_id") or "").strip()
-    binding_required = _bool_env("VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING", False)
+    binding_required = get_product_bool_env("LICENSE_REQUIRE_INSTALLATION_BINDING", False)
     if binding_required and not expected_installation:
         raise ValueError("license is not bound to this installation")
     if expected_installation:
@@ -243,13 +238,13 @@ def _get_builtin_trial_status() -> dict[str, Any] | None:
     """Return a synthetic trial license status based on installation creation date.
 
     Returns None if trial is disabled, expired, or installation data is unavailable.
-    Controlled by VARMOR_TRIAL_DAYS (default 30, set 0 to disable).
+    Controlled by ARMORPILOT_TRIAL_DAYS (default 30, set 0 to disable).
     """
-    trial_days = int(os.environ.get("VARMOR_TRIAL_DAYS", "30") or "0")
+    trial_days = int(get_product_env("TRIAL_DAYS", "30") or "0")
     if trial_days <= 0:
         return None
 
-    installation_file = os.environ.get("VARMOR_INSTALLATION_METADATA_FILE", "/app/data/installation.json")
+    installation_file = get_product_env("INSTALLATION_METADATA_FILE", "/app/data/installation.json")
     try:
         inst = json.loads(Path(installation_file).read_text(encoding="utf-8"))
         created_raw = inst.get("created_at")
