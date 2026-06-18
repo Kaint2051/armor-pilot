@@ -1707,7 +1707,10 @@
             <p class="text-xs mb-3" style="color:#64748b;line-height:1.6">Paste the single-line license key supplied by the vendor. Legacy signed JSON is also accepted.</p>
             <textarea id="ta-license-json" class="form-input mb-3" rows="5" style="font-family:monospace;font-size:.72rem;resize:vertical" placeholder="VARMOR1.eyJjdXN0b21lciI6Ii4uLiJ9.signature"></textarea>
             <div id="license-msg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
-            <button id="btn-save-license" onclick="saveLicense()" class="btn btn-primary btn-sm">Save License</button>
+            <div class="flex gap-2 flex-wrap">
+              <button id="btn-save-license" onclick="saveLicense()" class="btn btn-primary btn-sm">Save License</button>
+              <button id="btn-remove-license" onclick="removeLicense()" class="btn btn-ghost btn-sm hidden" style="color:#f87171;border-color:#7f1d1d">Remove License</button>
+            </div>
           </section>
         </div>
       </div><!-- /acv-license -->
@@ -4934,6 +4937,8 @@ function renderLicenseStatus(status){
   }
   var btn=$("btn-save-license");
   if(btn) btn.classList.toggle("hidden",!hasPerm("license:manage"));
+  var rmBtn=$("btn-remove-license");
+  if(rmBtn) rmBtn.classList.toggle("hidden", !hasPerm("license:manage")||!status.valid);
   var ta=$("ta-license-json");
   if(ta) ta.disabled=!hasPerm("license:manage");
   var reqBtn=$("btn-download-activation-request");
@@ -5070,6 +5075,30 @@ async function saveLicense(){
     loadPolicyTemplates(true);
   }catch(e){msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";showEl(msg,e.message);}
   finally{btn.disabled=false;btn.textContent="Save License";}
+}
+
+async function removeLicense(){
+  if(!hasPerm("license:manage")){alert("Insufficient permissions.");return;}
+  if(!confirm("Xac nhan xoa license hien tai?\nHe thong se chuyen sang trang thai chua co license.")) return;
+  var msg=$("license-msg"); hideEl(msg);
+  var btn=$("btn-remove-license"); if(btn){btn.disabled=true;btn.textContent="Removing...";}
+  try{
+    var r=await api("/api/license",{method:"DELETE"});
+    var data=await r.json();
+    if(!r.ok){
+      msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";
+      showEl(msg,data.error||"Failed to remove license");return;
+    }
+    msg.style.background="#1c1917";msg.style.border="1px solid #44403c";msg.style.color="#d6d3d1";
+    showEl(msg,"License da duoc xoa.");
+    var ta=$("ta-license-json"); if(ta) ta.value="";
+    loadLicenseStatus();
+  }catch(e){
+    msg.style.background="#450a0a";msg.style.border="1px solid #7f1d1d";msg.style.color="#fca5a5";
+    showEl(msg,e.message);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Remove License";}
+  }
 }
 
 async function loadRoles(){

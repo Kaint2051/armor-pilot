@@ -1418,6 +1418,19 @@ def save_license_endpoint():
     })
 
 
+@api_bp.route("/license", methods=["DELETE"])
+@require_permission("license:manage")
+def delete_license_endpoint():
+    from pathlib import Path
+    from ..license import LICENSE_FILE
+    path = Path(LICENSE_FILE)
+    if not path.exists():
+        return jsonify({"error": "No license installed"}), 404
+    path.unlink()
+    audit_logger.log(get_current_user(), "DELETE_LICENSE", "license", "system", "SUCCESS", "removed")
+    return jsonify({"status": "removed"})
+
+
 @api_bp.route("/users", methods=["GET"])
 @require_permission("users:view")
 def list_users_endpoint():
