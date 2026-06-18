@@ -4897,20 +4897,18 @@ function renderLicenseStatus(status){
 }
 
 function downloadActivationRequest(){
-  var m=$("modal-activation-request");
-  if(!m) return;
   // reset form
   ["ar-contact-name","ar-contact-company","ar-contact-email","ar-contact-phone","ar-contact-notes"].forEach(function(id){
     var el=$(id); if(el) el.value="";
   });
-  var errEl=$("ar-error-msg"); if(errEl) hideEl(errEl);
+  var errEl=$("ar-error-msg"); if(errEl) errEl.classList.add("hidden");
   var btn=$("btn-ar-confirm"); if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
-  showEl(m);
+  show("modal-activation-request");
   setTimeout(function(){var n=$("ar-contact-name");if(n)n.focus();},80);
 }
 
 function closeActivationRequestModal(){
-  hideEl($("modal-activation-request"));
+  hide("modal-activation-request");
 }
 
 async function confirmDownloadActivationRequest(){
