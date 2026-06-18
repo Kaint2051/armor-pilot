@@ -5,6 +5,9 @@ production product should embed the Ed25519 public key in the backend build so
 customers cannot replace the trust anchor through the web UI or a Kubernetes
 Secret.
 
+For proposed editions, pricing, discounts, renewal, and support packaging, see
+[`LICENSE_PRICING.md`](LICENSE_PRICING.md).
+
 ## Generate Signing Keys
 
 ```bash
