@@ -1943,6 +1943,46 @@
   </div>
 </div>
 
+<!-- ACTIVATION REQUEST MODAL -->
+<div id="modal-activation-request" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.78);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeActivationRequestModal()">
+  <div class="card w-full mx-4" style="max-width:32rem;border-color:#1e3a5f">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-semibold" style="color:#f1f5f9">Download Activation Request</h3>
+      <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm" style="padding:.25rem .5rem;min-height:0">&#x2715;</button>
+    </div>
+    <p class="text-xs mb-4" style="color:#64748b;line-height:1.6">
+      Dien thong tin lien he de vendor co the xac nhan va phat hanh license. Thong tin nay se duoc dinh kem vao file activation request.
+    </p>
+    <div class="flex flex-col gap-3">
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ho va ten <span style="color:#f87171">*</span></label>
+        <input id="ar-contact-name" type="text" class="form-input" placeholder="Nguyen Van A" autocomplete="name" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Cong ty / To chuc <span style="color:#f87171">*</span></label>
+        <input id="ar-contact-company" type="text" class="form-input" placeholder="Acme Corp" autocomplete="organization" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Email lien he <span style="color:#f87171">*</span></label>
+        <input id="ar-contact-email" type="email" class="form-input" placeholder="contact@example.com" autocomplete="email" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">So dien thoai / WeChat <span style="color:#94a3b8;font-weight:400">(tuy chon)</span></label>
+        <input id="ar-contact-phone" type="text" class="form-input" placeholder="+84 xxx xxx xxx" autocomplete="tel" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1" style="color:#94a3b8">Ghi chu / Muc dich su dung <span style="color:#94a3b8;font-weight:400">(tuy chon)</span></label>
+        <textarea id="ar-contact-notes" class="form-input" rows="2" placeholder="Mo ta muc dich su dung, so luong node, moi truong..." style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div id="ar-error-msg" class="hidden mt-3 p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Huy</button>
+      <button id="btn-ar-confirm" onclick="confirmDownloadActivationRequest()" class="btn btn-primary btn-sm">Tai xuong</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div id="modal-del" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);backdrop-filter:blur(4px)">
   <div class="card w-full mx-4" style="max-width:24rem;border-color:#475569">
@@ -4856,16 +4896,65 @@ function renderLicenseStatus(status){
   if(copyBtn) copyBtn.disabled=!(status.installation&&status.installation.installation_id);
 }
 
-async function downloadActivationRequest(){
+function downloadActivationRequest(){
+  var m=$("modal-activation-request");
+  if(!m) return;
+  // reset form
+  ["ar-contact-name","ar-contact-company","ar-contact-email","ar-contact-phone","ar-contact-notes"].forEach(function(id){
+    var el=$(id); if(el) el.value="";
+  });
+  var errEl=$("ar-error-msg"); if(errEl) hideEl(errEl);
+  var btn=$("btn-ar-confirm"); if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
+  showEl(m);
+  setTimeout(function(){var n=$("ar-contact-name");if(n)n.focus();},80);
+}
+
+function closeActivationRequestModal(){
+  hideEl($("modal-activation-request"));
+}
+
+async function confirmDownloadActivationRequest(){
+  var errEl=$("ar-error-msg");
+  hideEl(errEl);
+
+  var name   =($("ar-contact-name")||{}).value||"";
+  var company=($("ar-contact-company")||{}).value||"";
+  var email  =($("ar-contact-email")||{}).value||"";
+  var phone  =($("ar-contact-phone")||{}).value||"";
+  var notes  =($("ar-contact-notes")||{}).value||"";
+
+  if(!name.trim()||!company.trim()||!email.trim()){
+    showEl(errEl,"Vui long dien day du cac truong bat buoc (*).");
+    return;
+  }
+  var emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRe.test(email.trim())){
+    showEl(errEl,"Dia chi email khong hop le.");
+    return;
+  }
+
+  var btn=$("btn-ar-confirm");
+  if(btn){btn.disabled=true;btn.textContent="Dang tao...";}
   try{
     var r=await api("/api/license/activation-request"),data=await r.json();
     if(!r.ok) throw new Error(data.error||"Failed to create activation request");
+
+    var contact={name:name.trim(),company:company.trim(),email:email.trim()};
+    if(phone.trim()) contact.phone=phone.trim();
+    if(notes.trim()) contact.notes=notes.trim();
+    data.contact=contact;
+
     var blob=new Blob([JSON.stringify(data,null,2)+"\n"],{type:"application/json"});
     var url=URL.createObjectURL(blob),a=document.createElement("a");
     a.href=url;
     a.download="varmor-activation-request.json";
     document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-  }catch(e){alert(e.message);}
+    closeActivationRequestModal();
+  }catch(e){
+    showEl(errEl,e.message||"Co loi xay ra khi tao activation request.");
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
+  }
 }
 
 async function copyInstallationId(){
