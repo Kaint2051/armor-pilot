@@ -171,6 +171,10 @@
           <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
           Access Control
         </button>
+        <button id="tab-btn-tools" class="tab-btn hidden" onclick="switchTab('tools')">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Tools
+        </button>
         <div class="w-px h-5 mx-2" style="background:#334155"></div>
         <span id="lbl-user" class="text-sm hidden sm:block" style="color:#64748b"></span>
         <span id="license-badge" class="badge badge-gray hidden">License</span>
@@ -1714,6 +1718,110 @@
 
     </div>
 
+    <!-- ═══════════════ TAB: TOOLS ═══════════════ -->
+    <div id="tab-tools" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+
+        <!-- ── Card: Verify Activation Request ── -->
+        <section class="card flex flex-col gap-3">
+          <div class="flex items-center gap-2 mb-1">
+            <svg class="w-5 h-5 flex-shrink-0" style="color:#60a5fa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <h3 class="text-base font-semibold" style="color:#f1f5f9">Verify Activation Request</h3>
+          </div>
+          <p class="text-xs" style="color:#64748b;line-height:1.6">Paste file <code style="color:#94a3b8">varmor-activation-request.json</code> cua khach hang de kiem tra chu ky va lay thong tin installation.</p>
+          <textarea id="ta-verify-req" class="form-input" rows="9" style="font-family:monospace;font-size:.7rem;resize:vertical" placeholder='{"version":"varmor-activation-request/v1","payload":{...},"signature":"...","contact":{...}}'></textarea>
+          <button onclick="doVerifyRequest()" class="btn btn-primary btn-sm self-start">Verify Signature</button>
+          <div id="verify-result" class="hidden rounded-lg p-3 text-xs" style="background:#0f172a;border:1px solid #334155;color:#94a3b8"></div>
+        </section>
+
+        <!-- ── Card: Sign License ── -->
+        <section class="card flex flex-col gap-3">
+          <div class="flex items-center gap-2 mb-1">
+            <svg class="w-5 h-5 flex-shrink-0" style="color:#34d399" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            <h3 class="text-base font-semibold" style="color:#f1f5f9">Sign License</h3>
+          </div>
+          <p class="text-xs" style="color:#64748b;line-height:1.6">Dien thong tin va dan private key cua vendor de tao license key. Private key chi dung trong bo nho trinh duyet, khong gui len server.</p>
+
+          <!-- Auto-fill from verify -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Installation ID <span class="text-xs" style="color:#475569">(tu dong tu verify)</span></label>
+              <input id="sign-installation-id" type="text" class="form-input" style="font-size:.7rem;font-family:monospace" placeholder="vmi_..." />
+            </div>
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Cluster UID</label>
+              <input id="sign-cluster-uid" type="text" class="form-input" style="font-size:.7rem;font-family:monospace" placeholder="xxxxxxxx-xxxx-..." />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">License ID <span style="color:#f87171">*</span></label>
+              <input id="sign-license-id" type="text" class="form-input" placeholder="LIC-CUST-001" />
+            </div>
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Customer <span style="color:#f87171">*</span></label>
+              <input id="sign-customer" type="text" class="form-input" placeholder="Acme Corp" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Edition</label>
+              <select id="sign-edition" class="form-input">
+                <option value="enterprise">enterprise</option>
+                <option value="starter">starter</option>
+                <option value="trial">trial</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Days</label>
+              <input id="sign-days" type="number" class="form-input" value="365" min="1" max="3650" />
+            </div>
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Grace days</label>
+              <input id="sign-grace-days" type="number" class="form-input" value="7" min="0" max="90" />
+            </div>
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Features</label>
+              <input id="sign-features" type="text" class="form-input" value="*" placeholder="* or feature1,..." />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Max nodes <span style="color:#475569">(0=unlimited)</span></label>
+              <input id="sign-max-nodes" type="number" class="form-input" value="0" min="0" />
+            </div>
+            <div>
+              <label class="block text-xs mb-1" style="color:#94a3b8">Max policies <span style="color:#475569">(0=unlimited)</span></label>
+              <input id="sign-max-policies" type="number" class="form-input" value="0" min="0" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs mb-1" style="color:#94a3b8">Vendor Private Key (PEM) <span style="color:#f87171">*</span></label>
+            <textarea id="ta-sign-privkey" class="form-input" rows="5" style="font-family:monospace;font-size:.68rem;resize:vertical" placeholder="-----BEGIN PRIVATE KEY-----&#10;MFMCAQEwBQYD...&#10;-----END PRIVATE KEY-----"></textarea>
+            <p class="text-xs mt-1" style="color:#475569">Key chi dung trong RAM trinh duyet, khong luu va khong gui len server.</p>
+          </div>
+
+          <div id="sign-error" class="hidden p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+          <button id="btn-sign-license" onclick="doSignLicense()" class="btn btn-primary btn-sm self-start">Generate License Key</button>
+
+          <!-- Output -->
+          <div id="sign-output" class="hidden flex flex-col gap-2">
+            <label class="block text-xs font-medium" style="color:#34d399">License Key (VARMOR1 format):</label>
+            <textarea id="ta-sign-output" class="form-input" rows="3" readonly style="font-family:monospace;font-size:.68rem;color:#86efac;background:#052e16;border-color:#166534;resize:vertical"></textarea>
+            <div class="flex gap-2">
+              <button onclick="copySignOutput()" class="btn btn-ghost btn-sm">Copy Key</button>
+              <button onclick="downloadSignOutput()" class="btn btn-ghost btn-sm">Download .key</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div><!-- /tab-tools -->
+
 
   </main>
 </div>
@@ -2203,7 +2311,7 @@ var editMode=null; // {name, ns, scope} when editing
 var CURRENT_TAB="policy";
 var CURRENT_LICENSE=null;
 function switchTab(tab){
-  ["dashboard","policy","logs","users"].forEach(function(t){
+  ["dashboard","policy","logs","users","tools"].forEach(function(t){
     var p=$("tab-"+t);
     if(p) p.classList.toggle("hidden",t!==tab);
     var b=$("tab-btn-"+t);
@@ -2312,6 +2420,9 @@ function applyRoleUi(){
   var all=$("chk-all");
   if(all){all.disabled=!admin;all.checked=false;all.indeterminate=false;}
   if(!admin) clearSelection();
+  // Tools tab: only visible to users with license:manage (vendor/admin)
+  var toolsBtn=$("tab-btn-tools");
+  if(toolsBtn) toolsBtn.classList.toggle("hidden", !hasPerm("license:manage"));
 }
 
 function _onFormChange(){
@@ -6727,6 +6838,207 @@ parseSpecIntoForm=function(crd,scope,name){
     if(g.targets&&g.targets.length) addAttackGroup(g.rules||[],g.targets||[]);
   });
 };
+
+// ═══════════════════════════════════════════════════════════
+//  TOOLS TAB — client-side crypto helpers
+// ═══════════════════════════════════════════════════════════
+
+function _b64urlDecode(s){
+  s=s.replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length%4) s+="=";
+  var bin=atob(s),bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+
+function _b64urlEncode(bytes){
+  var bin="";
+  for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+
+function _canonicalJSON(obj){
+  if(obj===null||typeof obj!=="object") return JSON.stringify(obj);
+  if(Array.isArray(obj)) return "["+obj.map(_canonicalJSON).join(",")+"]";
+  var keys=Object.keys(obj).slice().sort();
+  return "{"+keys.map(function(k){return JSON.stringify(k)+":"+_canonicalJSON(obj[k]);}).join(",")+"}";
+}
+
+async function _sha256hex(str){
+  var enc=new TextEncoder().encode(str);
+  var buf=await crypto.subtle.digest("SHA-256",enc);
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+}
+
+async function _computeInstallationId(payload){
+  var idFields={
+    version:payload.version,
+    installation_uuid:payload.installation_uuid,
+    installation_public_key:payload.installation_public_key,
+    cluster_uid:payload.cluster_uid,
+    api_ca_sha256:payload.api_ca_sha256
+  };
+  var canonical=_canonicalJSON(idFields);
+  var hash=await _sha256hex(canonical);
+  return "vmi_"+hash;
+}
+
+// Verify activation request (Ed25519, client-side)
+async function doVerifyRequest(){
+  var ta=$("ta-verify-req"), resEl=$("verify-result");
+  if(!ta||!resEl) return;
+  var raw=ta.value.trim();
+  if(!raw){showEl(resEl,"Paste the activation request JSON first."); return;}
+  resEl.classList.remove("hidden");
+  resEl.innerHTML='<span style="color:#94a3b8">Verifying...</span>';
+  try{
+    var ar=JSON.parse(raw);
+    if(!ar.version||!ar.payload||!ar.signature) throw new Error("Missing required fields: version, payload, signature");
+    if(ar.version!=="varmor-activation-request/v1") throw new Error("Unknown version: "+ar.version);
+    var p=ar.payload;
+    var required=["version","installation_uuid","installation_public_key","cluster_uid","api_ca_sha256","generated_at","nonce"];
+    required.forEach(function(f){if(!p[f]) throw new Error("payload."+f+" is missing");});
+
+    // Verify signature
+    var canonical=_canonicalJSON(p);
+    var msgBytes=new TextEncoder().encode(canonical);
+    var sigBytes=_b64urlDecode(ar.signature);
+    var pubKeyBytes=_b64urlDecode(p.installation_public_key);
+
+    var cryptoKey=await crypto.subtle.importKey(
+      "raw", pubKeyBytes,
+      {name:"Ed25519"}, false, ["verify"]
+    );
+    var valid=await crypto.subtle.verify({name:"Ed25519"}, cryptoKey, sigBytes, msgBytes);
+
+    // Compute expected installation_id
+    var computedId=await _computeInstallationId(p);
+    var idMatch=(p.installation_id===computedId);
+
+    var lines=[];
+    lines.push('<span style="color:'+(valid?"#34d399":"#f87171")+'">Signature: '+(valid?"VALID":"INVALID")+'</span>');
+    lines.push('<span style="color:'+(idMatch?"#34d399":"#f87171")+'">Installation ID: '+(idMatch?"MATCHES computed hash":"MISMATCH — file may be tampered")+'</span>');
+    lines.push('');
+    lines.push('<b style="color:#e2e8f0">Installation Details:</b>');
+    lines.push('  installation_id      : <span style="color:#93c5fd">'+p.installation_id+'</span>');
+    lines.push('  installation_uuid    : '+p.installation_uuid);
+    lines.push('  cluster_uid          : '+p.cluster_uid);
+    lines.push('  api_ca_sha256        : '+p.api_ca_sha256.substring(0,16)+'...');
+    lines.push('  generated_at         : '+p.generated_at);
+    if(ar.contact){
+      lines.push('');
+      lines.push('<b style="color:#e2e8f0">Contact Info:</b>');
+      if(ar.contact.name)    lines.push('  name    : '+ar.contact.name);
+      if(ar.contact.company) lines.push('  company : '+ar.contact.company);
+      if(ar.contact.email)   lines.push('  email   : '+ar.contact.email);
+      if(ar.contact.phone)   lines.push('  phone   : '+ar.contact.phone);
+    }
+    resEl.innerHTML='<pre style="white-space:pre-wrap;margin:0">'+lines.join('\n')+'</pre>';
+
+    if(valid&&idMatch){
+      // Auto-fill sign form
+      var f=$("sign-installation-id"); if(f) f.value=p.installation_id;
+      var c=$("sign-cluster-uid");     if(c) c.value=p.cluster_uid;
+      if(ar.contact){
+        var cust=$("sign-customer");
+        if(cust&&!cust.value) cust.value=(ar.contact.company||ar.contact.name||"");
+      }
+    }
+  } catch(e){
+    resEl.innerHTML='<span style="color:#f87171">Error: '+e.message+'</span>';
+  }
+}
+
+// Sign license (Ed25519, client-side)
+async function doSignLicense(){
+  var errEl=$("sign-error");
+  if(errEl){errEl.classList.add("hidden"); errEl.textContent="";}
+
+  function signErr(msg){
+    if(errEl){errEl.textContent=msg; errEl.classList.remove("hidden");}
+    return null;
+  }
+
+  var iid=($("sign-installation-id")||{}).value||"";
+  var clusterUid=($("sign-cluster-uid")||{}).value||"";
+  var licenseId=($("sign-license-id")||{}).value||"";
+  var customer=($("sign-customer")||{}).value||"";
+  var edition=($("sign-edition")||{}).value||"enterprise";
+  var days=parseInt(($("sign-days")||{}).value||"365",10);
+  var graceDays=parseInt(($("sign-grace-days")||{}).value||"14",10);
+  var maxNodes=parseInt(($("sign-max-nodes")||{}).value||"0",10);
+  var maxPolicies=parseInt(($("sign-max-policies")||{}).value||"0",10);
+  var featuresRaw=($("sign-features")||{}).value||"*";
+  var pemRaw=($("ta-sign-privkey")||{}).value||"";
+
+  if(!licenseId) return signErr("License ID is required.");
+  if(!customer)  return signErr("Customer name is required.");
+  if(!pemRaw)    return signErr("Vendor private key (PEM) is required.");
+  if(!days||days<1||days>3650) return signErr("Days must be between 1 and 3650.");
+
+  try{
+    // Parse PEM → raw bytes
+    var pemClean=pemRaw.trim().replace(/-----[A-Z ]+-----/g,"").replace(/\s/g,"");
+    var keyDer;
+    try{ keyDer=Uint8Array.from(atob(pemClean),function(c){return c.charCodeAt(0);}); }
+    catch(e){ return signErr("Invalid PEM: "+e.message); }
+
+    var privateKey=await crypto.subtle.importKey(
+      "pkcs8", keyDer,
+      {name:"Ed25519"}, false, ["sign"]
+    );
+
+    var now=new Date();
+    var expiry=new Date(now.getTime()+days*86400000);
+    var features=featuresRaw.split(",").map(function(s){return s.trim();}).filter(Boolean);
+    var payload={};
+    if(iid)         payload.installation_id=iid;
+    if(clusterUid)  payload.cluster_uid=clusterUid;
+    payload.license_id=licenseId;
+    payload.customer=customer;
+    payload.edition=edition;
+    payload.issued_at=now.toISOString().replace(/\.\d+Z$/,"Z");
+    payload.expires_at=expiry.toISOString().replace(/\.\d+Z$/,"Z");
+    payload.grace_days=graceDays;
+    payload.features=features;
+    var limits={};
+    if(maxNodes>0)    limits.max_nodes=maxNodes;
+    if(maxPolicies>0) limits.max_policies=maxPolicies;
+    if(Object.keys(limits).length) payload.limits=limits;
+
+    var canonical=_canonicalJSON(payload);
+    var msgBytes=new TextEncoder().encode(canonical);
+    var sigBuf=await crypto.subtle.sign({name:"Ed25519"}, privateKey, msgBytes);
+    var sigBytes=new Uint8Array(sigBuf);
+
+    var b64payload=btoa(canonical).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    var b64sig=_b64urlEncode(sigBytes);
+    var licenseKey="VARMOR1."+b64payload+"."+b64sig;
+
+    var outEl=$("ta-sign-output"); if(outEl) outEl.value=licenseKey;
+    var outBox=$("sign-output"); if(outBox) outBox.classList.remove("hidden");
+  } catch(e){
+    signErr("Signing failed: "+e.message);
+  }
+}
+
+function copySignOutput(){
+  var ta=$("ta-sign-output"); if(!ta||!ta.value) return;
+  navigator.clipboard.writeText(ta.value).catch(function(){
+    ta.select(); document.execCommand("copy");
+  });
+}
+
+function downloadSignOutput(){
+  var ta=$("ta-sign-output"); if(!ta||!ta.value) return;
+  var licId=($("sign-license-id")||{}).value||"license";
+  var fname=(licId||"license").replace(/[^a-zA-Z0-9_-]/g,"-").toLowerCase()+".key";
+  var blob=new Blob([ta.value],{type:"text/plain"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=fname;
+  a.click();
+}
 
 </script>
 </body>
