@@ -1,4 +1,4 @@
-# vArmor Console License Activation Guide
+# ArmorPilot License Activation Guide
 
 This guide is for customers and console administrators who need to request,
 install, verify, renew, or recover an offline license.
@@ -20,7 +20,7 @@ from:
 - The Kubernetes API CA certificate fingerprint.
 
 The console produces a signed activation request. The vendor uses that request
-to issue a `VARMOR1...` license key bound to this installation.
+to issue a `ARMORPILOT1...` license key bound to this installation.
 
 ```text
 Console installation
@@ -31,7 +31,7 @@ varmor-activation-request.json
         |
         | Send to license vendor
         v
-Vendor-issued VARMOR1 license key
+Vendor-issued ARMORPILOT1 license key
         |
         | Paste into Install License
         v
@@ -72,14 +72,14 @@ private key and includes the cluster identity details.
 The vendor returns a single-line key beginning with:
 
 ```text
-VARMOR1.
+ARMORPILOT1.
 ```
 
 To activate:
 
 1. Sign in with an account that has `license:manage`.
 2. Open **Users > License**.
-3. Paste the complete `VARMOR1...` key into **Install License**.
+3. Paste the complete `ARMORPILOT1...` key into **Install License**.
 4. Click **Save License**.
 5. Wait for **License saved and verified**.
 6. Click **Refresh** if the status panel does not update immediately.
@@ -126,11 +126,11 @@ Important response fields:
   "binding_required": true,
   "payload": {
     "license_id": "LIC-CUSTOMER-001",
-    "installation_id": "vmi_..."
+    "installation_id": "api_..."
   },
   "installation": {
     "available": true,
-    "installation_id": "vmi_..."
+    "installation_id": "api_..."
   }
 }
 ```
@@ -141,7 +141,7 @@ The two `installation_id` values must match.
 
 ### `license key or JSON is invalid`
 
-The pasted content is incomplete or is not a `VARMOR1...` key.
+The pasted content is incomplete or is not a `ARMORPILOT1...` key.
 
 Action:
 
@@ -204,7 +204,7 @@ For a normal renewal on the same installation:
 1. Open **Users > License**.
 2. Download a fresh activation request.
 3. Send it to the vendor with the renewal order.
-4. Receive the renewed `VARMOR1...` key.
+4. Receive the renewed `ARMORPILOT1...` key.
 5. Paste it into **Install License** and click **Save License**.
 
 Installing the renewed key replaces the previous license. Existing Kubernetes

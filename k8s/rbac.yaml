@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: varmor-console-sa
+  name: armor-pilot-sa
   namespace: default
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: varmor-console-role
+  name: armor-pilot-role
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets", "daemonsets"]
@@ -30,12 +30,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: varmor-console-binding
+  name: armor-pilot-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: varmor-console-role
+  name: armor-pilot-role
 subjects:
   - kind: ServiceAccount
-    name: varmor-console-sa
+    name: armor-pilot-sa
     namespace: default

@@ -1,4 +1,4 @@
-# vArmor Console License and Pricing Guide
+# ArmorPilot License and Pricing Guide
 
 > Status: commercial proposal for internal review.
 > Currency conversions are indicative. Final quotations should be issued in
@@ -21,7 +21,7 @@ Use an annual on-premises subscription as the default commercial model.
 - Secondary scope: maximum clusters covered by the subscription.
 - Technical safety limit: maximum policies; do not use policy count as the main billing metric.
 - License term: 12 months, with a 7-30 day grace period.
-- License delivery: offline signed `VARMOR1...` key.
+- License delivery: offline signed `ARMORPILOT1...` key.
 - Renewal: issue a new signed key with a new expiration date and limits.
 - Customer environment: no outbound connection to a license server is required.
 

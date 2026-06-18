@@ -10,6 +10,11 @@ RUN pip install --no-cache-dir --target=/build/pkgs -r requirements.txt
 # ── Stage 2: minimal runtime image ─────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
+LABEL org.opencontainers.image.title="ArmorPilot" \
+      org.opencontainers.image.description="Kubernetes runtime security management platform powered by vArmor" \
+      org.opencontainers.image.source="https://github.com/Kaint2051/armor-pilot" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/pkgs \

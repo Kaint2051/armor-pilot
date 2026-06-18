@@ -1,8 +1,8 @@
-# vArmor Console — System Overview
+# ArmorPilot — System Overview
 
 ## 1. Introduction
 
-**vArmor** is a cloud-native container runtime security system running on Kubernetes. The vArmor Console is a web-based management interface for creating, managing, and monitoring **security policies** applied directly to workloads (Deployments, StatefulSets, DaemonSets, Pods) within the cluster.
+**vArmor** is a cloud-native container runtime security system running on Kubernetes. ArmorPilot is an independent web-based management platform for creating, managing, and monitoring **security policies** applied directly to workloads (Deployments, StatefulSets, DaemonSets, Pods) within the cluster.
 
 The system operates on an **eBPF + LSM** (Linux Security Module) model, intercepting at the kernel level to block dangerous behaviors without modifying container images or application configuration.
 
@@ -16,7 +16,7 @@ The system operates on an **eBPF + LSM** (Linux Security Module) model, intercep
 
 | Component | Description |
 |---|---|
-| **vArmor Console** | Web management UI and REST API server |
+| **ArmorPilot** | Web management UI and REST API server |
 | **vArmor Manager** | Controller that processes VarmorPolicy / VarmorClusterPolicy CRDs |
 | **vArmor Agent** | DaemonSet running on each node, receiving instructions from the Manager |
 | **Enforcement Engines** | AppArmor, BPF, Seccomp, NetworkProxy — the enforcement layer |
@@ -264,13 +264,13 @@ The system ships with 72 built-in templates organized into 8 groups:
 
 | Variable | Default | Description |
 |---|---|---|
-| `VARMOR_LICENSE_REQUIRED` | false | Require a valid license to operate |
-| `VARMOR_LICENSE_FAIL_OPEN` | true | Allow operation when the license is invalid |
-| `VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING` | false | Require the license to be bound to this installation |
-| `VARMOR_LICENSE_ALLOW_ENV_PUBLIC_KEY` | false | Allow overriding the public key via an environment variable |
-| `VARMOR_LICENSE_ALLOW_HS256` | false | Allow HS256-format licenses (legacy) |
-| `VARMOR_TRIAL_DAYS` | 30 | Built-in trial duration in days (0 = disabled) |
-| `VARMOR_LICENSE_FILE` | /app/data/license.json | Path to the license file |
+| `ARMORPILOT_LICENSE_REQUIRED` | false | Require a valid license to operate |
+| `ARMORPILOT_LICENSE_FAIL_OPEN` | true | Allow operation when the license is invalid |
+| `ARMORPILOT_LICENSE_REQUIRE_INSTALLATION_BINDING` | false | Require the license to be bound to this installation |
+| `ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY` | false | Allow overriding the public key via an environment variable |
+| `ARMORPILOT_LICENSE_ALLOW_HS256` | false | Allow HS256-format licenses (legacy) |
+| `ARMORPILOT_TRIAL_DAYS` | 30 | Built-in trial duration in days (0 = disabled) |
+| `ARMORPILOT_LICENSE_FILE` | /app/data/license.json | Path to the license file |
 
 ---
 
@@ -309,7 +309,7 @@ Fresh install → Built-in 30-day trial starts automatically
                     ↓
          Send to Vendor
                     ↓
-         Vendor signs license with private key → VARMOR1.xxx.yyy
+         Vendor signs license with private key → ARMORPILOT1.xxx.yyy
                     ↓
          Paste key into Console → License Valid
 ```

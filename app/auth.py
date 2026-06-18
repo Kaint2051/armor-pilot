@@ -4,6 +4,8 @@ from functools import wraps
 
 from flask import Response, request
 
+from .product import PRODUCT_NAME
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -128,7 +130,7 @@ def require_auth(f):
                 '{"error": "Unauthorized: invalid or missing credentials"}',
                 status=401,
                 headers={
-                    "WWW-Authenticate": 'Basic realm="vArmor Console"',
+                    "WWW-Authenticate": f'Basic realm="{PRODUCT_NAME}"',
                     "Content-Type": "application/json",
                 },
             )
@@ -146,7 +148,7 @@ def require_permission(perm: str):
                 return Response(
                     '{"error": "Unauthorized"}', status=401,
                     headers={
-                        "WWW-Authenticate": 'Basic realm="vArmor Console"',
+                        "WWW-Authenticate": f'Basic realm="{PRODUCT_NAME}"',
                         "Content-Type": "application/json",
                     },
                 )

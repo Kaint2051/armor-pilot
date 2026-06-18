@@ -1,4 +1,4 @@
-# vArmor Console Open Core Plan
+# ArmorPilot Open Core Plan
 
 This project follows an open-core product split:
 
@@ -39,14 +39,14 @@ Use `templates:*` or `*` only for full-enterprise/internal licenses.
 
 ## Runtime Behavior
 
-When `VARMOR_LICENSE_REQUIRED=true`:
+When `ARMORPILOT_LICENSE_REQUIRED=true`:
 
-- Missing or invalid license with `VARMOR_LICENSE_FAIL_OPEN=false` = fail-closed commercial mode.
+- Missing or invalid license with `ARMORPILOT_LICENSE_FAIL_OPEN=false` = fail-closed commercial mode.
 - Missing or invalid license with fail-open enabled = Community/evaluation behavior.
 - Valid license = Enterprise features listed in the signed license are enabled.
 - Locked enterprise packs are hidden from `/api/policy-templates` and returned as `locked_packs`.
 
-When `VARMOR_LICENSE_REQUIRED=false`:
+When `ARMORPILOT_LICENSE_REQUIRED=false`:
 
 - The console runs in Developer edition.
 - All features are visible to avoid breaking labs and internal demos.
