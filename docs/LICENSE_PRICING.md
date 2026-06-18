@@ -3,10 +3,15 @@
 > Status: commercial proposal for internal review.
 > Currency conversions are indicative. Final quotations should be issued in
 > VND, exclude VAT, and define the exact support scope.
-> Pricing strategy: penetration pricing, targeting approximately 50% below
-> comparable enterprise Kubernetes security quotations for equivalent scope.
-> Major vendors commonly use custom quotations, so this is a commercial target,
-> not a guarantee against every competitor or negotiated deal.
+> Pricing strategy: ultra-low market-entry pricing. The prices below are 70%
+> lower than the previous penetration-price proposal and approximately 85%
+> below the original internal price baseline. Major vendors commonly use custom
+> quotations, so this is a commercial target, not a guarantee against every
+> competitor or negotiated deal.
+>
+> These are software-subscription-only prices. Installation, support SLA,
+> training, health checks, custom templates, and integrations are separate
+> professional services.
 
 ## 1. Recommended Commercial Model
 
@@ -68,7 +73,7 @@ features=*
 
 ### Starter
 
-Proposed penetration price: **18,000,000 VND/year** (approximately **USD 700/year**).
+Proposed launch price: **5,400,000 VND/year** (approximately **USD 210/year**).
 
 Included:
 
@@ -78,17 +83,17 @@ Included:
 - Baseline and workload template packs.
 - Policy backup and restore.
 - Standard RBAC and review workflow.
-- Email support during business hours.
-- Two remote support sessions per year.
+- Product updates during the active subscription.
+- Self-service documentation; no support SLA included.
 
-Additional node: **1,200,000 VND/node/year**.
+Additional node: **360,000 VND/node/year**.
 
 Target customers: small businesses, private labs, small Kubernetes production
 environments, and security teams starting runtime policy enforcement.
 
 ### Professional
 
-Proposed penetration price: **60,000,000 VND/year** (approximately **USD 2,350/year**).
+Proposed launch price: **18,000,000 VND/year** (approximately **USD 700/year**).
 
 Included:
 
@@ -100,17 +105,17 @@ Included:
 - NetworkProxy builders and secret integration.
 - Policy review workflow and custom roles.
 - Backup/restore and audit reporting.
-- Business-hours support with a next-business-day response target.
-- Quarterly health check and template update package.
+- Product and template-pack updates during the active subscription.
+- Support and health checks are available as paid add-ons.
 
-Additional node: **900,000 VND/node/year**.
+Additional node: **270,000 VND/node/year**.
 
 Target customers: medium enterprises, managed private clouds, financial
 technology teams, and organizations operating several Kubernetes environments.
 
 ### Enterprise
 
-Proposed penetration price: **150,000,000 VND/year** (approximately **USD 5,900/year**).
+Proposed launch price: **45,000,000 VND/year** (approximately **USD 1,765/year**).
 
 Included:
 
@@ -119,20 +124,18 @@ Included:
 - Unlimited policies, subject to supported system capacity.
 - All product features and template packs.
 - Cluster-bound offline licenses.
-- Custom compliance/template package.
-- Priority support with a four-business-hour response target for critical cases.
-- Quarterly upgrade assistance and security policy review.
-- Up to 10 custom policy templates per year.
+- Eligibility to purchase custom compliance and template packages.
+- Eligibility to purchase priority support and upgrade assistance.
 - Deployment and hardening documentation.
 
-Additional node: **600,000 VND/node/year**.
+Additional node: **180,000 VND/node/year**.
 
 Target customers: large enterprises, government, telecommunications, banking,
 and regulated multi-cluster environments.
 
 ### Enterprise Plus
 
-Price: custom quotation, recommended starting point **300,000,000 VND/year**.
+Price: custom quotation, recommended starting point **90,000,000 VND/year**.
 
 Use this edition when the customer requires:
 
@@ -160,9 +163,9 @@ annual_price =
 Example for Professional with 70 nodes:
 
 ```text
-Professional base, 50 nodes        60,000,000 VND
-20 additional nodes                18,000,000 VND
-Annual subscription total          78,000,000 VND
+Professional base, 50 nodes        18,000,000 VND
+20 additional nodes                 5,400,000 VND
+Annual subscription total          23,400,000 VND
 VAT                                calculated separately
 ```
 
@@ -190,7 +193,7 @@ These services should be quoted separately from the software subscription:
 | Custom integration | Quoted by scope |
 | Administrator training, one day | 15,000,000-25,000,000 VND |
 | On-site support | Travel cost plus daily professional-service rate |
-| 24x7 premium support | Add 20%-35% of annual license price |
+| 24x7 premium support | Custom quote; minimum 60,000,000 VND/year |
 
 Implementation services should have a separate statement of work. Avoid hiding
 unbounded customization inside the annual license price.
@@ -200,14 +203,14 @@ unbounded customization inside the annual license price.
 Suggested maximum discounts:
 
 - One-year subscription: list price.
-- Two-year prepaid: up to 5%.
-- Three-year prepaid: up to 10%.
-- Education/non-profit: up to 20%, subject to approval.
-- Reseller: 15%-25%, depending on who provides first-line support.
+- Two-year prepaid: up to 3%.
+- Three-year prepaid: up to 5%.
+- Education/non-profit: up to 10%, subject to approval.
+- Reseller: 10%-15%, depending on who provides first-line support.
 - Proof of concept: free or fixed fee; credit the fee against the purchase.
 
-These prices already include a substantial market-entry discount. Avoid
-discounts greater than 10% for direct annual deals without management approval.
+These prices already include an aggressive market-entry discount. Avoid
+discounts greater than 5% for direct annual deals without management approval.
 Discount the service component only when the delivery scope is also reduced.
 
 ## 6. Perpetual License
