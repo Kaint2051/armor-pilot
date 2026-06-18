@@ -52,6 +52,12 @@ spec:
               value: "false"
             - name: VARMOR_LICENSE_ALLOW_HS256
               value: "false"
+            - name: VARMOR_LICENSE_REQUIRE_INSTALLATION_BINDING
+              value: "true"
+            - name: VARMOR_INSTALLATION_KEY_FILE
+              value: /app/data/installation-private.pem
+            - name: VARMOR_INSTALLATION_METADATA_FILE
+              value: /app/data/installation.json
 
           volumeMounts:
             - name: kern-log

@@ -8,3 +8,4 @@ license-private.pem
 license-public.pem
 customer-license*.json
 test-*-license.json
+varmor-activation-request*.json

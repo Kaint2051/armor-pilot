@@ -2,6 +2,8 @@
 import argparse
 import base64
 import datetime as dt
+import hashlib
+import hmac
 import json
 from pathlib import Path
 
@@ -30,6 +32,46 @@ def _parse_license_text(raw: str) -> dict:
         payload = json.loads(_b64url_decode(parts[1]).decode("utf-8"))
         return {"algorithm": "Ed25519", "payload": payload, "signature": parts[2]}
     return json.loads(value)
+
+
+def _verify_activation_request(path: Path) -> dict:
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(doc, dict) or doc.get("version") != "varmor-activation-request/v1":
+        raise SystemExit("activation request version is invalid")
+    payload = doc.get("payload")
+    signature = doc.get("signature")
+    if not isinstance(payload, dict) or not isinstance(signature, str) or not signature:
+        raise SystemExit("activation request payload or signature is invalid")
+    required_fields = (
+        "installation_id",
+        "installation_uuid",
+        "installation_public_key",
+        "cluster_uid",
+        "api_ca_sha256",
+    )
+    for field in required_fields:
+        if not isinstance(payload.get(field), str) or not payload[field].strip():
+            raise SystemExit(f"activation request is missing {field}")
+
+    try:
+        raw_public = base64.b64decode(payload["installation_public_key"], validate=True)
+        request_key = Ed25519PublicKey.from_public_bytes(raw_public)
+        request_key.verify(_b64url_decode(signature), _canonical(payload))
+    except Exception as exc:
+        raise SystemExit(f"activation request signature is invalid: {exc}") from exc
+
+    identity_payload = {
+        "version": "varmor-installation/v1",
+        "installation_uuid": payload.get("installation_uuid"),
+        "installation_public_key": payload.get("installation_public_key"),
+        "cluster_uid": payload.get("cluster_uid"),
+        "api_ca_sha256": payload.get("api_ca_sha256"),
+    }
+    expected_id = "vmi_" + hashlib.sha256(_canonical(identity_payload)).hexdigest()
+    actual_id = str(payload.get("installation_id") or "")
+    if not hmac.compare_digest(expected_id, actual_id):
+        raise SystemExit("activation request installation_id is invalid")
+    return payload
 
 
 def _read_private_key(path: Path) -> Ed25519PrivateKey:
@@ -89,6 +131,14 @@ def cmd_sign(args) -> None:
     }
     if args.cluster_uid:
         payload["cluster_uid"] = args.cluster_uid
+    if args.activation_request:
+        request_payload = _verify_activation_request(args.activation_request)
+        request_cluster_uid = str(request_payload.get("cluster_uid") or "").strip()
+        if args.cluster_uid and args.cluster_uid != request_cluster_uid:
+            raise SystemExit("--cluster-uid does not match activation request")
+        payload["installation_id"] = request_payload["installation_id"]
+        if request_cluster_uid:
+            payload["cluster_uid"] = request_cluster_uid
     signature = _b64url(private_key.sign(_canonical(payload)))
     doc = {
         "algorithm": "Ed25519",
@@ -108,6 +158,13 @@ def cmd_verify(args) -> None:
     doc = _parse_license_text(args.license.read_text(encoding="utf-8"))
     public_key.verify(_b64url_decode(doc["signature"]), _canonical(doc["payload"]))
     print("license signature ok")
+
+
+def cmd_verify_request(args) -> None:
+    payload = _verify_activation_request(args.request)
+    print("activation request signature ok")
+    print(f"installation_id={payload['installation_id']}")
+    print(f"cluster_uid={payload.get('cluster_uid') or ''}")
 
 
 def main() -> None:
@@ -131,6 +188,7 @@ def main() -> None:
     p.add_argument("--max-nodes", type=int, default=0)
     p.add_argument("--max-policies", type=int, default=0)
     p.add_argument("--cluster-uid", default="")
+    p.add_argument("--activation-request", type=Path)
     p.add_argument("--format", choices=("key", "json"), default="key")
     p.set_defaults(func=cmd_sign)
 
@@ -138,6 +196,10 @@ def main() -> None:
     p.add_argument("--public-key", type=Path, required=True)
     p.add_argument("--license", type=Path, required=True)
     p.set_defaults(func=cmd_verify)
+
+    p = sub.add_parser("verify-request", help="verify an offline activation request")
+    p.add_argument("--request", type=Path, required=True)
+    p.set_defaults(func=cmd_verify_request)
 
     args = parser.parse_args()
     args.func(args)

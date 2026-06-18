@@ -260,11 +260,12 @@ edition=nfr
 
 ### Cluster-Bound Key
 
-Use `cluster_uid` for higher-value production licenses. A copied key will fail
-verification when the runtime cluster UID does not match.
+Use an activation request and `installation_id` for every paid production
+license. A copied key fails when the installation key, UUID, cluster UID, or API
+CA fingerprint differs.
 
-Cluster binding should be optional during a proof of concept because customers
-may rebuild evaluation clusters frequently.
+Installation binding should be optional during a proof of concept because
+customers may rebuild evaluation clusters frequently.
 
 ## 8. License Key Generation
 
@@ -287,9 +288,13 @@ Keep `license-private.pem` offline and backed up securely. Never place it in:
 Generate a Professional customer key:
 
 ```powershell
+python tools/license_tool.py verify-request `
+  --request varmor-activation-request.json
+
 python tools/license_tool.py sign `
   --private-key license-private.pem `
   --output customer-license.key `
+  --activation-request varmor-activation-request.json `
   --license-id LIC-CUSTOMER-2026-001 `
   --customer "Customer Company" `
   --edition professional `
@@ -297,8 +302,7 @@ python tools/license_tool.py sign `
   --grace-days 14 `
   --features "*" `
   --max-nodes 50 `
-  --max-policies 2000 `
-  --cluster-uid "<kube-system-namespace-uid>"
+  --max-policies 2000
 ```
 
 Verify before delivery:
@@ -334,6 +338,7 @@ The current signed payload supports:
 - `expires_at`
 - `grace_days`
 - `cluster_uid`
+- `installation_id`
 - `limits.max_nodes`
 - `limits.max_policies`
 
@@ -342,6 +347,7 @@ Current runtime enforcement includes:
 - Ed25519 signature verification.
 - Expiration and grace-period validation.
 - Optional cluster UID validation.
+- Offline installation identity binding.
 - Feature/template gating.
 - Maximum-policy enforcement on create/import/restore/approval paths.
 - Node and policy usage reporting.
