@@ -36,14 +36,30 @@ Use a versioned tag in production instead of `latest`.
 ## Kubernetes installation
 
 1. Install vArmor and confirm its CRDs and agents are ready.
-2. Replace the placeholder administrator password in `k8s/secret.yaml`.
-3. Pin the image tag in `k8s/deployment.yaml`.
-4. Apply ArmorPilot:
+2. Pin the image tag in `k8s/deployment.yaml`.
+3. Create a private environment file:
 
 ```bash
-kubectl apply -f k8s/
-kubectl rollout status deployment/armor-pilot
+cp .env.example .env
+chmod 600 .env
 ```
+
+4. Replace `ADMIN_PASS` and review every setting in `.env`.
+5. Deploy with one of the provided scripts:
+
+```bash
+./scripts/deploy.sh .env
+```
+
+```powershell
+Copy-Item .env.example .env
+.\scripts\deploy.ps1 -EnvFile .env
+```
+
+The deployment script creates or updates the Kubernetes Secret
+`armor-pilot-secret` from the private env file, applies the manifests, and
+waits for the rollout. The Deployment imports configuration through
+`envFrom`; no credential values are stored in the manifest.
 
 The default manifest exposes ArmorPilot through NodePort `30080`.
 
@@ -67,6 +83,8 @@ Applying the new manifests alone does not rename or remove legacy resources.
 pip install -r requirements.txt
 npm install
 npm run build:css
+cp .env.example .env
+# Configure ADMIN_USER and ADMIN_PASS in .env.
 flask --app app.main:app run --host 0.0.0.0 --port 5000
 ```
 
@@ -77,6 +95,22 @@ New deployments use the `ARMORPILOT_*` environment variable prefix. Legacy
 transition. Names belonging to the upstream engine, including
 `crd.varmor.org`, `VarmorPolicy`, and the vArmor log path, are intentionally
 unchanged.
+
+The `.env` file is excluded by Git and Docker. Keep the production copy outside
+the repository when possible, for example:
+
+```bash
+sudo install -m 600 .env /etc/armor-pilot/armor-pilot.env
+./scripts/deploy.sh /etc/armor-pilot/armor-pilot.env
+```
+
+Kubernetes Secrets are base64-encoded, not encrypted by default. Restrict RBAC
+access to Secrets and enable Kubernetes encryption at rest for production
+clusters.
+
+`ADMIN_USER` and `ADMIN_PASS` seed the first administrator only when the user
+database is empty. Rotate an existing account password through ArmorPilot's
+Access Control screen instead of editing `.env`.
 
 ## Licensing and attribution
 

@@ -18,9 +18,7 @@ LABEL org.opencontainers.image.title="ArmorPilot" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/pkgs \
-    FLASK_APP=app.main:app \
-    ADMIN_USER=admin \
-    ADMIN_PASS=changeme
+    FLASK_APP=app.main:app
 
 WORKDIR /app
 
