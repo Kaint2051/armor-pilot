@@ -456,10 +456,12 @@ async function exportPolicy(el){
 // LOGS TAB — unified Security Events + views
 // ════════════════════════════════════════════
 
-var _secEventsRaw=[];   // normalized, unfiltered security events
-var _auditRaw=[];       // raw audit events
-var _profilesRaw=[];    // raw armor profiles
-var _secTimeRange="";   // "15m"|"1h"|"24h"|"7d"|""
+var _secEventsRaw=[];       // normalized, unfiltered security events
+var _auditRaw=[];           // raw audit events
+var _profilesRaw=[];        // raw armor profiles
+var _policyActivityRaw=[];  // policy lifecycle events (subset of audit)
+var _loginHistoryRaw=[];    // login/logout events (subset of audit)
+var _secTimeRange="";       // "15m"|"1h"|"24h"|"7d"|""
 var _autoRefreshActive=false;
 var _autoRefreshTimer=null;
-var _drawerEvent=null;  // currently shown event in drawer
+var _drawerEvent=null;      // currently shown event in drawer

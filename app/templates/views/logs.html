@@ -44,6 +44,14 @@
           <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
           Profile Health
         </button>
+        <button id="lcnav-policy-activity" onclick="switchLogsView('policy-activity')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Policy Activity
+        </button>
+        <button id="lcnav-logins" onclick="switchLogsView('logins')" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="color:#94a3b8">
+          <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          Login History
+        </button>
       </div>
 
       <!-- ── VIEW: Security Events ── -->
@@ -172,5 +180,90 @@
         <div id="ap-status-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
         <div id="ap-status-body"></div>
       </div><!-- /lcv-profiles -->
+
+      <!-- ── VIEW: Policy Activity ── -->
+      <div id="lcv-policy-activity" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold" style="color:#94a3b8">Policy lifecycle events — create, edit, delete, approve, reject</span>
+          <div class="flex gap-2 items-center">
+            <select id="pa-filter-action" class="form-input" style="padding:.32rem .5rem;font-size:.75rem;width:10rem" onchange="renderPolicyActivity()">
+              <option value="">All actions</option>
+              <option value="CREATE">Create</option>
+              <option value="UPDATE">Update</option>
+              <option value="DELETE">Delete</option>
+              <option value="APPROVE">Approve</option>
+              <option value="REJECT">Reject</option>
+              <option value="SUBMIT">Submit</option>
+            </select>
+            <select id="pa-filter-status" class="form-input" style="padding:.32rem .5rem;font-size:.75rem;width:8rem" onchange="renderPolicyActivity()">
+              <option value="">All status</option>
+              <option value="SUCCESS">Success</option>
+              <option value="FAILURE">Failure</option>
+            </select>
+            <button onclick="loadPolicyActivity()" class="btn btn-ghost btn-sm text-xs">
+              <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div id="pa-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+        <div id="pa-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No policy activity found.</div>
+        <div id="pa-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+        <div class="card overflow-x-auto" style="padding:0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="th">Time</th>
+                <th class="th">User</th>
+                <th class="th">Action</th>
+                <th class="th">Policy</th>
+                <th class="th">Namespace</th>
+                <th class="th">Status</th>
+                <th class="th">Details</th>
+              </tr>
+            </thead>
+            <tbody id="pa-body"></tbody>
+          </table>
+        </div>
+      </div><!-- /lcv-policy-activity -->
+
+      <!-- ── VIEW: Login History ── -->
+      <div id="lcv-logins" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold" style="color:#94a3b8">Authentication events — logins, logouts, failed attempts</span>
+          <div class="flex gap-2 items-center">
+            <select id="lh-filter-status" class="form-input" style="padding:.32rem .5rem;font-size:.75rem;width:9rem" onchange="renderLoginHistory()">
+              <option value="">All</option>
+              <option value="SUCCESS">Success</option>
+              <option value="FAILURE">Failed</option>
+            </select>
+            <button onclick="loadLoginHistory()" class="btn btn-ghost btn-sm text-xs">
+              <svg class="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div id="lh-loading" class="hidden py-6 flex justify-center"><svg class="spin w-5 h-5" style="color:#475569" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
+        <div id="lh-empty" class="hidden py-6 text-center text-sm" style="color:#475569">No login events found.</div>
+        <div id="lh-err" class="hidden mb-3 p-3 rounded-lg text-sm" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
+
+        <!-- Summary strip -->
+        <div id="lh-summary" class="hidden flex gap-3 mb-3 flex-wrap"></div>
+
+        <div class="card overflow-x-auto" style="padding:0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b">
+                <th class="th">Time</th>
+                <th class="th">User</th>
+                <th class="th">Event</th>
+                <th class="th">Status</th>
+                <th class="th">Details</th>
+              </tr>
+            </thead>
+            <tbody id="lh-body"></tbody>
+          </table>
+        </div>
+      </div><!-- /lcv-logins -->
 
     </div>
