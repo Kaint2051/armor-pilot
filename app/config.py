@@ -14,6 +14,13 @@
 
 import os
 
+from dotenv import load_dotenv
+
+
+# Useful for local development. Container builds exclude .env, and existing
+# process/Kubernetes environment variables always take precedence.
+load_dotenv(override=False)
+
 
 PRODUCT_ENV_PREFIX = "ARMORPILOT_"
 LEGACY_ENV_PREFIX = "VARMOR_"

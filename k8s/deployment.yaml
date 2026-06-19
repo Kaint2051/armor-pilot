@@ -26,38 +26,10 @@ spec:
               containerPort: 5000
               protocol: TCP
 
-          # Load credentials from the Secret
-          env:
-            - name: ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: armor-pilot-secret
-                  key: ADMIN_USER
-            - name: ADMIN_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: armor-pilot-secret
-                  key: ADMIN_PASS
-            - name: APPARMOR_LOG_PATH
-              value: /var/log-host/kern.log
-            - name: VARMOR_VIOLATION_LOG_PATH
-              value: /var/log-varmor/violations.log
-            - name: ARMORPILOT_LICENSE_FILE
-              value: /app/data/license.json
-            - name: ARMORPILOT_LICENSE_REQUIRED
-              value: "true"
-            - name: ARMORPILOT_LICENSE_FAIL_OPEN
-              value: "false"
-            - name: ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY
-              value: "false"
-            - name: ARMORPILOT_LICENSE_ALLOW_HS256
-              value: "false"
-            - name: ARMORPILOT_LICENSE_REQUIRE_INSTALLATION_BINDING
-              value: "true"
-            - name: ARMORPILOT_INSTALLATION_KEY_FILE
-              value: /app/data/installation-private.pem
-            - name: ARMORPILOT_INSTALLATION_METADATA_FILE
-              value: /app/data/installation.json
+          # Created from the private .env file by scripts/deploy.sh or deploy.ps1.
+          envFrom:
+            - secretRef:
+                name: armor-pilot-secret
 
           volumeMounts:
             - name: kern-log

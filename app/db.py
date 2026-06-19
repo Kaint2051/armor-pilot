@@ -116,8 +116,12 @@ def init_db() -> None:
     with get_db() as conn:
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         if count == 0:
-            admin_user = os.environ.get("ADMIN_USER", "admin")
-            admin_pass = os.environ.get("ADMIN_PASS", "changeme")
+            admin_user = os.environ.get("ADMIN_USER", "").strip()
+            admin_pass = os.environ.get("ADMIN_PASS", "")
+            if not admin_user:
+                raise RuntimeError("ADMIN_USER must be configured before first startup")
+            if len(admin_pass) < 12:
+                raise RuntimeError("ADMIN_PASS must be configured with at least 12 characters before first startup")
             conn.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
                 (admin_user, hash_password(admin_pass), "admin"),
