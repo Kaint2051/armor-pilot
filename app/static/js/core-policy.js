@@ -75,7 +75,10 @@ function enterDashboard(){
     loadAll();
   });
 }
-function logout(){localStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();}
+function logout(){
+  if(AUTH_HEADER){fetch("/api/logout",{method:"POST",headers:{Authorization:AUTH_HEADER}}).catch(function(){});}
+  localStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();
+}
 
 var CURRENT_PERMISSIONS=[];
 function hasPerm(p){return CURRENT_PERMISSIONS.indexOf(p)>=0;}
@@ -140,7 +143,7 @@ $("login-form").addEventListener("submit",async function(e){
   if(!u||!p){showEl(errEl,"Please enter username and password.");return;}
   var hdr="Basic "+btoa(u+":"+p);
   try{
-    var r=await fetch("/api/namespaces/default/deployments",{headers:{Authorization:hdr}});
+    var r=await fetch("/api/login",{method:"POST",headers:{Authorization:hdr}});
     if(r.status===401){showEl(errEl,"Invalid username or password.");return;}
     AUTH_HEADER=hdr;CURRENT_USER=u;
     localStorage.setItem("va_auth",JSON.stringify({header:hdr,user:u}));

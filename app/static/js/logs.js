@@ -489,19 +489,20 @@ function renderProfileModels(models){
 // ── Policy Activity Log ──
 // ═══════════════════════════════════════════
 
+// Maps real audit action strings → display category
 var _PA_ACTIONS = {
-  CREATE_POLICY:"CREATE", CREATE_CLUSTER_POLICY:"CREATE",
-  UPDATE_POLICY:"UPDATE", UPDATE_CLUSTER_POLICY:"UPDATE",
-  DELETE_POLICY:"DELETE", DELETE_CLUSTER_POLICY:"DELETE",
-  APPROVE:"APPROVE", REJECT:"REJECT",
-  SUBMIT_POLICY:"SUBMIT", SUBMIT_RESTORE:"SUBMIT",
-  RESTORE_POLICY:"CREATE", RESTORE_DIRECT:"CREATE",
-  IMPORT_POLICY:"CREATE",
+  CREATE:"CREATE", UPDATE:"UPDATE", DELETE:"DELETE",
+  APPROVE_POLICY:"APPROVE", REJECT_POLICY:"REJECT",
+  SUBMIT_REVIEW:"SUBMIT", SUBMIT_RESTORE:"SUBMIT",
+  RESTORE_POLICIES:"RESTORE", RESTORE_DIRECT:"RESTORE",
+  IMPORT:"IMPORT", BACKUP_POLICIES:"BACKUP",
+  APPLY_MODEL:"APPLY",
 };
 
 var _PA_COLOR = {
   CREATE:"#4ade80", UPDATE:"#fbbf24", DELETE:"#f87171",
   APPROVE:"#4ade80", REJECT:"#f87171", SUBMIT:"#a78bfa",
+  RESTORE:"#38bdf8", IMPORT:"#34d399", BACKUP:"#94a3b8", APPLY:"#f59e0b",
 };
 
 async function loadPolicyActivity(){
@@ -513,7 +514,12 @@ async function loadPolicyActivity(){
     if(!r.ok){showEl($("pa-err"),data.error||"Failed");return;}
     var POLICY_ACTIONS=Object.keys(_PA_ACTIONS);
     _policyActivityRaw=(data.events||[]).filter(function(e){
-      return POLICY_ACTIONS.indexOf(e.action)>=0 || (e.action||"").indexOf("POLICY")>=0 || (e.action||"").indexOf("RESTORE")>=0;
+      // exclude system/user-management actions
+      var a=e.action||"";
+      if(["LOGIN","LOGOUT","LOGIN_FAILED","CHANGE_PASSWORD","RESET_PASSWORD",
+          "CREATE_USER","DELETE_USER","UPDATE_ROLE","UPDATE_ROLE_DEF","CREATE_ROLE",
+          "DELETE_ROLE","UPDATE_LICENSE","DELETE_LICENSE","CREATE_SECRET"].indexOf(a)>=0) return false;
+      return POLICY_ACTIONS.indexOf(a)>=0;
     });
     renderPolicyActivity();
   }catch(err){setLoading("pa",false);showEl($("pa-err"),err.message);}

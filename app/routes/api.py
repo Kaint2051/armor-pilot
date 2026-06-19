@@ -1355,6 +1355,29 @@ def get_me():
     })
 
 
+@api_bp.route("/login", methods=["POST"])
+def login_audit():
+    from .auth import _parse_basic_auth, _credentials_valid
+    username, password = _parse_basic_auth()
+    if not username:
+        audit_logger.log("unknown", "LOGIN_FAILED", "-", "system", "FAILURE", "missing credentials")
+        return jsonify({"error": "Unauthorized"}), 401
+    if _credentials_valid(username, password):
+        role = get_current_role()
+        audit_logger.log(username, "LOGIN", "-", "system", "SUCCESS", f"role={role}")
+        return jsonify({"ok": True, "user": username, "role": role})
+    audit_logger.log(username, "LOGIN_FAILED", "-", "system", "FAILURE", "invalid password")
+    return jsonify({"error": "Invalid credentials"}), 401
+
+
+@api_bp.route("/logout", methods=["POST"])
+@require_auth
+def logout_audit():
+    user = get_current_user()
+    audit_logger.log(user, "LOGOUT", "-", "system", "SUCCESS")
+    return jsonify({"ok": True})
+
+
 @api_bp.route("/policy-templates", methods=["GET"])
 @require_permission("policies:view")
 def list_policy_templates_endpoint():
