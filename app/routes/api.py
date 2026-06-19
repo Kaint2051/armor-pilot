@@ -1357,7 +1357,7 @@ def get_me():
 
 @api_bp.route("/login", methods=["POST"])
 def login_audit():
-    from .auth import _parse_basic_auth, _credentials_valid
+    from ..auth import _parse_basic_auth, _credentials_valid
     username, password = _parse_basic_auth()
     if not username:
         audit_logger.log("unknown", "LOGIN_FAILED", "-", "system", "FAILURE", "missing credentials")
