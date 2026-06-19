@@ -1,7 +1,7 @@
 
 // ── Sub-nav ──
 function switchLogsView(view){
-  ["security","audit","profiles"].forEach(function(v){
+  ["security","audit","profiles","policy-activity","logins"].forEach(function(v){
     var el=$("lcv-"+v);if(el)el.classList[v===view?"remove":"add"]("hidden");
     var btn=$("lcnav-"+v);
     if(btn){if(v===view){btn.style.background="#334155";btn.style.color="#f1f5f9";}
@@ -9,6 +9,8 @@ function switchLogsView(view){
   });
   if(view==="audit"&&_auditRaw.length===0) loadAuditLogs();
   if(view==="profiles"&&_profilesRaw.length===0) loadArmorProfiles();
+  if(view==="policy-activity"&&_policyActivityRaw.length===0) loadPolicyActivity();
+  if(view==="logins"&&_loginHistoryRaw.length===0) loadLoginHistory();
   closeEvDrawer();
 }
 
@@ -480,5 +482,154 @@ function renderProfileModels(models){
         +applyBtn
       +'</td>';
     $("models-body").appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════
+// ── Policy Activity Log ──
+// ═══════════════════════════════════════════
+
+var _PA_ACTIONS = {
+  CREATE_POLICY:"CREATE", CREATE_CLUSTER_POLICY:"CREATE",
+  UPDATE_POLICY:"UPDATE", UPDATE_CLUSTER_POLICY:"UPDATE",
+  DELETE_POLICY:"DELETE", DELETE_CLUSTER_POLICY:"DELETE",
+  APPROVE:"APPROVE", REJECT:"REJECT",
+  SUBMIT_POLICY:"SUBMIT", SUBMIT_RESTORE:"SUBMIT",
+  RESTORE_POLICY:"CREATE", RESTORE_DIRECT:"CREATE",
+  IMPORT_POLICY:"CREATE",
+};
+
+var _PA_COLOR = {
+  CREATE:"#4ade80", UPDATE:"#fbbf24", DELETE:"#f87171",
+  APPROVE:"#4ade80", REJECT:"#f87171", SUBMIT:"#a78bfa",
+};
+
+async function loadPolicyActivity(){
+  setLoading("pa",true); hide("pa-empty"); hide("pa-err");
+  $("pa-body").innerHTML="";
+  try{
+    var r=await api("/api/audit-logs?limit=500"), data=await r.json();
+    setLoading("pa",false);
+    if(!r.ok){showEl($("pa-err"),data.error||"Failed");return;}
+    var POLICY_ACTIONS=Object.keys(_PA_ACTIONS);
+    _policyActivityRaw=(data.events||[]).filter(function(e){
+      return POLICY_ACTIONS.indexOf(e.action)>=0 || (e.action||"").indexOf("POLICY")>=0 || (e.action||"").indexOf("RESTORE")>=0;
+    });
+    renderPolicyActivity();
+  }catch(err){setLoading("pa",false);showEl($("pa-err"),err.message);}
+}
+
+function renderPolicyActivity(){
+  var body=$("pa-body"); if(!body)return;
+  body.innerHTML="";
+  var actFilter=(($("pa-filter-action")||{}).value||"").toUpperCase();
+  var stFilter=(($("pa-filter-status")||{}).value||"").toUpperCase();
+  var rows=_policyActivityRaw.filter(function(e){
+    var cat=_PA_ACTIONS[e.action]||e.action||"";
+    if(actFilter && cat!==actFilter) return false;
+    if(stFilter && (e.status||"")!==stFilter) return false;
+    return true;
+  });
+  if(!rows.length){show("pa-empty");return;}
+  hide("pa-empty");
+  rows.forEach(function(ev){
+    var cat=_PA_ACTIONS[ev.action]||ev.action||"";
+    var color=_PA_COLOR[cat]||"#94a3b8";
+    var ok=ev.status==="SUCCESS";
+    var sb=ok?'<span class="badge badge-green" style="font-size:.65rem">OK</span>':'<span class="badge badge-red" style="font-size:.65rem">FAIL</span>';
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b"+(ok?"":";background:rgba(239,68,68,.05)");
+    tr.onmouseover=function(){tr.style.filter="brightness(1.12)";};
+    tr.onmouseout=function(){tr.style.filter="";};
+    tr.innerHTML=
+      '<td class="td" style="font-size:.68rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ev.ts||"—")+'</td>'
+      +'<td class="td" style="font-size:.75rem;color:#94a3b8">'+esc(ev.user||"—")+'</td>'
+      +'<td class="td"><span style="font-size:.7rem;font-weight:600;color:'+color+'">'+esc(ev.action||"?")+'</span></td>'
+      +'<td class="td" style="font-family:monospace;font-size:.72rem;color:#93c5fd">'+esc(ev.policy||"—")+'</td>'
+      +'<td class="td" style="font-size:.72rem;color:#64748b">'+esc(ev.namespace||"—")+'</td>'
+      +'<td class="td">'+sb+'</td>'
+      +'<td class="td" style="font-size:.68rem;color:#64748b;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.details||"")+'">'+esc(ev.details||"—")+'</td>';
+    body.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════
+// ── Login History ──
+// ═══════════════════════════════════════════
+
+var _LOGIN_ACTIONS = ["LOGIN","LOGOUT","LOGIN_FAILED","CHANGE_PASSWORD","RESET_PASSWORD"];
+
+async function loadLoginHistory(){
+  setLoading("lh",true); hide("lh-empty"); hide("lh-err");
+  $("lh-body").innerHTML="";
+  var sumEl=$("lh-summary"); if(sumEl){sumEl.classList.add("hidden");sumEl.innerHTML="";}
+  try{
+    var r=await api("/api/audit-logs?limit=500"), data=await r.json();
+    setLoading("lh",false);
+    if(!r.ok){showEl($("lh-err"),data.error||"Failed");return;}
+    _loginHistoryRaw=(data.events||[]).filter(function(e){
+      return _LOGIN_ACTIONS.indexOf(e.action)>=0;
+    });
+    renderLoginHistory();
+  }catch(err){setLoading("lh",false);showEl($("lh-err"),err.message);}
+}
+
+function renderLoginHistory(){
+  var body=$("lh-body"); if(!body)return;
+  body.innerHTML="";
+  var stFilter=(($("lh-filter-status")||{}).value||"").toUpperCase();
+  var rows=_loginHistoryRaw.filter(function(e){
+    if(stFilter && (e.status||"")!==stFilter) return false;
+    return true;
+  });
+
+  // Summary strip
+  var total=_loginHistoryRaw.length;
+  var success=_loginHistoryRaw.filter(function(e){return e.status==="SUCCESS"&&e.action==="LOGIN";}).length;
+  var failed=_loginHistoryRaw.filter(function(e){return e.action==="LOGIN_FAILED"||e.status==="FAILURE";}).length;
+  var sumEl=$("lh-summary");
+  if(sumEl&&total>0){
+    sumEl.classList.remove("hidden");
+    sumEl.innerHTML=[
+      {label:"Total Events",val:total,color:"#94a3b8"},
+      {label:"Successful Logins",val:success,color:"#4ade80"},
+      {label:"Failed Attempts",val:failed,color:"#f87171"},
+    ].map(function(s){
+      return '<div class="card flex flex-col items-center py-1 px-4" style="min-width:7rem">'
+        +'<div class="text-xs" style="color:#64748b">'+s.label+'</div>'
+        +'<div class="text-lg font-bold" style="color:'+s.color+'">'+s.val+'</div>'
+        +'</div>';
+    }).join("");
+  }
+
+  if(!rows.length){show("lh-empty");return;}
+  hide("lh-empty");
+
+  var _LH_ICON={
+    LOGIN:'<svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="#4ade80" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>',
+    LOGOUT:'<svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="#94a3b8" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>',
+    LOGIN_FAILED:'<svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>',
+    CHANGE_PASSWORD:'<svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="#fbbf24" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>',
+    RESET_PASSWORD:'<svg class="w-3 h-3 inline-block mr-1" fill="none" stroke="#fb923c" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>',
+  };
+  var _LH_COLOR={LOGIN:"#4ade80",LOGOUT:"#94a3b8",LOGIN_FAILED:"#f87171",CHANGE_PASSWORD:"#fbbf24",RESET_PASSWORD:"#fb923c"};
+
+  rows.forEach(function(ev){
+    var ok=ev.status==="SUCCESS";
+    var icon=_LH_ICON[ev.action]||"";
+    var color=_LH_COLOR[ev.action]||"#94a3b8";
+    var sb=ok?'<span class="badge badge-green" style="font-size:.65rem">OK</span>':'<span class="badge badge-red" style="font-size:.65rem">FAIL</span>';
+    var isFailed=ev.action==="LOGIN_FAILED"||ev.status==="FAILURE";
+    var tr=document.createElement("tr");
+    tr.style.cssText="border-bottom:1px solid #1e293b"+(isFailed?";background:rgba(239,68,68,.05)":"");
+    tr.onmouseover=function(){tr.style.filter="brightness(1.12)";};
+    tr.onmouseout=function(){tr.style.filter="";};
+    tr.innerHTML=
+      '<td class="td" style="font-size:.68rem;color:#475569;white-space:nowrap;font-family:monospace">'+esc(ev.ts||"—")+'</td>'
+      +'<td class="td" style="font-size:.78rem;color:#e2e8f0;font-weight:500">'+esc(ev.user||"—")+'</td>'
+      +'<td class="td"><span style="font-size:.72rem;font-weight:600;color:'+color+'">'+icon+esc(ev.action||"?")+'</span></td>'
+      +'<td class="td">'+sb+'</td>'
+      +'<td class="td" style="font-size:.68rem;color:#64748b;max-width:18rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(ev.details||"")+'">'+esc(ev.details||"—")+'</td>';
+    body.appendChild(tr);
   });
 }
