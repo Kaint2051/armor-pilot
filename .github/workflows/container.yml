@@ -13,6 +13,16 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: community
+            image: armor-pilot
+          - edition: enterprise
+            image: armor-pilot-enterprise
+    env:
+      ARMORPILOT_LICENSE_PUBLIC_KEY_B64: ${{ secrets.ARMORPILOT_LICENSE_PUBLIC_KEY_B64 }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -31,7 +41,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/armor-pilot
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -47,3 +57,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           provenance: mode=max
           sbom: true
+          build-args: |
+            PRODUCT_EDITION=${{ matrix.edition }}
+            BUILD_REVISION=${{ github.sha }}
+            ARMORPILOT_LICENSE_PUBLIC_KEY_B64=${{ env.ARMORPILOT_LICENSE_PUBLIC_KEY_B64 }}

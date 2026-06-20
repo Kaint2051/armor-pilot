@@ -62,12 +62,15 @@ The console exposes product metadata:
 
 ## Packaging Notes
 
-The next commercial hardening step should be a production image profile:
+Release builds now use two profiles:
 
-- no development docs/tools/labs in runtime image
-- non-root runtime user
-- signed container images
-- build revision and customer/build watermark
-- private registry delivery
+- `armor-pilot`: Community image with Enterprise template payloads removed.
+- `armor-pilot-enterprise`: private commercial image with licensed payloads.
 
-Obfuscation or compilation can come after this split is stable.
+Both profiles compile backend modules into native extensions, omit Python
+source, run as a non-root user, and expose their build edition/revision through
+the product API. Enterprise builds additionally require a vendor Ed25519 public
+key and compile out runtime key replacement, HS256, and built-in trials.
+
+See [`COMMERCIAL_BUILD.md`](COMMERCIAL_BUILD.md) for release checks and key
+handling.

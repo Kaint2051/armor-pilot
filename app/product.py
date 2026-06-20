@@ -1,3 +1,6 @@
+from .build_profile import BUILD_EDITION, BUILD_REVISION
+
+
 PRODUCT_NAME = "ArmorPilot"
 PRODUCT_SLUG = "armor-pilot"
 PRODUCT_TAGLINE = "Kubernetes Runtime Security Management Platform"
@@ -75,6 +78,8 @@ def get_product_payload(license_status: dict | None = None) -> dict:
         "tagline": PRODUCT_TAGLINE,
         "upstream_engine": UPSTREAM_ENGINE,
         "open_core": True,
+        "build_edition": BUILD_EDITION,
+        "build_revision": BUILD_REVISION,
         "effective_edition": effective_edition(license_status),
         "editions": EDITION_MATRIX,
         "feature_catalog": FEATURE_CATALOG,

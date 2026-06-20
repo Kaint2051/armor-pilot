@@ -264,12 +264,12 @@ The system ships with 72 built-in templates organized into 8 groups:
 
 | Variable | Default | Description |
 |---|---|---|
-| `ARMORPILOT_LICENSE_REQUIRED` | false | Require a valid license to operate |
-| `ARMORPILOT_LICENSE_FAIL_OPEN` | true | Allow operation when the license is invalid |
-| `ARMORPILOT_LICENSE_REQUIRE_INSTALLATION_BINDING` | false | Require the license to be bound to this installation |
-| `ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY` | false | Allow overriding the public key via an environment variable |
-| `ARMORPILOT_LICENSE_ALLOW_HS256` | false | Allow HS256-format licenses (legacy) |
-| `ARMORPILOT_TRIAL_DAYS` | 30 | Built-in trial duration in days (0 = disabled) |
+| `ARMORPILOT_LICENSE_REQUIRED` | Build profile | Enterprise defaults true; Community defaults false |
+| `ARMORPILOT_LICENSE_FAIL_OPEN` | Build profile | Only source/development builds default to fail-open |
+| `ARMORPILOT_LICENSE_REQUIRE_INSTALLATION_BINDING` | Build profile | Enterprise defaults true; Community defaults false |
+| `ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY` | Development only | Production images compile out runtime public-key replacement |
+| `ARMORPILOT_LICENSE_ALLOW_HS256` | Development only | Production images compile out legacy HS256 verification |
+| `ARMORPILOT_TRIAL_DAYS` | 0 | Source-only built-in trial duration; production images compile it out |
 | `ARMORPILOT_LICENSE_FILE` | /app/data/license.json | Path to the license file |
 
 ---

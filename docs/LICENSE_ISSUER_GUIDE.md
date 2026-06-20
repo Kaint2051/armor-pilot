@@ -26,7 +26,9 @@ Keep `license-private.pem` offline and backed up securely. Never place it in:
 - The web console.
 - Shared chat, email, or ticket attachments.
 
-Embed only the corresponding public key in the production console build.
+Configure only the corresponding raw public key as the GitHub Actions secret
+`ARMORPILOT_LICENSE_PUBLIC_KEY_B64`. The commercial build compiles it into the
+Enterprise verifier. See [`COMMERCIAL_BUILD.md`](COMMERCIAL_BUILD.md).
 
 ## 2. Receive the Customer Request
 
@@ -234,4 +236,3 @@ Before delivery:
 - License signature verified.
 - Private key remained offline.
 - Issuance recorded internally.
-
