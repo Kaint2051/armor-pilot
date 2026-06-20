@@ -7,15 +7,17 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .build_profile import (
+    ALLOW_HS256_LICENSES,
+    ALLOW_RUNTIME_PUBLIC_KEY_OVERRIDE,
+    BUILD_EDITION,
+    BUILTIN_TRIAL_CAPABLE,
+    LICENSE_PUBLIC_KEY,
+)
 from .config import get_product_bool_env, get_product_env
 
 
 LICENSE_FILE = get_product_env("LICENSE_FILE", "/app/data/license.json")
-
-# Public keys are safe to distribute, but they are the license trust anchor.
-# For production builds, replace this test key with the vendor Ed25519 public key
-# and keep ARMORPILOT_LICENSE_ALLOW_ENV_PUBLIC_KEY disabled.
-EMBEDDED_LICENSE_PUBLIC_KEY = "OrsGfpk+/4XCzmE/m/CGhXSRFrKgQz8GQqSBcmA/5IE="
 LICENSE_KEY_PREFIX = "ARMORPILOT1"
 LEGACY_LICENSE_KEY_PREFIXES = frozenset({"VARMOR1"})
 
@@ -85,7 +87,7 @@ def parse_license_text(raw: str) -> dict[str, Any]:
 
 
 def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
-    if not get_product_bool_env("LICENSE_ALLOW_HS256", False):
+    if not ALLOW_HS256_LICENSES or not get_product_bool_env("LICENSE_ALLOW_HS256", False):
         raise ValueError("HS256 licenses are disabled")
     secret = get_product_env("LICENSE_HMAC_SECRET")
     if not secret:
@@ -96,8 +98,8 @@ def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
 
 
 def _load_ed25519_public_key():
-    public_key = EMBEDDED_LICENSE_PUBLIC_KEY.strip()
-    if get_product_bool_env("LICENSE_ALLOW_ENV_PUBLIC_KEY", False):
+    public_key = LICENSE_PUBLIC_KEY.strip()
+    if ALLOW_RUNTIME_PUBLIC_KEY_OVERRIDE and get_product_bool_env("LICENSE_ALLOW_ENV_PUBLIC_KEY", False):
         public_key = get_product_env("LICENSE_PUBLIC_KEY").strip() or public_key
     if not public_key:
         raise ValueError("license public key is not configured")
@@ -154,10 +156,17 @@ def _int_limit(limits: dict[str, Any], name: str) -> int:
 
 
 def _base_status() -> dict[str, Any]:
-    required = get_product_bool_env("LICENSE_REQUIRED", False)
-    fail_open = get_product_bool_env("LICENSE_FAIL_OPEN", not required)
-    binding_required = get_product_bool_env("LICENSE_REQUIRE_INSTALLATION_BINDING", False)
+    commercial_build = BUILD_EDITION == "enterprise"
+    developer_build = BUILD_EDITION == "development"
+    required = get_product_bool_env("LICENSE_REQUIRED", commercial_build)
+    fail_open = get_product_bool_env("LICENSE_FAIL_OPEN", developer_build)
+    binding_required = get_product_bool_env(
+        "LICENSE_REQUIRE_INSTALLATION_BINDING",
+        commercial_build,
+    )
+    default_features = ["*"] if developer_build and fail_open else []
     return {
+        "build_edition": BUILD_EDITION,
         "path": LICENSE_FILE,
         "required": required,
         "fail_open": fail_open,
@@ -167,7 +176,7 @@ def _base_status() -> dict[str, Any]:
         "status": "missing",
         "reason": "license file is not present",
         "payload": None,
-        "effective_features": ["*"] if fail_open else [],
+        "effective_features": default_features,
         "days_remaining": None,
         "in_grace": False,
         "compliant": True,
@@ -238,9 +247,12 @@ def _get_builtin_trial_status() -> dict[str, Any] | None:
     """Return a synthetic trial license status based on installation creation date.
 
     Returns None if trial is disabled, expired, or installation data is unavailable.
-    Controlled by ARMORPILOT_TRIAL_DAYS (default 30, set 0 to disable).
+    Source/development builds may enable it with ARMORPILOT_TRIAL_DAYS.
+    Production container profiles compile this capability out.
     """
-    trial_days = int(get_product_env("TRIAL_DAYS", "30") or "0")
+    if not BUILTIN_TRIAL_CAPABLE:
+        return None
+    trial_days = int(get_product_env("TRIAL_DAYS", "0") or "0")
     if trial_days <= 0:
         return None
 
@@ -323,10 +335,15 @@ def get_license_status() -> dict[str, Any]:
             status["effective_features"] = ["*"]
         return status
     except Exception as exc:
+        fallback_features = (
+            ["*"]
+            if BUILD_EDITION == "development" and status["fail_open"]
+            else []
+        )
         status.update({
             "status": "invalid",
             "reason": str(exc),
-            "effective_features": ["*"] if status["fail_open"] else [],
+            "effective_features": fallback_features,
         })
         return status
 
@@ -367,6 +384,8 @@ def attach_runtime_usage(status: dict[str, Any], usage: dict[str, Any] | None) -
 
 def can_add_policies(status: dict[str, Any], count: int = 1) -> tuple[bool, str | None]:
     if count <= 0:
+        return True, None
+    if status.get("build_edition") == "community":
         return True, None
     if not status.get("valid"):
         # When no valid license: respect fail_open — fail-closed deployments block everything

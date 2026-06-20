@@ -94,6 +94,8 @@ Successful activation should show:
 - The same Installation ID used in the activation request.
 
 The console stores the verified license at `/app/data/license.json` by default.
+Production trials are delivered as short-lived vendor-signed keys. The
+installation-date built-in trial is disabled in production container builds.
 
 ## 4. Verify Activation
 

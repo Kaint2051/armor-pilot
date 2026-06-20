@@ -16,10 +16,38 @@ spec:
         app: armor-pilot
     spec:
       serviceAccountName: armor-pilot-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+      initContainers:
+        - name: data-permissions
+          image: ghcr.io/kaint2051/armor-pilot-enterprise:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - chown -R 10001:10001 /app/data && chmod 0700 /app/data
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "FOWNER"]
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: /app/data
 
       containers:
         - name: armor-pilot
-          image: ghcr.io/kaint2051/armor-pilot:latest
+          image: ghcr.io/kaint2051/armor-pilot-enterprise:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -40,10 +68,16 @@ spec:
               readOnly: true
             - name: sqlite-data
               mountPath: /app/data
+            - name: tmp
+              mountPath: /tmp
 
           # Harden the container
           securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
 
@@ -83,6 +117,9 @@ spec:
           hostPath:
             path: /var/lib/armor-pilot
             type: DirectoryOrCreate
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
 
 ---
 apiVersion: v1

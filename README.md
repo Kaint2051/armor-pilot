@@ -23,20 +23,26 @@ vArmor Manager and Agents
 AppArmor / BPF LSM / Seccomp / NetworkProxy
 ```
 
-## Container image
+## Container images
 
-Published releases use:
+Published releases contain two deliberately separate images:
 
 ```text
-ghcr.io/kaint2051/armor-pilot:<version>
+ghcr.io/kaint2051/armor-pilot:<version>             # Community
+ghcr.io/kaint2051/armor-pilot-enterprise:<version>  # Commercial
 ```
 
-Use a versioned tag in production instead of `latest`.
+The Community image does not contain Enterprise template payloads. The
+Enterprise image contains the licensed payloads, but compiles Python backend
+modules into native extensions and does not ship `.py` source files.
+
+Use a versioned tag or digest in production instead of `latest`. The Enterprise
+package should remain private and be granted only to licensed customers.
 
 ## Kubernetes installation
 
 1. Install vArmor and confirm its CRDs and agents are ready.
-2. Pin the image tag in `k8s/deployment.yaml`.
+2. Pin the Enterprise image tag or digest in `k8s/deployment.yaml`.
 3. Create a private environment file:
 
 ```bash
@@ -108,10 +114,30 @@ Kubernetes Secrets are base64-encoded, not encrypted by default. Restrict RBAC
 access to Secrets and enable Kubernetes encryption at rest for production
 clusters.
 
+Production images run as UID/GID `10001`, use a read-only root filesystem, and
+write only to `/app/data` and `/tmp`. The deployment includes a narrowly scoped
+init container that corrects ownership on the persistent data directory.
+
 `ADMIN_USER` and `ADMIN_PASS` seed the first administrator only when the user
 database is empty. Rotate an existing account password through ArmorPilot's
 Access Control screen instead of editing `.env`.
 
+## Documentation
+
+| Document | Description |
+|---|---|
+| [System Overview](docs/SYSTEM_OVERVIEW.md) | Architecture, components, policy modes, enforcement engines, RBAC, and API endpoints |
+| [User Guide](docs/USER_GUIDE.md) | Login, dashboard, policy management, backup and restore, license management, and audit logs |
+| [Practical Labs](docs/PRACTICAL_LABS.md) | Hands-on attack and defense labs using vArmor policies (tiếng Việt) |
+| [Open Core Model](docs/OPEN_CORE.md) | Community vs Enterprise edition split and template pack catalogue |
+| [Commercial Build](docs/COMMERCIAL_BUILD.md) | Enterprise container build, signing key management, and CI/CD configuration |
+| [Licensing](docs/LICENSING.md) | Offline license activation, installation ID, and license key format |
+| [License Pricing](docs/LICENSE_PRICING.md) | Pricing guide and commercial subscription model (internal) |
+| [License Issuer Guide](docs/LICENSE_ISSUER_GUIDE.md) | Vendor signing key operations and license issuance workflow |
+
 ## Licensing and attribution
 
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Commercial image build and key-handling instructions are in
+[docs/COMMERCIAL_BUILD.md](docs/COMMERCIAL_BUILD.md). License activation,
+pricing, and issuance procedures are in the docs above.
