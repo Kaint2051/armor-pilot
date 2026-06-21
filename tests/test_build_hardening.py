@@ -90,9 +90,11 @@ class BuildHardeningTest(unittest.TestCase):
 
     def test_docker_runtime_removes_python_sources_and_runs_non_root(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        compiler = (ROOT / "tools" / "build_extensions.py").read_text(encoding="utf-8")
         self.assertIn("test -z \"$(find /build/runtime/app -type f -name '*.py'", dockerfile)
         self.assertIn("USER 10001:10001", dockerfile)
         self.assertIn("tools/build_extensions.py", dockerfile)
+        self.assertIn('"binding": True', compiler)
 
 
 if __name__ == "__main__":
