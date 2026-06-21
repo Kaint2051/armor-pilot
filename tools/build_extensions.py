@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from Cython.Build import cythonize
+from Cython.Compiler import Options
 from setuptools import Extension, setup
 
 
@@ -29,6 +30,7 @@ def main() -> None:
         Extension(module_name(root, path), [str(path)])
         for path in sources
     ]
+    Options.docstrings = False
     os.chdir(root)
     setup(
         name="armor-pilot-runtime",
@@ -41,7 +43,6 @@ def main() -> None:
                 "binding": False,
                 "embedsignature": False,
                 "emit_code_comments": False,
-                "docstrings": False,
                 "annotation_typing": False,
             },
         ),
