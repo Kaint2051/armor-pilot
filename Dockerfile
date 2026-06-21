@@ -2,10 +2,6 @@ ARG PYTHON_IMAGE=python:3.12-slim
 
 FROM ${PYTHON_IMAGE} AS builder
 
-ARG PRODUCT_EDITION=community
-ARG BUILD_REVISION=unknown
-ARG ARMORPILOT_LICENSE_PUBLIC_KEY_B64=""
-
 WORKDIR /build
 
 RUN apt-get update \
@@ -18,6 +14,10 @@ RUN pip install --no-cache-dir --target=/build/pkgs -r requirements.txt \
 
 COPY app/ /build/source/app/
 COPY tools/prepare_runtime.py tools/build_extensions.py /build/tools/
+
+ARG PRODUCT_EDITION=community
+ARG BUILD_REVISION=unknown
+ARG ARMORPILOT_LICENSE_PUBLIC_KEY_B64=""
 
 RUN python /build/tools/prepare_runtime.py \
         --source /build/source/app \
