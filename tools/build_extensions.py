@@ -40,7 +40,7 @@ def main() -> None:
             nthreads=max(1, os.cpu_count() or 1),
             compiler_directives={
                 "language_level": 3,
-                "binding": False,
+                "binding": True,
                 "embedsignature": False,
                 "emit_code_comments": False,
                 "annotation_typing": False,
