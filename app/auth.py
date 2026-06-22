@@ -54,15 +54,16 @@ def get_permissions_for_role(role: str) -> frozenset:
     if role in ROLE_PERMISSIONS:
         return ROLE_PERMISSIONS[role]
     # custom role — look up permissions from DB
-    try:
-        import json
-        from .db import get_custom_role
-        cr = get_custom_role(role)
-        if cr:
-            return frozenset(json.loads(cr["permissions"]))
-    except Exception:
-        pass
-    return _VIEWER_PERMS
+    import json
+    from .db import get_custom_role
+    cr = get_custom_role(role)
+    # Unknown or deleted role: return empty permissions (deny all) rather than
+    # silently granting viewer access. Callers that need a safe default must
+    # handle the empty set explicitly.
+    if not cr:
+        logger.warning("Unknown role '%s' — no permissions granted", role)
+        return frozenset()
+    return frozenset(json.loads(cr["permissions"]))
 
 
 # ---------------------------------------------------------------------------
@@ -82,12 +83,18 @@ def _parse_basic_auth():
 
 
 def _credentials_valid(username: str, password: str) -> bool:
-    from .db import get_user, verify_password, update_last_login
+    from .db import get_user, verify_password, update_last_login, update_user_password
     user = get_user(username)
     if not user:
         return False
     if not verify_password(password, user["password_hash"]):
         return False
+    # Rehash legacy sha256 hashes to PBKDF2 on successful login
+    if user["password_hash"].startswith("sha256:"):
+        try:
+            update_user_password(username, password)
+        except Exception as exc:
+            logger.warning("Could not rehash password for %s: %s", username, exc)
     try:
         update_last_login(username)
     except Exception as exc:

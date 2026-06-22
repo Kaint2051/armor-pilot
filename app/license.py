@@ -207,7 +207,7 @@ def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
     expires_at = _parse_time(payload.get("expires_at"))
     if not expires_at:
         raise ValueError("payload.expires_at must be an ISO-8601 timestamp")
-    grace_days = int(payload.get("grace_days") or 0)
+    grace_days = min(int(payload.get("grace_days") or 0), 90)
     grace_until = expires_at + dt.timedelta(days=max(grace_days, 0))
     if now > grace_until:
         raise ValueError("license is expired")

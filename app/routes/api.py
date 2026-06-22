@@ -966,7 +966,7 @@ def list_deployments(namespace: str):
         result = apps_v1().list_namespaced_deployment(namespace=namespace)
     except ApiException as exc:
         logger.error("K8s error listing deployments in %s: %s", namespace, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing deployments in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -1050,7 +1050,7 @@ def list_workloads(namespace: str):
         return jsonify({"workloads": workloads})
     except ApiException as exc:
         logger.error("K8s error listing %s in %s: %s", kind, namespace, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing %s in %s", kind, namespace)
         return jsonify({"error": str(exc)}), 500
@@ -1070,7 +1070,7 @@ def list_policies(namespace: str):
         )
     except ApiException as exc:
         logger.error("K8s error listing policies in %s: %s", namespace, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing policies in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -1090,7 +1090,7 @@ def get_policy(namespace: str, name: str):
         return jsonify(item)
     except ApiException as exc:
         logger.error("K8s error getting policy %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error getting policy %s/%s", namespace, name)
         return jsonify({"error": str(exc)}), 500
@@ -1112,7 +1112,7 @@ def update_policy(namespace: str, name: str):
     except ApiException as exc:
         if exc.status == 404:
             return jsonify({"error": f"Policy '{name}' not found"}), 404
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
 
     resource_version = existing.get("metadata", {}).get("resourceVersion", "")
     manifest, err = _build_manifest_from_body(body, "namespace", name, namespace)
@@ -1130,7 +1130,7 @@ def update_policy(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, "UPDATE", name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error updating policy %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         audit_logger.log(user, "UPDATE", name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error updating policy %s/%s", namespace, name)
@@ -1151,7 +1151,7 @@ def delete_policy(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, "DELETE", name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error deleting policy %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         audit_logger.log(user, "DELETE", name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error deleting policy %s/%s", namespace, name)
@@ -1171,7 +1171,7 @@ def list_cluster_policies():
         )
     except ApiException as exc:
         logger.error("K8s error listing cluster policies: %s", exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing cluster policies")
         return jsonify({"error": str(exc)}), 500
@@ -1191,7 +1191,7 @@ def get_cluster_policy(name: str):
         return jsonify(item)
     except ApiException as exc:
         logger.error("K8s error getting cluster policy %s: %s", name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error getting cluster policy %s", name)
         return jsonify({"error": str(exc)}), 500
@@ -1213,7 +1213,7 @@ def update_cluster_policy(name: str):
     except ApiException as exc:
         if exc.status == 404:
             return jsonify({"error": f"Cluster policy '{name}' not found"}), 404
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
 
     resource_version = existing.get("metadata", {}).get("resourceVersion", "")
     manifest, err = _build_manifest_from_body(body, "cluster", name, "")
@@ -1231,7 +1231,7 @@ def update_cluster_policy(name: str):
     except ApiException as exc:
         audit_logger.log(user, "UPDATE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error updating cluster policy %s: %s", name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         audit_logger.log(user, "UPDATE", name, "cluster", "FAILURE", str(exc))
         logger.exception("Unexpected error updating cluster policy %s", name)
@@ -1252,7 +1252,7 @@ def delete_cluster_policy(name: str):
     except ApiException as exc:
         audit_logger.log(user, "DELETE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error deleting cluster policy %s: %s", name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         audit_logger.log(user, "DELETE", name, "cluster", "FAILURE", str(exc))
         logger.exception("Unexpected error deleting cluster policy %s", name)
@@ -1304,7 +1304,7 @@ def create_policy():
         except ApiException as exc:
             audit_logger.log(user, "CREATE", name, "cluster", "FAILURE", exc.reason or str(exc.status))
             logger.error("K8s error creating cluster policy %s: %s", name, exc)
-            return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+            return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
         except Exception as exc:
             audit_logger.log(user, "CREATE", name, "cluster", "FAILURE", str(exc))
             logger.exception("Unexpected error creating cluster policy %s", name)
@@ -1332,7 +1332,7 @@ def create_policy():
         except ApiException as exc:
             audit_logger.log(user, "CREATE", name, namespace, "FAILURE", exc.reason or str(exc.status))
             logger.error("K8s error creating policy %s/%s: %s", namespace, name, exc)
-            return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+            return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
         except Exception as exc:
             audit_logger.log(user, "CREATE", name, namespace, "FAILURE", str(exc))
             logger.exception("Unexpected error creating policy %s/%s", namespace, name)
@@ -1519,14 +1519,17 @@ def change_user_password(username: str):
     new_password = body.get("new_password") or ""
     if len(new_password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
+    from ..db import get_user, update_user_password
+    # Verify target user exists for both self and admin paths
+    target_user = get_user(username)
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
     # Changing own password requires current password verification
     if current == username:
-        from ..db import get_user, verify_password
-        user = get_user(username)
+        from ..db import verify_password
         cur_pass = body.get("current_password") or ""
-        if not cur_pass or not user or not verify_password(cur_pass, user["password_hash"]):
+        if not cur_pass or not verify_password(cur_pass, target_user["password_hash"]):
             return jsonify({"error": "Current password is incorrect"}), 403
-    from ..db import update_user_password
     update_user_password(username, new_password)
     audit_logger.log(current, "CHANGE_PASSWORD", username, "system", "SUCCESS", "")
     return jsonify({"ok": True, "message": "Password changed successfully"})
@@ -1722,7 +1725,7 @@ def list_profile_models(namespace: str):
         )
     except ApiException as exc:
         logger.error("K8s error listing profile models in %s: %s", namespace, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing profile models in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -1774,7 +1777,7 @@ def get_profile_model(namespace: str, name: str):
         return jsonify(item)
     except ApiException as exc:
         logger.error("K8s error getting profile model %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error getting profile model %s/%s", namespace, name)
         return jsonify({"error": str(exc)}), 500
@@ -1806,7 +1809,7 @@ def set_deployment_protection(namespace: str, name: str):
     except ApiException as exc:
         audit_logger.log(user, action, name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error protecting deployment %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         audit_logger.log(user, action, name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error protecting deployment %s/%s", namespace, name)
@@ -1857,7 +1860,7 @@ def agent_health():
     try:
         return jsonify(_collect_agent_health())
     except ApiException as exc:
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error fetching agent health")
         return jsonify({"error": str(exc)}), 500
@@ -2371,13 +2374,19 @@ def get_queue_item_endpoint(item_id: str):
 @api_bp.route("/policies/queue/<item_id>/approve", methods=["POST"])
 @require_permission("review:approve")
 def approve_queued_policy(item_id: str):
+    from ..db import claim_queue_item_for_approval
     user = get_current_user()
     body = request.get_json(silent=True) or {}
     item = get_queue_item(item_id)
     if not item:
         return jsonify({"error": "Queue item not found"}), 404
-    if item["status"] != "pending":
+    if item["status"] not in ("pending",):
         return jsonify({"error": f"Cannot approve: item status is '{item['status']}'"}), 400
+
+    # Atomic claim — prevents double-approve race condition
+    if not claim_queue_item_for_approval(item_id, user):
+        return jsonify({"error": "Item was already claimed by another approver"}), 409
+
     import json as _json
     stored = _json.loads(item["manifest"])
     name = item["name"]
@@ -2392,11 +2401,14 @@ def approve_queued_policy(item_id: str):
     else:
         manifest, _merr = _build_manifest_from_body(stored, scope, name, namespace)
         if _merr:
+            update_queue_status(item_id, "pending")  # release claim on build error
             return jsonify({"error": f"Cannot rebuild policy manifest: {_merr}"}), 400
         unconfined_containers = _clean_str_list(stored.get("unconfined_containers") or [])
     capacity_err = _policy_capacity_error(_new_policy_count_for_manifests([manifest]))
     if capacity_err:
+        update_queue_status(item_id, "pending")  # release claim
         return jsonify({"error": capacity_err, "license": _license_status_with_usage()}), 403
+
     def _do_apply():
         """Create policy; if it already exists, patch-update it instead."""
         if scope == "cluster":
@@ -2439,12 +2451,21 @@ def approve_queued_policy(item_id: str):
                         "message": f"Policy '{name}' approved and applied to cluster"})
     except ApiException as exc:
         err_msg = _k8s_error_msg(exc)
-        update_queue_status(item_id, "rejected", reviewed_by=user,
-                            review_note=f"Apply failed: {err_msg}")
+        status_code = exc.status or 500
+        # Transient server-side errors (5xx, timeout) → release claim so approver can retry.
+        # Definitive errors (4xx other than 409) → mark rejected.
+        if status_code >= 500 or status_code is None:
+            update_queue_status(item_id, "pending",
+                                review_note=f"Transient apply error (will retry): {err_msg}")
+        else:
+            update_queue_status(item_id, "rejected", reviewed_by=user,
+                                review_note=f"Apply failed: {err_msg}")
         audit_logger.log(user, "APPROVE_POLICY", name, namespace, "FAILURE", err_msg)
-        return jsonify({"error": err_msg}), exc.status
+        return jsonify({"error": err_msg}), status_code
     except Exception as exc:
         logger.exception("Unexpected error approving queued policy %s", item_id)
+        update_queue_status(item_id, "pending",
+                            review_note=f"Unexpected error (will retry): {exc}")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -2519,14 +2540,17 @@ def backup_policies():
                     ident = _backup_manifest_identity(manifest)
                     items.append({**ident, "manifest": manifest})
     except ApiException as exc:
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error building policy backup")
         return jsonify({"error": str(exc)}), 500
 
     audit_logger.log(user, "BACKUP_POLICIES", "policies", namespace, "SUCCESS", f"count={len(items)}")
     ts = _utc_backup_timestamp().replace(":", "").replace("-", "")[:15]
-    filename = f"armor-pilot-backup-{namespace}-{ts}.json"
+    # Sanitize namespace: keep only alphanumeric, hyphens, dots to prevent header injection
+    import re as _re
+    safe_ns = _re.sub(r"[^a-zA-Z0-9\-.]", "_", namespace)[:63]
+    filename = f"armor-pilot-backup-{safe_ns}-{ts}.json"
     resp = jsonify({
         "version": POLICY_BACKUP_VERSION,
         "created_at": _utc_backup_timestamp(),
@@ -2648,7 +2672,7 @@ def apply_model_as_policy(namespace: str, name: str):
             namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL, name=name,
         )
     except ApiException as exc:
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
 
     # Resolve policy name from ownerReference, then strip varmor-<ns>- prefix
     policy_name = None
@@ -2717,7 +2741,7 @@ def apply_model_as_policy(namespace: str, name: str):
         return jsonify({"ok": True, "policy": policy_name, "old_mode": old_mode, "new_mode": new_mode})
     except ApiException as exc:
         audit_logger.log(user, "APPLY_MODEL", policy_name, namespace, "FAILURE", str(exc.status))
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
 
 
 # ---------------------------------------------------------------------------
@@ -2734,7 +2758,7 @@ def list_armor_profiles(namespace: str):
         )
     except ApiException as exc:
         logger.error("K8s error listing armor profiles in %s: %s", namespace, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing armor profiles in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -2925,7 +2949,7 @@ def list_secrets(namespace: str):
         result = core_v1().list_namespaced_secret(namespace=namespace)
     except ApiException as exc:
         logger.error("K8s error listing secrets in %s: %s", namespace, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error listing secrets in %s", namespace)
         return jsonify({"error": str(exc)}), 500
@@ -2976,7 +3000,7 @@ def create_secret(namespace: str):
     except ApiException as exc:
         audit_logger.log(user, "CREATE_SECRET", name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error creating secret %s/%s: %s", namespace, name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         logger.exception("Unexpected error creating secret %s/%s", namespace, name)
         return jsonify({"error": str(exc)}), 500
@@ -3014,6 +3038,27 @@ def import_policy():
     if kind not in ("VarmorPolicy", "VarmorClusterPolicy"):
         return jsonify({"error": f"kind must be VarmorPolicy or VarmorClusterPolicy, got '{kind}'"}), 400
 
+    # Validate enforcer + mode combination (same rules as _build_manifest_from_body)
+    policy_spec = (manifest.get("spec") or {}).get("policy") or {}
+    enforcer_str = str(policy_spec.get("enforcer") or "").strip()
+    mode = str(policy_spec.get("mode") or "").strip()
+    if enforcer_str:
+        enforcers = [e.strip() for e in enforcer_str.split("|") if e.strip()]
+        enf_set = frozenset(enforcers)
+        if mode == "BehaviorModeling" and "NetworkProxy" in enforcers:
+            return jsonify({"error": "BehaviorModeling mode is not supported with NetworkProxy enforcer"}), 400
+        if mode == "DefenseInDepth" and "BPF" in enforcers:
+            return jsonify({"error": "DefenseInDepth mode does not support BPF enforcer"}), 400
+        if enf_set and enf_set not in VALID_ENFORCER_COMBOS:
+            valid_strs = ["+".join(sorted(s)) for s in sorted(VALID_ENFORCER_COMBOS, key=len)]
+            return jsonify({"error": f"Unsupported enforcer combination. Valid: {', '.join(valid_strs)}"}), 400
+
+    # Strip volatile server-side fields that Kubernetes rejects on CREATE
+    if "metadata" in manifest:
+        for field in ("resourceVersion", "uid", "selfLink", "generation",
+                      "managedFields", "creationTimestamp"):
+            manifest["metadata"].pop(field, None)
+
     # Ensure correct apiVersion
     manifest["apiVersion"] = f"{VARMOR_GROUP}/{VARMOR_VERSION}"
     capacity_err = _policy_capacity_error(_new_policy_count_for_manifests([manifest]))
@@ -3040,7 +3085,7 @@ def import_policy():
     except ApiException as exc:
         audit_logger.log(user, "IMPORT", name, namespace, "FAILURE", exc.reason or str(exc.status))
         logger.error("K8s error importing policy %s: %s", name, exc)
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         audit_logger.log(user, "IMPORT", name, namespace, "FAILURE", str(exc))
         logger.exception("Unexpected error importing policy %s", name)
@@ -3152,7 +3197,7 @@ def advise_policy(namespace: str, name: str):
             namespace=namespace, plural=ARMOR_PROFILE_MODEL_PLURAL, name=name,
         )
     except ApiException as exc:
-        return jsonify({"error": _k8s_error_msg(exc)}), exc.status
+        return jsonify({"error": _k8s_error_msg(exc)}), exc.status or 500
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

@@ -8,6 +8,7 @@ _MAX_EVENTS = 500
 
 class AuditLogger:
     def __init__(self):
+        # In-memory cache for fast recent-events access (last _MAX_EVENTS entries)
         self._events: collections.deque = collections.deque(maxlen=_MAX_EVENTS)
         self.logger = logging.getLogger("varmor.audit")
         self.logger.setLevel(logging.INFO)
@@ -31,7 +32,7 @@ class AuditLogger:
         if details:
             parts.append(f'details="{details}"')
         self.logger.info(" ".join(parts))
-        self._events.append({
+        event = {
             "ts": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             "user": user,
             "action": action,
@@ -39,10 +40,22 @@ class AuditLogger:
             "namespace": namespace,
             "status": status,
             "details": details,
-        })
+        }
+        self._events.append(event)
+        # Persist to SQLite — non-fatal if DB is unavailable
+        try:
+            from .db import insert_audit_event
+            insert_audit_event(user, action, policy_name, namespace, status, details)
+        except Exception as exc:
+            self.logger.warning("Could not persist audit event to DB: %s", exc)
 
-    def get_events(self):
-        return list(reversed(self._events))
+    def get_events(self, limit: int = 500):
+        # Prefer DB (survives restarts); fall back to in-memory cache
+        try:
+            from .db import get_audit_events
+            return get_audit_events(limit=limit)
+        except Exception:
+            return list(reversed(self._events))[:limit]
 
 
 audit_logger = AuditLogger()
