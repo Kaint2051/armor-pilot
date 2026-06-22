@@ -1,0 +1,54 @@
+ARG PYTHON_IMAGE=python:3.12-slim
+
+FROM ${PYTHON_IMAGE}
+
+ARG PRODUCT_EDITION=enterprise
+ARG BUILD_REVISION=unknown
+ARG ARMORPILOT_LICENSE_PUBLIC_KEY_B64=""
+
+WORKDIR /app
+
+LABEL org.opencontainers.image.title="ArmorPilot" \
+      org.opencontainers.image.description="Kubernetes runtime security management platform powered by vArmor" \
+      org.opencontainers.image.source="https://github.com/Kaint2051/armor-pilot" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      io.armorpilot.edition="${PRODUCT_EDITION}" \
+      org.opencontainers.image.revision="${BUILD_REVISION}"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/pkgs \
+    FLASK_APP=app.main:app \
+    HOME=/tmp
+
+RUN groupadd --gid 10001 armorpilot \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin armorpilot \
+    && mkdir -p /app/data \
+    && chown -R 10001:10001 /app/data
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --target=/app/pkgs -r requirements.txt
+
+COPY app/ /build/source/app/
+COPY tools/prepare_runtime.py /build/tools/
+
+RUN python /build/tools/prepare_runtime.py \
+        --source /build/source/app \
+        --output /app/app \
+        --edition "${PRODUCT_EDITION}" \
+        --revision "${BUILD_REVISION}" \
+        --license-public-key "${ARMORPILOT_LICENSE_PUBLIC_KEY_B64}" \
+    && rm -rf /build
+
+USER 10001:10001
+
+EXPOSE 5000
+
+CMD ["python", "-m", "gunicorn", \
+     "--bind", "0.0.0.0:5000", \
+     "--workers", "1", \
+     "--timeout", "60", \
+     "--worker-tmp-dir", "/tmp", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "app.main:app"]
