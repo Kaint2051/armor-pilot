@@ -94,6 +94,20 @@ def init_db() -> None:
             )
         """)
 
+        # Audit events (persistent)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                user       TEXT NOT NULL,
+                action     TEXT NOT NULL,
+                policy     TEXT NOT NULL DEFAULT '',
+                namespace  TEXT NOT NULL DEFAULT '',
+                status     TEXT NOT NULL DEFAULT '',
+                details    TEXT NOT NULL DEFAULT ''
+            )
+        """)
+
         # Policy review queue
         conn.execute("""
             CREATE TABLE IF NOT EXISTS policy_queue (
@@ -105,7 +119,7 @@ def init_db() -> None:
                 submitted_by TEXT NOT NULL,
                 submitted_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
                 status       TEXT NOT NULL DEFAULT 'pending'
-                                 CHECK(status IN ('pending','approved','rejected','cancelled')),
+                                 CHECK(status IN ('pending','approving','approved','rejected','cancelled')),
                 reviewed_by  TEXT,
                 reviewed_at  TEXT,
                 review_note  TEXT
@@ -133,17 +147,31 @@ def init_db() -> None:
 # Password helpers
 # ---------------------------------------------------------------------------
 
+_PBKDF2_ITERATIONS = 260_000
+
+
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
-    h = hashlib.sha256((salt + password).encode()).hexdigest()
-    return f"sha256:{salt}:{h}"
+    raw = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), _PBKDF2_ITERATIONS)
+    return f"pbkdf2:sha256:{_PBKDF2_ITERATIONS}:{salt}:{raw.hex()}"
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
     try:
-        _, salt, h = stored_hash.split(":", 2)
-        candidate = hashlib.sha256((salt + password).encode()).hexdigest()
-        return secrets.compare_digest(candidate, h)
+        parts = stored_hash.split(":", 2)
+        scheme = parts[0]
+        if scheme == "pbkdf2":
+            # pbkdf2:sha256:<iterations>:<salt>:<hex>
+            _, digest, iters_str, salt, h = stored_hash.split(":", 4)
+            iters = int(iters_str)
+            raw = hashlib.pbkdf2_hmac(digest, password.encode(), salt.encode(), iters)
+            return secrets.compare_digest(raw.hex(), h)
+        elif scheme == "sha256":
+            # legacy: sha256:<salt>:<hex> — accepted for login, rehashed on next write
+            _, salt, h = parts
+            candidate = hashlib.sha256((salt + password).encode()).hexdigest()
+            return secrets.compare_digest(candidate, h)
+        return False
     except Exception:
         return False
 
@@ -275,6 +303,24 @@ def update_queue_status(item_id: str, status: str,
         )
 
 
+def claim_queue_item_for_approval(item_id: str, reviewer: str) -> bool:
+    """Atomically transition a pending item to 'approving' to prevent double-approve.
+
+    Returns True if the claim succeeded (exactly one row updated), False if the
+    item was already claimed or does not exist.
+    """
+    with get_db() as conn:
+        cur = conn.execute(
+            """UPDATE policy_queue
+               SET status='approving',
+                   reviewed_by=?,
+                   reviewed_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
+               WHERE id=? AND status='pending'""",
+            (reviewer, item_id),
+        )
+        return cur.rowcount == 1
+
+
 # ---------------------------------------------------------------------------
 # Custom roles CRUD
 # ---------------------------------------------------------------------------
@@ -316,6 +362,28 @@ def update_custom_role(name: str, description: str, permissions: list) -> None:
             "UPDATE custom_roles SET description=?, permissions=? WHERE name=?",
             (description, json.dumps(sorted(permissions)), name),
         )
+
+
+# ---------------------------------------------------------------------------
+# Audit events persistence
+# ---------------------------------------------------------------------------
+
+def insert_audit_event(user: str, action: str, policy: str,
+                       namespace: str, status: str, details: str) -> None:
+    with get_db() as conn:
+        conn.execute(
+            """INSERT INTO audit_events (user, action, policy, namespace, status, details)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (user, action, policy, namespace, status, details),
+        )
+
+
+def get_audit_events(limit: int = 500) -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM audit_events ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def delete_custom_role(name: str) -> None:

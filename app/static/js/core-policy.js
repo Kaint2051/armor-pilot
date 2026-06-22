@@ -53,7 +53,7 @@ window.addEventListener("DOMContentLoaded",function(){
   // Bind form-change validation reset so editing after ✓ Validate clears the valid state
   var _fc=$("form-create");
   if(_fc){_fc.addEventListener("input",_onFormChange);_fc.addEventListener("change",_onFormChange);}
-  try{var s=JSON.parse(localStorage.getItem("va_auth")||"null");
+  try{var s=JSON.parse(sessionStorage.getItem("va_auth")||"null");
     if(s&&s.header&&s.user){AUTH_HEADER=s.header;CURRENT_USER=s.user;enterDashboard();return;}}catch(x){}
   enterLogin();
 });
@@ -77,7 +77,7 @@ function enterDashboard(){
 }
 function logout(){
   if(AUTH_HEADER){fetch("/api/logout",{method:"POST",headers:{Authorization:AUTH_HEADER}}).catch(function(){});}
-  localStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();
+  sessionStorage.removeItem("va_auth");AUTH_HEADER=null;CURRENT_USER=null;CURRENT_ROLE="viewer";enterLogin();
 }
 
 var CURRENT_PERMISSIONS=[];
@@ -146,7 +146,7 @@ $("login-form").addEventListener("submit",async function(e){
     var r=await fetch("/api/login",{method:"POST",headers:{Authorization:hdr}});
     if(r.status===401){showEl(errEl,"Invalid username or password.");return;}
     AUTH_HEADER=hdr;CURRENT_USER=u;
-    localStorage.setItem("va_auth",JSON.stringify({header:hdr,user:u}));
+    sessionStorage.setItem("va_auth",JSON.stringify({header:hdr,user:u}));
     enterDashboard();
   }catch(err){showEl(errEl,"Connection error: "+err.message);}
 });
@@ -1442,7 +1442,7 @@ function showEl(el,msg){el.textContent=msg;el.classList.remove("hidden");}
 function hideEl(el){el.classList.add("hidden");}
 function setLoading(p,on){on?show(p+"-loading"):hide(p+"-loading");}
 function showMsg(el,type,text){
-  el.innerHTML=text;
+  el.textContent=text;
   var s={success:"background:#052e16;border:1px solid #166534;color:#86efac",
     error:"background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5",
     warn:"background:#451a03;border:1px solid #9a3412;color:#fdba74"};
