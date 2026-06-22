@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: armor-pilot
-  namespace: default
+  name: {{ include "armor-pilot.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
-    app: armor-pilot
+    {{- include "armor-pilot.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app: armor-pilot
@@ -14,6 +14,7 @@ spec:
     metadata:
       labels:
         app: armor-pilot
+        {{- include "armor-pilot.labels" . | nindent 8 }}
     spec:
       serviceAccountName: armor-pilot-sa
       securityContext:
@@ -27,8 +28,8 @@ spec:
 
       initContainers:
         - name: data-permissions
-          image: ghcr.io/kaint2051/armor-pilot-enterprise:latest
-          imagePullPolicy: IfNotPresent
+          image: {{ include "armor-pilot.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - sh
             - -c
@@ -47,17 +48,16 @@ spec:
 
       containers:
         - name: armor-pilot
-          image: ghcr.io/kaint2051/armor-pilot-enterprise:latest
-          imagePullPolicy: IfNotPresent
+          image: {{ include "armor-pilot.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 5000
               protocol: TCP
 
-          # Created from the private .env file by scripts/deploy.sh or deploy.ps1.
           envFrom:
             - secretRef:
-                name: armor-pilot-secret
+                name: {{ .Values.secret.name }}
 
           volumeMounts:
             - name: kern-log
@@ -71,7 +71,6 @@ spec:
             - name: tmp
               mountPath: /tmp
 
-          # Harden the container
           securityContext:
             runAsNonRoot: true
             runAsUser: 10001
@@ -82,12 +81,7 @@ spec:
               drop: ["ALL"]
 
           resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "256Mi"
+            {{- toYaml .Values.resources | nindent 12 }}
 
           livenessProbe:
             httpGet:
@@ -107,35 +101,16 @@ spec:
       volumes:
         - name: kern-log
           hostPath:
-            path: /var/log
+            path: {{ .Values.logs.kernPath }}
             type: Directory
         - name: varmor-log
           hostPath:
-            path: /var/log/varmor
+            path: {{ .Values.logs.varmorPath }}
             type: DirectoryOrCreate
         - name: sqlite-data
           hostPath:
-            path: /var/lib/armor-pilot
+            path: {{ .Values.data.hostPath }}
             type: DirectoryOrCreate
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: armor-pilot-svc
-  namespace: default
-  labels:
-    app: armor-pilot
-spec:
-  type: NodePort
-  selector:
-    app: armor-pilot
-  ports:
-    - name: http
-      protocol: TCP
-      port: 80
-      targetPort: 5000
-      nodePort: 30080   # Access via http://<node-ip>:30080

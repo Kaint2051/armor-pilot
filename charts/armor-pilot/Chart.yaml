@@ -1,0 +1,18 @@
+apiVersion: v2
+name: armor-pilot
+description: Kubernetes runtime security management platform powered by vArmor
+type: application
+version: 0.3.0
+appVersion: "0.3.0"
+home: https://github.com/Kaint2051/armor-pilot
+sources:
+  - https://github.com/Kaint2051/armor-pilot
+keywords:
+  - security
+  - kubernetes
+  - varmor
+  - runtime-security
+  - apparmor
+maintainers:
+  - name: Kaint2051
+    email: tructet@vnnic.vn

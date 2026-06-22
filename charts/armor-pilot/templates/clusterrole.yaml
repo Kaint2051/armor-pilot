@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "armor-pilot.name" . }}-role
+  labels:
+    {{- include "armor-pilot.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "patch"]
+
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create"]
+
+  - apiGroups: ["crd.varmor.org"]
+    resources: ["varmorpolicies", "varmorclusterpolicies", "armorprofilemodels", "armorprofiles"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "armor-pilot.name" . }}-binding
+  labels:
+    {{- include "armor-pilot.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "armor-pilot.name" . }}-role
+subjects:
+  - kind: ServiceAccount
+    name: armor-pilot-sa
+    namespace: {{ .Release.Namespace }}

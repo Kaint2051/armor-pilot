@@ -1,0 +1,36 @@
+image:
+  repository: ghcr.io/kaint2051/armor-pilot
+  # tag defaults to chart appVersion when empty
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# community or enterprise
+edition: community
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 5000
+  nodePort: 30080
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+
+data:
+  hostPath: /var/lib/armor-pilot
+
+logs:
+  kernPath: /var/log
+  varmorPath: /var/log/varmor
+
+# Name of the K8s Secret that holds the app's .env values.
+# Create with: kubectl create secret generic armor-pilot-secret --from-env-file=.env
+secret:
+  name: armor-pilot-secret
