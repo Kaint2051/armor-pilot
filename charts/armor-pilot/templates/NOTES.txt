@@ -1,0 +1,17 @@
+ArmorPilot {{ .Chart.AppVersion }} ({{ .Values.edition }} edition) has been deployed.
+
+Access the console:
+{{- if eq .Values.service.type "NodePort" }}
+  http://<node-ip>:{{ .Values.service.nodePort }}
+{{- else }}
+  kubectl port-forward svc/{{ include "armor-pilot.name" . }}-svc 8080:80
+  http://localhost:8080
+{{- end }}
+
+Check status:
+  kubectl rollout status deployment/{{ include "armor-pilot.name" . }} -n {{ .Release.Namespace }}
+  kubectl get pods -n {{ .Release.Namespace }} -l app=armor-pilot
+
+Default credentials are set via the '{{ .Values.secret.name }}' secret.
+Create it before install:
+  kubectl create secret generic {{ .Values.secret.name }} --from-env-file=.env -n {{ .Release.Namespace }}
