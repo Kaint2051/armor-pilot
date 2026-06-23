@@ -157,6 +157,8 @@ function downloadActivationRequest(){
 
 function closeActivationRequestModal(){
   hide("modal-activation-request");
+  hide("ar-success-state");
+  show("ar-form-actions");
 }
 
 async function confirmDownloadActivationRequest(){
@@ -233,7 +235,34 @@ async function confirmDownloadActivationRequest(){
     a.href=url;
     a.download="varmor-activation-request.json";
     document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-    closeActivationRequestModal();
+
+    var termLabels={365:"1 year",730:"2 years",1095:"3 years",90:"90 days",30:"30 days"};
+    var termLabel=durSel==="custom"?days+" days":(termLabels[durSel]||days+" days");
+    var subject="ArmorPilot License Request — "+company.trim()+" — "+edition+" — "+requestType;
+    var bodyParts=[
+      "Organization: "+company.trim(),
+      taxId.trim()?"Tax ID: "+taxId.trim():null,
+      "Contact: "+name.trim()+" <"+email.trim()+">",
+      phone.trim()?"Phone: "+phone.trim():null,
+      country.trim()?"Country: "+country.trim():null,
+      address.trim()?"Address: "+address.trim():null,
+      "",
+      "Request Type: "+requestType,
+      "Edition: "+edition,
+      "Term: "+termLabel,
+      "Nodes: "+maxNodes,
+      "Policies: "+maxPolicies,
+      existingLicenseId.trim()?"Existing License ID: "+existingLicenseId.trim():null,
+      quoteReference.trim()?"Quote Reference: "+quoteReference.trim():null,
+      notes.trim()?"\nNotes:\n"+notes.trim():null,
+      "",
+      "---",
+      "Attachment: varmor-activation-request.json (please attach the downloaded file)"
+    ].filter(function(l){return l!==null;}).join("\n");
+    var mailtoEl=$("ar-mailto-link");
+    if(mailtoEl) mailtoEl.href="mailto:tuancr2001@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(bodyParts);
+    hide("ar-form-actions");
+    show("ar-success-state");
   }catch(e){
     showEl(errEl,e.message||"Failed to create activation request.");
   }finally{
