@@ -1,3 +1,15 @@
+# LAB / DEVELOPMENT USE ONLY
+# ============================================================
+# This Dockerfile ships Python source files (.py) without
+# Cython compilation. Python source is human-readable and
+# trivially reversible. Use ONLY for internal lab environments
+# where Cython toolchain is unavailable.
+#
+# For production distribution, use the main Dockerfile, which
+# compiles all modules to native extensions (.so) and deletes
+# the Python source before packaging.
+# ============================================================
+
 ARG PYTHON_IMAGE=python:3.12-slim
 
 FROM ${PYTHON_IMAGE}
