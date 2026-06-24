@@ -338,17 +338,9 @@
     </div>
 
     <div id="ar-error-msg" class="hidden mb-3 p-2 rounded text-xs" style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5"></div>
-    <div id="ar-success-state" class="hidden">
-      <div class="mb-3 p-3 rounded text-xs" style="background:#052e16;border:1px solid #166534;color:#86efac">
-        &#10003; File <strong>varmor-activation-request.json</strong> đã tải về. Nhấn nút bên dưới để mở mail — đính kèm file vừa tải vào và gửi đi.
-      </div>
-      <div class="flex gap-3 justify-end">
-        <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Đóng</button>
-        <a id="ar-mailto-link" href="#" class="btn btn-primary btn-sm">&#9993; Gửi qua Email</a>
-      </div>
-    </div>
-    <div id="ar-form-actions" class="flex gap-3 justify-end">
+    <div class="flex gap-3 justify-end">
       <button onclick="closeActivationRequestModal()" class="btn btn-ghost btn-sm">Cancel</button>
+      <button onclick="sendActivationRequestEmail()" class="btn btn-sm" style="border:1px solid #0e7490;color:#22d3ee;background:transparent">&#9993; Send via Email</button>
       <button id="btn-ar-confirm" onclick="confirmDownloadActivationRequest()" class="btn btn-primary btn-sm">Download Request</button>
     </div>
   </div>
