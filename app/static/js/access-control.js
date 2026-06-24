@@ -150,15 +150,61 @@ function downloadActivationRequest(){
   var mp=$("ar-req-max-policies");if(mp) mp.value="500";
   var row=$("ar-custom-days-row");if(row) row.classList.add("hidden");
   var errEl=$("ar-error-msg"); if(errEl) errEl.classList.add("hidden");
-  var btn=$("btn-ar-confirm"); if(btn){btn.disabled=false;btn.textContent="Tai xuong";}
+  var btn=$("btn-ar-confirm"); if(btn){btn.disabled=false;btn.textContent="Download Request";}
   show("modal-activation-request");
   setTimeout(function(){var n=$("ar-contact-name");if(n)n.focus();},80);
 }
 
 function closeActivationRequestModal(){
   hide("modal-activation-request");
-  hide("ar-success-state");
-  show("ar-form-actions");
+}
+
+function sendActivationRequestEmail(){
+  var name   =($("ar-contact-name")||{}).value||"";
+  var company=($("ar-contact-company")||{}).value||"";
+  var taxId  =($("ar-tax-id")||{}).value||"";
+  var email  =($("ar-contact-email")||{}).value||"";
+  var phone  =($("ar-contact-phone")||{}).value||"";
+  var country=($("ar-country")||{}).value||"";
+  var address=($("ar-address")||{}).value||"";
+  var notes  =($("ar-contact-notes")||{}).value||"";
+  var requestType=($("ar-request-type")||{}).value||"new";
+  var edition=($("ar-req-edition")||{}).value||"professional";
+  var durSel =($("ar-req-duration")||{}).value||"365";
+  var days   =durSel==="custom"?parseInt(($("ar-req-custom-days")||{}).value||"0",10):parseInt(durSel,10);
+  var maxNodes   =parseInt(($("ar-req-max-nodes")||{}).value||"0",10);
+  var maxPolicies=parseInt(($("ar-req-max-policies")||{}).value||"0",10);
+  var existingLicenseId=($("ar-existing-license-id")||{}).value||"";
+  var quoteReference=($("ar-quote-reference")||{}).value||"";
+  var errEl=$("ar-error-msg");
+  if(!name.trim()||!company.trim()){
+    showEl(errEl,"Enter organization name and contact name before sending email.");
+    return;
+  }
+  var termLabels={365:"1 year",730:"2 years",1095:"3 years",90:"90 days",30:"30 days"};
+  var termLabel=durSel==="custom"?days+" days":(termLabels[durSel]||days+" days");
+  var subject="ArmorPilot License Request — "+company.trim()+" — "+edition+" — "+requestType;
+  var bodyParts=[
+    "Organization: "+company.trim(),
+    taxId.trim()?"Tax ID: "+taxId.trim():null,
+    "Contact: "+name.trim()+(email.trim()?" <"+email.trim()+">":""),
+    phone.trim()?"Phone: "+phone.trim():null,
+    country.trim()?"Country: "+country.trim():null,
+    address.trim()?"Address: "+address.trim():null,
+    "",
+    "Request Type: "+requestType,
+    "Edition: "+edition,
+    "Term: "+termLabel,
+    "Nodes: "+maxNodes,
+    "Policies: "+maxPolicies,
+    existingLicenseId.trim()?"Existing License ID: "+existingLicenseId.trim():null,
+    quoteReference.trim()?"Quote Reference: "+quoteReference.trim():null,
+    notes.trim()?"\nNotes:\n"+notes.trim():null,
+    "",
+    "---",
+    "Attachment: varmor-activation-request.json (please attach the downloaded file)"
+  ].filter(function(l){return l!==null;}).join("\n");
+  window.location.href="mailto:tuancr2001@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(bodyParts);
 }
 
 async function confirmDownloadActivationRequest(){
@@ -236,33 +282,7 @@ async function confirmDownloadActivationRequest(){
     a.download="varmor-activation-request.json";
     document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 
-    var termLabels={365:"1 year",730:"2 years",1095:"3 years",90:"90 days",30:"30 days"};
-    var termLabel=durSel==="custom"?days+" days":(termLabels[durSel]||days+" days");
-    var subject="ArmorPilot License Request — "+company.trim()+" — "+edition+" — "+requestType;
-    var bodyParts=[
-      "Organization: "+company.trim(),
-      taxId.trim()?"Tax ID: "+taxId.trim():null,
-      "Contact: "+name.trim()+" <"+email.trim()+">",
-      phone.trim()?"Phone: "+phone.trim():null,
-      country.trim()?"Country: "+country.trim():null,
-      address.trim()?"Address: "+address.trim():null,
-      "",
-      "Request Type: "+requestType,
-      "Edition: "+edition,
-      "Term: "+termLabel,
-      "Nodes: "+maxNodes,
-      "Policies: "+maxPolicies,
-      existingLicenseId.trim()?"Existing License ID: "+existingLicenseId.trim():null,
-      quoteReference.trim()?"Quote Reference: "+quoteReference.trim():null,
-      notes.trim()?"\nNotes:\n"+notes.trim():null,
-      "",
-      "---",
-      "Attachment: varmor-activation-request.json (please attach the downloaded file)"
-    ].filter(function(l){return l!==null;}).join("\n");
-    var mailtoEl=$("ar-mailto-link");
-    if(mailtoEl) mailtoEl.href="mailto:tuancr2001@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(bodyParts);
-    hide("ar-form-actions");
-    show("ar-success-state");
+    closeActivationRequestModal();
   }catch(e){
     showEl(errEl,e.message||"Failed to create activation request.");
   }finally{
