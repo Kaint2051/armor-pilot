@@ -10,7 +10,7 @@ var editMode=null; // {name, ns, scope} when editing
 var CURRENT_TAB="policy";
 var CURRENT_LICENSE=null;
 function switchTab(tab){
-  ["dashboard","policy","logs","users"].forEach(function(t){
+  ["dashboard","policy","logs","users","guide"].forEach(function(t){
     var p=$("tab-"+t);
     if(p) p.classList.toggle("hidden",t!==tab);
     var b=$("tab-btn-"+t);
