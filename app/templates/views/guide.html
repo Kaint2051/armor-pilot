@@ -1,0 +1,259 @@
+<!-- ═══════════════ TAB: GUIDE ═══════════════ -->
+    <div id="tab-guide" class="hidden max-w-screen-2xl mx-auto w-full px-6 py-6">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-bold flex items-center gap-2" style="color:#f1f5f9">
+          <svg class="w-5 h-5" style="color:#a78bfa" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          License Guide
+        </h2>
+        <span class="text-xs px-2 py-1 rounded-md" style="background:#1e293b;color:#64748b">ArmorPilot Enterprise</span>
+      </div>
+
+      <!-- Overview banner -->
+      <div class="rounded-xl p-4 mb-6 flex items-start gap-3" style="background:linear-gradient(135deg,#1e1b4b 0%,#1e293b 100%);border:1px solid #312e81">
+        <svg class="w-5 h-5 mt-0.5 shrink-0" style="color:#818cf8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <p class="text-sm font-semibold mb-1" style="color:#c7d2fe">How ArmorPilot licensing works</p>
+          <p class="text-xs leading-relaxed" style="color:#94a3b8">
+            ArmorPilot uses a request-and-activate model. You generate an activation request tied to your installation ID,
+            send it to the vendor, and receive a license key in return. The key is then pasted into the console to unlock enterprise features.
+          </p>
+        </div>
+      </div>
+
+      <!-- Two-step layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- ── STEP 1: REQUEST ── -->
+        <section class="card" style="padding:1.5rem">
+          <div class="flex items-center gap-3 mb-5 pb-4" style="border-bottom:1px solid #1e293b">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold" style="background:#312e81;color:#818cf8">1</div>
+            <div>
+              <h3 class="text-base font-semibold" style="color:#f1f5f9">Request a License</h3>
+              <p class="text-xs" style="color:#64748b">Fill in your organization details and send the request</p>
+            </div>
+          </div>
+
+          <!-- Step 1a -->
+          <div class="flex gap-3 mb-5">
+            <div class="shrink-0 flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#a78bfa;border:1px solid #4338ca">a</div>
+              <div class="w-px flex-1 mt-2" style="background:#1e293b"></div>
+            </div>
+            <div class="pb-5">
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Go to Access Control → License</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                In the top navigation, click <span class="px-1 py-0.5 rounded text-xs font-mono" style="background:#1e293b;color:#94a3b8">Access Control</span>,
+                then in the sub-navigation click <span class="px-1 py-0.5 rounded text-xs font-mono" style="background:#1e293b;color:#94a3b8">License</span>.
+              </p>
+              <button onclick="switchTab('users');switchAcView('license')" class="mt-2 btn btn-ghost btn-sm" style="font-size:.75rem">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Open License page
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 1b -->
+          <div class="flex gap-3 mb-5">
+            <div class="shrink-0 flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#a78bfa;border:1px solid #4338ca">b</div>
+              <div class="w-px flex-1 mt-2" style="background:#1e293b"></div>
+            </div>
+            <div class="pb-5">
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Click "Download Activation Request"</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                This opens the <strong style="color:#c7d2fe">Request a License</strong> form. Fill in your organization name, contact person, email,
+                edition (Professional / Enterprise), duration, and number of nodes.
+              </p>
+              <div class="mt-2 rounded-lg p-3 text-xs" style="background:#0f172a;border:1px solid #1e293b;color:#94a3b8;line-height:1.6">
+                <span style="color:#818cf8">Required fields:</span> Organization name, Contact name<br>
+                <span style="color:#818cf8">Optional:</span> Tax ID, Phone, Country, Address, Notes
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1c -->
+          <div class="flex gap-3 mb-5">
+            <div class="shrink-0 flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#a78bfa;border:1px solid #4338ca">c</div>
+              <div class="w-px flex-1 mt-2" style="background:#1e293b"></div>
+            </div>
+            <div class="pb-5">
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Send via Email <em style="color:#64748b;font-style:normal">or</em> Download</p>
+              <p class="text-xs leading-relaxed mb-2" style="color:#64748b">At the bottom of the form you have two options:</p>
+              <div class="space-y-2 text-xs">
+                <div class="flex items-start gap-2 rounded-lg p-2" style="background:#0f172a;border:1px solid #0e7490">
+                  <span class="shrink-0" style="color:#22d3ee">✉</span>
+                  <div>
+                    <span class="font-semibold" style="color:#22d3ee">Send via Email</span> — opens your mail client with the form pre-filled.
+                    Attach the downloaded <code style="color:#94a3b8">varmor-activation-request.json</code> before sending.
+                  </div>
+                </div>
+                <div class="flex items-start gap-2 rounded-lg p-2" style="background:#0f172a;border:1px solid #334155">
+                  <span class="shrink-0" style="color:#60a5fa">⬇</span>
+                  <div>
+                    <span class="font-semibold" style="color:#60a5fa">Download Request</span> — saves
+                    <code style="color:#94a3b8">varmor-activation-request.json</code> to your computer,
+                    then closes the modal. Attach this file to your email manually.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1d -->
+          <div class="flex gap-3">
+            <div class="shrink-0">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#a78bfa;border:1px solid #4338ca">d</div>
+            </div>
+            <div>
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Send email to vendor</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                Send the email (with the JSON file attached) to
+                <a href="mailto:tuancr2001@gmail.com" class="underline" style="color:#818cf8">tuancr2001@gmail.com</a>.
+                The vendor will verify the request and reply with a license key.
+              </p>
+              <div class="mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs" style="background:#0f172a;border:1px solid #1e293b;color:#64748b">
+                <svg class="w-3.5 h-3.5 shrink-0" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Typical response time: 1–2 business days
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── STEP 2: ACTIVATE ── -->
+        <section class="card" style="padding:1.5rem">
+          <div class="flex items-center gap-3 mb-5 pb-4" style="border-bottom:1px solid #1e293b">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold" style="background:#064e3b;color:#34d399">2</div>
+            <div>
+              <h3 class="text-base font-semibold" style="color:#f1f5f9">Activate a License</h3>
+              <p class="text-xs" style="color:#64748b">Paste the key you received from the vendor</p>
+            </div>
+          </div>
+
+          <!-- Step 2a -->
+          <div class="flex gap-3 mb-5">
+            <div class="shrink-0 flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#34d399;border:1px solid #065f46">a</div>
+              <div class="w-px flex-1 mt-2" style="background:#1e293b"></div>
+            </div>
+            <div class="pb-5">
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Check your email for the license key</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                The vendor will reply with a license key in the body of the email. It starts with
+                <code class="px-1 rounded" style="background:#0f172a;color:#34d399">ARMORPILOT1.</code> followed by two base64 segments separated by dots.
+              </p>
+              <div class="mt-2 rounded-lg p-2 overflow-x-auto text-xs font-mono" style="background:#0f172a;border:1px solid #1e293b;color:#475569">
+                <span style="color:#34d399">ARMORPILOT1</span>.<span style="color:#60a5fa">eyJjdXN0b21lcil6Ii4uLiJ9</span>.<span style="color:#fbbf24">signature…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2b -->
+          <div class="flex gap-3 mb-5">
+            <div class="shrink-0 flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#34d399;border:1px solid #065f46">b</div>
+              <div class="w-px flex-1 mt-2" style="background:#1e293b"></div>
+            </div>
+            <div class="pb-5">
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Go to Access Control → License</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                Click <span class="px-1 py-0.5 rounded text-xs font-mono" style="background:#1e293b;color:#94a3b8">Access Control</span> in the header,
+                then <span class="px-1 py-0.5 rounded text-xs font-mono" style="background:#1e293b;color:#94a3b8">License</span> in the sub-navigation.
+              </p>
+              <button onclick="switchTab('users');switchAcView('license')" class="mt-2 btn btn-ghost btn-sm" style="font-size:.75rem">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Open License page
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2c -->
+          <div class="flex gap-3 mb-5">
+            <div class="shrink-0 flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#34d399;border:1px solid #065f46">c</div>
+              <div class="w-px flex-1 mt-2" style="background:#1e293b"></div>
+            </div>
+            <div class="pb-5">
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Paste the key into "Install License"</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                In the <strong style="color:#c7d2fe">Install License</strong> card on the right side, paste the full license key
+                (the entire <code style="color:#94a3b8">ARMORPILOT1.xxx.yyy</code> string) into the text box.
+              </p>
+              <div class="mt-2 rounded-lg p-2 text-xs" style="background:#0f172a;border:1px solid #1e293b;color:#64748b;line-height:1.6">
+                Paste the <em>complete</em> key — do not trim any characters.
+                Legacy signed JSON format is also accepted if provided by the vendor.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2d -->
+          <div class="flex gap-3">
+            <div class="shrink-0">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:#1e293b;color:#34d399;border:1px solid #065f46">d</div>
+            </div>
+            <div>
+              <p class="text-sm font-medium mb-1" style="color:#e2e8f0">Click "Save License"</p>
+              <p class="text-xs leading-relaxed" style="color:#64748b">
+                Click the <span class="px-1.5 py-0.5 rounded text-xs font-semibold" style="background:#1d4ed8;color:#fff">Save License</span> button.
+                The License Status card will refresh and display your plan details, expiry date, node limit, and enabled features.
+              </p>
+              <div class="mt-3 space-y-1.5 text-xs">
+                <div class="flex items-center gap-2" style="color:#64748b">
+                  <svg class="w-3.5 h-3.5 shrink-0" style="color:#4ade80" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  License Status card shows edition, expiry, node &amp; policy limits
+                </div>
+                <div class="flex items-center gap-2" style="color:#64748b">
+                  <svg class="w-3.5 h-3.5 shrink-0" style="color:#4ade80" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  Header badge updates to your edition (e.g. <span style="color:#fbbf24">Enterprise</span>)
+                </div>
+                <div class="flex items-center gap-2" style="color:#64748b">
+                  <svg class="w-3.5 h-3.5 shrink-0" style="color:#4ade80" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  All enterprise features are immediately available
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- FAQ / Troubleshooting -->
+      <section class="card mt-6" style="padding:1.5rem">
+        <h3 class="text-base font-semibold mb-4 flex items-center gap-2" style="color:#f1f5f9">
+          <svg class="w-4 h-4" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Troubleshooting
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-xs">
+          <div class="rounded-lg p-3" style="background:#0f172a;border:1px solid #1e293b">
+            <p class="font-semibold mb-1" style="color:#fbbf24">"Invalid license" error after Save</p>
+            <p style="color:#64748b;line-height:1.6">Make sure the key was not wrapped to a new line by your email client. Copy the entire key as a single line with no spaces.</p>
+          </div>
+          <div class="rounded-lg p-3" style="background:#0f172a;border:1px solid #1e293b">
+            <p class="font-semibold mb-1" style="color:#fbbf24">"License does not match installation" error</p>
+            <p style="color:#64748b;line-height:1.6">The license is bound to your Installation ID. If you re-installed or migrated the server, you need to request a new license with the new Installation ID.</p>
+          </div>
+          <div class="rounded-lg p-3" style="background:#0f172a;border:1px solid #1e293b">
+            <p class="font-semibold mb-1" style="color:#fbbf24">Email client did not open after "Send via Email"</p>
+            <p style="color:#64748b;line-height:1.6">Your browser may have blocked the mailto: link. Use "Download Request" instead and email the JSON file manually to <span style="color:#818cf8">tuancr2001@gmail.com</span>.</p>
+          </div>
+          <div class="rounded-lg p-3" style="background:#0f172a;border:1px solid #1e293b">
+            <p class="font-semibold mb-1" style="color:#fbbf24">License expired</p>
+            <p style="color:#64748b;line-height:1.6">Request a renewal license using the same flow. Select "Renewal" as the request type in the form. Your existing Installation ID stays the same.</p>
+          </div>
+          <div class="rounded-lg p-3" style="background:#0f172a;border:1px solid #1e293b">
+            <p class="font-semibold mb-1" style="color:#fbbf24">Approaching node or policy limit</p>
+            <p style="color:#64748b;line-height:1.6">Check the License Status card for current usage. Remove unused policies or request an upgrade to increase limits.</p>
+          </div>
+          <div class="rounded-lg p-3" style="background:#0f172a;border:1px solid #1e293b">
+            <p class="font-semibold mb-1" style="color:#fbbf24">Where is the Installation ID?</p>
+            <p style="color:#64748b;line-height:1.6">Go to Access Control → License. Click "Copy Installation ID". It is automatically included in the activation request JSON file.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
