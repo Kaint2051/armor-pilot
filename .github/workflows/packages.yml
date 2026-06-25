@@ -75,10 +75,12 @@ jobs:
           mkdir -p pkg-root/opt/armor-pilot
           mkdir -p pkg-root/etc/armor-pilot
           mkdir -p pkg-root/usr/bin
+          mkdir -p pkg-root/usr/lib/systemd/system
 
           cp -r dist/armor-pilot/* pkg-root/opt/armor-pilot/
 
-          cp packaging/armor-pilot.env pkg-root/etc/armor-pilot/armor-pilot.env
+          cp packaging/armor-pilot.env  pkg-root/etc/armor-pilot/armor-pilot.env
+          cp packaging/armor-pilot.service pkg-root/usr/lib/systemd/system/armor-pilot.service
 
           printf '#!/bin/sh\nexec /opt/armor-pilot/armor-pilot "$@"\n' \
             > pkg-root/usr/bin/armor-pilot
@@ -99,7 +101,6 @@ jobs:
             --license "Apache-2.0" \
             --after-install packaging/deb-postinst.sh \
             --before-remove packaging/deb-prerm.sh \
-            --deb-systemd packaging/armor-pilot.service \
             --config-files /etc/armor-pilot/armor-pilot.env \
             --deb-no-default-config-files \
             -C pkg-root \
