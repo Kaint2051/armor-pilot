@@ -35,7 +35,6 @@ jobs:
         id: ver
         run: |
           RAW="${GITHUB_REF_NAME#v}"
-          # strip any leading "v" and keep only semver digits
           echo "version=${RAW}" >> "$GITHUB_OUTPUT"
 
       - name: Install system + Python build deps
@@ -45,7 +44,6 @@ jobs:
           sudo gem install fpm -v "~> 1.15" --no-document
           pip install --quiet pyinstaller waitress
           pip install --quiet -r requirements.txt
-        working-directory: varmor-console
 
       - name: Prepare runtime sources (${{ matrix.edition }})
         run: |
@@ -55,7 +53,6 @@ jobs:
             --edition "${{ matrix.edition }}" \
             --revision "${{ github.sha }}" \
             --license-public-key "${ARMORPILOT_LICENSE_PUBLIC_KEY_B64}"
-        working-directory: varmor-console
 
       - name: Build PyInstaller bundle (onedir)
         run: |
@@ -68,7 +65,6 @@ jobs:
             --clean \
             --noconfirm \
             tools/launcher_linux.py
-        working-directory: varmor-console
 
       - name: Assemble package tree
         run: |
@@ -85,7 +81,6 @@ jobs:
           printf '#!/bin/sh\nexec /opt/armor-pilot/armor-pilot "$@"\n' \
             > pkg-root/usr/bin/armor-pilot
           chmod 755 pkg-root/usr/bin/armor-pilot
-        working-directory: varmor-console
 
       - name: Build .deb with fpm
         run: |
@@ -105,11 +100,9 @@ jobs:
             --deb-no-default-config-files \
             -C pkg-root \
             .
-        working-directory: varmor-console
 
-      - name: Rename .deb with version suffix
+      - name: Rename .deb with edition suffix
         run: |
-          cd varmor-console
           for f in *.deb; do
             mv "$f" "${f%.deb}_${{ matrix.edition }}.deb" 2>/dev/null || true
           done
@@ -119,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.edition }}
-          path: varmor-console/*.deb
+          path: ./*.deb
           retention-days: 7
 
   # ─────────────────────────────────────────────────────
@@ -155,7 +148,6 @@ jobs:
         run: |
           pip install --quiet pyinstaller waitress
           pip install --quiet -r requirements.txt
-        working-directory: varmor-console
 
       - name: Prepare runtime sources (${{ matrix.edition }})
         shell: pwsh
@@ -166,7 +158,6 @@ jobs:
             --edition "${{ matrix.edition }}" `
             --revision "${{ github.sha }}" `
             --license-public-key "$env:ARMORPILOT_LICENSE_PUBLIC_KEY_B64"
-        working-directory: varmor-console
 
       - name: Build PyInstaller .exe (onefile)
         shell: pwsh
@@ -180,7 +171,6 @@ jobs:
             --clean `
             --noconfirm `
             tools/launcher_win.py
-        working-directory: varmor-console
 
       - name: Package exe + env template
         shell: pwsh
@@ -189,23 +179,20 @@ jobs:
           $version = "${{ steps.ver.outputs.version }}"
           $zipName = "armor-pilot-${version}-windows-amd64-${edition}.zip"
 
-          # Copy env template next to exe
           Copy-Item packaging/armor-pilot.env dist/ArmorPilot.env.example
 
-          # Zip both files for release upload
           Compress-Archive `
             -Path "dist/armor-pilot-${edition}.exe", "dist/ArmorPilot.env.example" `
             -DestinationPath "dist/$zipName"
 
           Write-Host "Created: dist/$zipName"
           Get-ChildItem dist/ | Format-Table Name, Length
-        working-directory: varmor-console
 
       - name: Upload .exe artifact
         uses: actions/upload-artifact@v4
         with:
           name: exe-${{ matrix.edition }}
-          path: varmor-console/dist/*.zip
+          path: dist/*.zip
           retention-days: 7
 
   # ─────────────────────────────────────────────────────
