@@ -1,0 +1,234 @@
+name: Build release packages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ─────────────────────────────────────────────────────
+  # Debian package (Linux x86-64, self-contained via PyInstaller)
+  # ─────────────────────────────────────────────────────
+  build-deb:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [community, enterprise]
+    env:
+      ARMORPILOT_LICENSE_PUBLIC_KEY_B64: ${{ secrets.ARMORPILOT_LICENSE_PUBLIC_KEY_B64 }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Get version string
+        id: ver
+        run: |
+          RAW="${GITHUB_REF_NAME#v}"
+          # strip any leading "v" and keep only semver digits
+          echo "version=${RAW}" >> "$GITHUB_OUTPUT"
+
+      - name: Install system + Python build deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev build-essential
+          sudo gem install fpm -v "~> 1.15" --no-document
+          pip install --quiet pyinstaller waitress
+          pip install --quiet -r requirements.txt
+        working-directory: varmor-console
+
+      - name: Prepare runtime sources (${{ matrix.edition }})
+        run: |
+          python tools/prepare_runtime.py \
+            --source app \
+            --output runtime/app \
+            --edition "${{ matrix.edition }}" \
+            --revision "${{ github.sha }}" \
+            --license-public-key "${ARMORPILOT_LICENSE_PUBLIC_KEY_B64}"
+        working-directory: varmor-console
+
+      - name: Build PyInstaller bundle (onedir)
+        run: |
+          pyinstaller \
+            --onedir \
+            --name armor-pilot \
+            --add-data "runtime/app/templates:app/templates" \
+            --add-data "runtime/app/static:app/static" \
+            --paths runtime \
+            --clean \
+            --noconfirm \
+            tools/launcher_linux.py
+        working-directory: varmor-console
+
+      - name: Assemble package tree
+        run: |
+          mkdir -p pkg-root/opt/armor-pilot
+          mkdir -p pkg-root/etc/armor-pilot
+          mkdir -p pkg-root/usr/bin
+
+          cp -r dist/armor-pilot/* pkg-root/opt/armor-pilot/
+
+          cp packaging/armor-pilot.env pkg-root/etc/armor-pilot/armor-pilot.env
+
+          printf '#!/bin/sh\nexec /opt/armor-pilot/armor-pilot "$@"\n' \
+            > pkg-root/usr/bin/armor-pilot
+          chmod 755 pkg-root/usr/bin/armor-pilot
+        working-directory: varmor-console
+
+      - name: Build .deb with fpm
+        run: |
+          fpm \
+            --input-type dir \
+            --output-type deb \
+            --name "armor-pilot-${{ matrix.edition }}" \
+            --version "${{ steps.ver.outputs.version }}" \
+            --architecture amd64 \
+            --maintainer "ArmorPilot Contributors" \
+            --description "ArmorPilot ${{ matrix.edition }} — Kubernetes Runtime Security Console" \
+            --url "https://github.com/Kaint2051/armor-pilot" \
+            --license "Apache-2.0" \
+            --after-install packaging/deb-postinst.sh \
+            --before-remove packaging/deb-prerm.sh \
+            --deb-systemd packaging/armor-pilot.service \
+            --config-files /etc/armor-pilot/armor-pilot.env \
+            --deb-no-default-config-files \
+            -C pkg-root \
+            .
+        working-directory: varmor-console
+
+      - name: Rename .deb with version suffix
+        run: |
+          cd varmor-console
+          for f in *.deb; do
+            mv "$f" "${f%.deb}_${{ matrix.edition }}.deb" 2>/dev/null || true
+          done
+          ls -lh *.deb
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.edition }}
+          path: varmor-console/*.deb
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────
+  # Windows .exe (single-file, self-contained via PyInstaller)
+  # ─────────────────────────────────────────────────────
+  build-exe:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [community, enterprise]
+    env:
+      ARMORPILOT_LICENSE_PUBLIC_KEY_B64: ${{ secrets.ARMORPILOT_LICENSE_PUBLIC_KEY_B64 }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Get version string
+        id: ver
+        shell: pwsh
+        run: |
+          $raw = $env:GITHUB_REF_NAME -replace '^v', ''
+          "version=$raw" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Install Python build deps
+        shell: pwsh
+        run: |
+          pip install --quiet pyinstaller waitress
+          pip install --quiet -r requirements.txt
+        working-directory: varmor-console
+
+      - name: Prepare runtime sources (${{ matrix.edition }})
+        shell: pwsh
+        run: |
+          python tools/prepare_runtime.py `
+            --source app `
+            --output runtime/app `
+            --edition "${{ matrix.edition }}" `
+            --revision "${{ github.sha }}" `
+            --license-public-key "$env:ARMORPILOT_LICENSE_PUBLIC_KEY_B64"
+        working-directory: varmor-console
+
+      - name: Build PyInstaller .exe (onefile)
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --onefile `
+            --name "armor-pilot-${{ matrix.edition }}" `
+            --add-data "runtime/app/templates;app/templates" `
+            --add-data "runtime/app/static;app/static" `
+            --paths runtime `
+            --clean `
+            --noconfirm `
+            tools/launcher_win.py
+        working-directory: varmor-console
+
+      - name: Package exe + env template
+        shell: pwsh
+        run: |
+          $edition = "${{ matrix.edition }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $zipName = "armor-pilot-${version}-windows-amd64-${edition}.zip"
+
+          # Copy env template next to exe
+          Copy-Item packaging/armor-pilot.env dist/ArmorPilot.env.example
+
+          # Zip both files for release upload
+          Compress-Archive `
+            -Path "dist/armor-pilot-${edition}.exe", "dist/ArmorPilot.env.example" `
+            -DestinationPath "dist/$zipName"
+
+          Write-Host "Created: dist/$zipName"
+          Get-ChildItem dist/ | Format-Table Name, Length
+        working-directory: varmor-console
+
+      - name: Upload .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: exe-${{ matrix.edition }}
+          path: varmor-console/dist/*.zip
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────
+  # GitHub Release — attach all assets
+  # ─────────────────────────────────────────────────────
+  release:
+    needs: [build-deb, build-exe]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets/
+
+      - name: List release assets
+        run: find release-assets/ -type f | sort
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/**/*.deb
+            release-assets/**/*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: false
