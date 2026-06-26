@@ -149,7 +149,7 @@ def _base_status() -> dict[str, Any]:
         "LICENSE_REQUIRE_INSTALLATION_BINDING",
         commercial_build,
     )
-    default_features = ["*"] if developer_build and fail_open else []
+    default_features = []
     return {
         "build_edition": BUILD_EDITION,
         "path": LICENSE_FILE,
@@ -318,11 +318,7 @@ def get_license_status() -> dict[str, Any]:
             status["effective_features"] = ["*"]
         return status
     except Exception as exc:
-        fallback_features = (
-            ["*"]
-            if BUILD_EDITION == "development" and status["fail_open"]
-            else []
-        )
+        fallback_features = []
         status.update({
             "status": "invalid",
             "reason": str(exc),
@@ -372,7 +368,7 @@ def can_add_policies(status: dict[str, Any], count: int = 1) -> tuple[bool, str 
         return True, None
     if not status.get("valid"):
         # When no valid license: respect fail_open — fail-closed deployments block everything
-        if not status.get("fail_open", True):
+        if not status.get("fail_open", False):
             return False, "A valid license is required to create policies"
         return True, None
     payload = status.get("payload") or {}
