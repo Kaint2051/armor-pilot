@@ -77,7 +77,6 @@ BUILD_EDITION = {edition!r}
 BUILD_REVISION = {revision!r}
 LICENSE_PUBLIC_KEY = {public_key!r}
 ALLOW_RUNTIME_PUBLIC_KEY_OVERRIDE = False
-ALLOW_HS256_LICENSES = False
 BUILTIN_TRIAL_CAPABLE = False
 '''
     path.write_text(content, encoding="utf-8", newline="\n")

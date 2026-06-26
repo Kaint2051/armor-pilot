@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from .build_profile import (
-    ALLOW_RUNTIME_PUBLIC_KEY_OVERRIDE,
     BUILD_EDITION,
     BUILTIN_TRIAL_CAPABLE,
     LICENSE_PUBLIC_KEY,
@@ -87,8 +86,6 @@ def parse_license_text(raw: str) -> dict[str, Any]:
 
 def _load_ed25519_public_key():
     public_key = LICENSE_PUBLIC_KEY.strip()
-    if ALLOW_RUNTIME_PUBLIC_KEY_OVERRIDE and get_product_bool_env("LICENSE_ALLOW_ENV_PUBLIC_KEY", False):
-        public_key = get_product_env("LICENSE_PUBLIC_KEY").strip() or public_key
     if not public_key:
         raise ValueError("license public key is not configured")
     try:
