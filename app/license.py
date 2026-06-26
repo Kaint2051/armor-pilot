@@ -1,14 +1,12 @@
 import base64
 import binascii
 import datetime as dt
-import hashlib
 import hmac
 import json
 from pathlib import Path
 from typing import Any
 
 from .build_profile import (
-    ALLOW_HS256_LICENSES,
     ALLOW_RUNTIME_PUBLIC_KEY_OVERRIDE,
     BUILD_EDITION,
     BUILTIN_TRIAL_CAPABLE,
@@ -86,16 +84,6 @@ def parse_license_text(raw: str) -> dict[str, Any]:
     return doc
 
 
-def _verify_hs256(payload: dict[str, Any], signature: str) -> None:
-    if not ALLOW_HS256_LICENSES or not get_product_bool_env("LICENSE_ALLOW_HS256", False):
-        raise ValueError("HS256 licenses are disabled")
-    secret = get_product_env("LICENSE_HMAC_SECRET")
-    if not secret:
-        raise ValueError("ARMORPILOT_LICENSE_HMAC_SECRET is not configured")
-    expected = hmac.new(secret.encode("utf-8"), _canonical_payload(payload), hashlib.sha256).digest()
-    if not hmac.compare_digest(expected, _b64url_decode(signature)):
-        raise ValueError("license signature is invalid")
-
 
 def _load_ed25519_public_key():
     public_key = LICENSE_PUBLIC_KEY.strip()
@@ -159,7 +147,7 @@ def _base_status() -> dict[str, Any]:
     commercial_build = BUILD_EDITION == "enterprise"
     developer_build = BUILD_EDITION == "development"
     required = get_product_bool_env("LICENSE_REQUIRED", commercial_build)
-    fail_open = get_product_bool_env("LICENSE_FAIL_OPEN", developer_build)
+    fail_open = get_product_bool_env("LICENSE_FAIL_OPEN", False)
     binding_required = get_product_bool_env(
         "LICENSE_REQUIRE_INSTALLATION_BINDING",
         commercial_build,
@@ -198,8 +186,6 @@ def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
 
     if algorithm == "Ed25519":
         _verify_ed25519(payload, signature)
-    elif algorithm == "HS256":
-        _verify_hs256(payload, signature)
     else:
         raise ValueError(f"unsupported license algorithm: {algorithm}")
 
