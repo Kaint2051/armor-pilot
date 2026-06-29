@@ -279,6 +279,15 @@ def create_activation_request(
         "generated_at": _utc_now_text(),
         "nonce": secrets.token_urlsafe(24),
     }
+    # Collect hardware fingerprint for license binding.
+    # Failures are non-fatal — the vendor simply won't embed bound_fingerprint.
+    try:
+        from .fingerprint import collect as _collect_fp, compute_hash as _fp_hash
+        fp = _collect_fp()
+        payload["hardware_fingerprint"] = _fp_hash(fp)
+        payload["hardware_info"] = fp
+    except Exception:
+        pass
     if customer_request is not None:
         payload["customer_request"] = normalize_customer_request(customer_request)
     return {

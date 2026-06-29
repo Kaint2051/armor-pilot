@@ -130,6 +130,7 @@ def _safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "limits": payload.get("limits") or {},
         "cluster_uid": payload.get("cluster_uid"),
         "installation_id": payload.get("installation_id"),
+        "bound_fingerprint": payload.get("bound_fingerprint"),
     }
 
 
@@ -217,6 +218,18 @@ def verify_license_document(doc: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(f"installation identity is unavailable: {exc}") from exc
         if not hmac.compare_digest(expected_installation, runtime_installation):
             raise ValueError("license installation_id does not match this installation")
+
+    expected_fp = str(payload.get("bound_fingerprint") or "").strip().lower()
+    if expected_fp:
+        try:
+            from .fingerprint import get_current_fingerprint_hash
+            current_fp = get_current_fingerprint_hash()
+        except Exception as exc:
+            raise ValueError(f"cannot verify hardware binding: {exc}") from exc
+        if not hmac.compare_digest(expected_fp, current_fp):
+            raise ValueError(
+                "license is bound to different hardware — request a new license"
+            )
 
     return {
         "payload": payload,

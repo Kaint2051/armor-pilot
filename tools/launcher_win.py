@@ -51,6 +51,10 @@ def _set_windows_data_defaults():
         os.environ["DB_PATH"] = os.path.join(data_dir, "users.db")
     if not os.environ.get("ARMORPILOT_LICENSE_FILE"):
         os.environ["ARMORPILOT_LICENSE_FILE"] = os.path.join(data_dir, "license.json")
+    if not os.environ.get("ARMORPILOT_INSTALLATION_KEY_FILE"):
+        os.environ["ARMORPILOT_INSTALLATION_KEY_FILE"] = os.path.join(data_dir, "installation-private.pem")
+    if not os.environ.get("ARMORPILOT_INSTALLATION_METADATA_FILE"):
+        os.environ["ARMORPILOT_INSTALLATION_METADATA_FILE"] = os.path.join(data_dir, "installation.json")
 
 
 def _ensure_first_run_config():
