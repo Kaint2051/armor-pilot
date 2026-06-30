@@ -103,13 +103,9 @@ def _ensure_first_run_config():
 # Server + browser
 # ---------------------------------------------------------------------------
 
-PORT = int(os.environ.get("PORT", "5000"))
-HOST = os.environ.get("HOST", "0.0.0.0")
-
-
-def _open_browser():
+def _open_browser(port: int) -> None:
     time.sleep(2)
-    webbrowser.open(f"http://127.0.0.1:{PORT}")
+    webbrowser.open(f"http://127.0.0.1:{port}")
 
 
 def main():
@@ -118,15 +114,19 @@ def main():
     _set_windows_data_defaults()
     _ensure_first_run_config()
 
+    # Read PORT/HOST after env files are loaded so ArmorPilot.env values apply.
+    port = int(os.environ.get("PORT", "5000"))
+    host = os.environ.get("HOST", "0.0.0.0")
+
     from app.main import app as flask_app
     from waitress import serve
 
-    print(f"[ArmorPilot] Listening on http://localhost:{PORT}")
+    print(f"[ArmorPilot] Listening on http://localhost:{port}")
     print("[ArmorPilot] Press Ctrl+C to stop.")
     sys.stdout.flush()
 
-    threading.Thread(target=_open_browser, daemon=True).start()
-    serve(flask_app, host=HOST, port=PORT, threads=4)
+    threading.Thread(target=_open_browser, args=(port,), daemon=True).start()
+    serve(flask_app, host=host, port=port, threads=4)
 
 
 if __name__ == "__main__":
