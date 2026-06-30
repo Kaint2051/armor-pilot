@@ -1,0 +1,18 @@
+Package: armor-pilot
+Version: 0.3.8
+Section: admin
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.17)
+Maintainer: VNNIC Lab <tructet@vnnic.vn>
+Homepage: https://github.com/Kaint2051/armor-pilot
+Description: ArmorPilot - Kubernetes Runtime Security Console
+ Web-based management console for vArmor/ArmorPilot Kubernetes security
+ policies. Provides a browser UI to create, review, approve and monitor
+ security profiles on your Kubernetes cluster.
+ .
+ Features:
+  - Policy lifecycle management (create, review, approve, reject)
+  - Enterprise license support
+  - Multi-user with role-based access control
+  - Hardware-bound license verification

@@ -1,0 +1,66 @@
+#!/bin/bash
+set -e
+
+# Create dedicated service user (no shell, no home login)
+if ! id armor-pilot &>/dev/null; then
+    useradd \
+        --system \
+        --home-dir /var/lib/armor-pilot \
+        --no-create-home \
+        --shell /usr/sbin/nologin \
+        --comment "ArmorPilot service account" \
+        armor-pilot
+fi
+
+# Create data directory owned by service user
+mkdir -p /var/lib/armor-pilot
+chown armor-pilot:armor-pilot /var/lib/armor-pilot
+chmod 750 /var/lib/armor-pilot
+
+# Create config directory
+mkdir -p /etc/armor-pilot
+
+# Write default config on first install (never overwrite existing config)
+if [ ! -f /etc/armor-pilot/armor-pilot.env ]; then
+    cat > /etc/armor-pilot/armor-pilot.env << 'ENVEOF'
+# ArmorPilot configuration
+# ---------------------------------------------------------------
+# ADMIN_USER and ADMIN_PASS are only used on first startup when
+# no database exists. After the database is created, credentials
+# are stored there and these values are ignored.
+# Change them here before first startup, or use the web UI to
+# reset the password after the service is running.
+# ---------------------------------------------------------------
+ADMIN_USER=admin
+ADMIN_PASS=Admin@ArmorPilot1!
+
+# Listening address and port
+HOST=0.0.0.0
+PORT=5000
+
+# Data directory (default: /var/lib/armor-pilot)
+# ARMORPILOT_DATA_DIR=/var/lib/armor-pilot
+ENVEOF
+    chmod 640 /etc/armor-pilot/armor-pilot.env
+    chown root:armor-pilot /etc/armor-pilot/armor-pilot.env
+fi
+
+# Enable and start service
+if command -v systemctl &>/dev/null; then
+    systemctl daemon-reload
+    systemctl enable armor-pilot.service
+    systemctl start armor-pilot.service
+fi
+
+echo ""
+echo "============================================================"
+echo "  ArmorPilot installed successfully"
+echo "============================================================"
+echo "  Service : sudo systemctl status armor-pilot"
+echo "  Logs    : sudo journalctl -u armor-pilot -f"
+echo "  Config  : /etc/armor-pilot/armor-pilot.env"
+echo "  Data    : /var/lib/armor-pilot/"
+echo ""
+echo "  Default login: admin / Admin@ArmorPilot1!"
+echo "  (set in /etc/armor-pilot/armor-pilot.env before first start)"
+echo "============================================================"

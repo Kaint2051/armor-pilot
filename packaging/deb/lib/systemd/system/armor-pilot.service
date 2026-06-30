@@ -1,0 +1,29 @@
+[Unit]
+Description=ArmorPilot - Kubernetes Runtime Security Console
+After=network.target
+Documentation=https://github.com/Kaint2051/armor-pilot
+
+[Service]
+Type=simple
+User=armor-pilot
+Group=armor-pilot
+EnvironmentFile=-/etc/armor-pilot/armor-pilot.env
+ExecStart=/usr/local/bin/armor-pilot
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=armor-pilot
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/armor-pilot
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
