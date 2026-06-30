@@ -3211,3 +3211,128 @@ def advise_policy(namespace: str, name: str):
         "suggestions": suggestions,
         "total": len(suggestions),
     })
+
+
+# ---------------------------------------------------------------------------
+# System Settings – read / write the env config file at runtime
+# ---------------------------------------------------------------------------
+
+_SETTINGS_ALLOWED_KEYS = frozenset([
+    "HOST", "PORT",
+    "ADMIN_USER", "ADMIN_PASS",
+    "DB_PATH",
+    "ARMORPILOT_DATA_DIR",
+    "APPARMOR_LOG_PATH",
+])
+
+_SETTINGS_SENSITIVE = frozenset(["ADMIN_PASS"])
+
+
+def _parse_env_file(path: str) -> dict:
+    result = {}
+    if not os.path.isfile(path):
+        return result
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "=" in stripped:
+                k, _, v = stripped.partition("=")
+                result[k.strip()] = v.strip()
+    return result
+
+
+def _write_env_file(path: str, updates: dict) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    lines = []
+    if os.path.isfile(path):
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+    written = set()
+    new_lines = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in s:
+            k = s.partition("=")[0].strip()
+            if k in updates:
+                new_lines.append(f"{k}={updates[k]}\n")
+                written.add(k)
+                continue
+        new_lines.append(line)
+
+    for k, v in updates.items():
+        if k not in written:
+            new_lines.append(f"{k}={v}\n")
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+
+
+def _env_file_writable(path: str) -> bool:
+    try:
+        if os.path.isfile(path):
+            return os.access(path, os.W_OK)
+        return os.access(os.path.dirname(os.path.abspath(path)) or ".", os.W_OK)
+    except Exception:
+        return False
+
+
+@api_bp.route("/settings", methods=["GET"])
+@require_admin
+def get_settings():
+    env_file = os.environ.get("ARMORPILOT_ENV_FILE", "")
+    file_vals = _parse_env_file(env_file) if env_file else {}
+
+    settings = {}
+    for k in sorted(_SETTINGS_ALLOWED_KEYS):
+        raw = file_vals.get(k) or os.environ.get(k) or ""
+        settings[k] = "***" if (k in _SETTINGS_SENSITIVE and raw) else raw
+
+    return jsonify({
+        "env_file": env_file,
+        "env_file_exists": bool(env_file and os.path.isfile(env_file)),
+        "writable": _env_file_writable(env_file) if env_file else False,
+        "settings": settings,
+    })
+
+
+@api_bp.route("/settings", methods=["POST"])
+@require_admin
+def save_settings():
+    user = get_current_user()
+    env_file = os.environ.get("ARMORPILOT_ENV_FILE", "")
+    if not env_file:
+        return jsonify({"error": "ARMORPILOT_ENV_FILE is not set — cannot determine config file path."}), 400
+
+    body = request.get_json(force=True) or {}
+    unknown = set(body.keys()) - _SETTINGS_ALLOWED_KEYS
+    if unknown:
+        return jsonify({"error": f"Unknown settings keys: {sorted(unknown)}"}), 400
+
+    if "PORT" in body and body["PORT"] != "":
+        try:
+            p = int(body["PORT"])
+            if not (1 <= p <= 65535):
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "PORT must be an integer between 1 and 65535."}), 400
+
+    to_write = {k: v for k, v in body.items() if v != ""}
+
+    audit_logger.log(
+        user, "SETTINGS_UPDATE", "system", "system", "SUCCESS",
+        "keys=" + ",".join(k if k not in _SETTINGS_SENSITIVE else k + "=***" for k in to_write),
+    )
+
+    try:
+        _write_env_file(env_file, to_write)
+    except PermissionError:
+        return jsonify({"error": f"Permission denied writing to {env_file}. "
+                                  "On Linux run: sudo chown armor-pilot:armor-pilot " + env_file}), 403
+    except Exception as exc:
+        logger.exception("Error writing settings to %s", env_file)
+        return jsonify({"error": str(exc)}), 500
+
+    return jsonify({"ok": True, "restart_required": True})

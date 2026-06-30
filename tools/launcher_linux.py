@@ -67,6 +67,7 @@ def _env_file() -> str:
 
 def _load_env() -> None:
     cfg = _env_file()
+    os.environ.setdefault("ARMORPILOT_ENV_FILE", cfg)
     if os.path.isfile(cfg):
         from dotenv import load_dotenv
         load_dotenv(cfg, override=False)

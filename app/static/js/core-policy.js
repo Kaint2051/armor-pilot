@@ -10,13 +10,14 @@ var editMode=null; // {name, ns, scope} when editing
 var CURRENT_TAB="policy";
 var CURRENT_LICENSE=null;
 function switchTab(tab){
-  ["dashboard","policy","logs","users","guide"].forEach(function(t){
+  ["dashboard","policy","logs","users","guide","settings"].forEach(function(t){
     var p=$("tab-"+t);
     if(p) p.classList.toggle("hidden",t!==tab);
     var b=$("tab-btn-"+t);
     if(b) b.classList.toggle("tab-active",t===tab);
   });
   CURRENT_TAB=tab;
+  if(tab==="settings"){loadSettings();}
   if(tab==="dashboard"){loadDashboard();}
   if(tab==="logs"){
     // hide sub-nav buttons the current user has no permission to access
@@ -95,6 +96,9 @@ var _validatedOk=false; // true after successful validate
 
 function applyRoleUi(){
   var admin=isAdmin(),submit=canSubmit();
+  // Settings tab: only admins can access system settings
+  var settingsBtn=$("tab-btn-settings");
+  if(settingsBtn) settingsBtn.classList.toggle("hidden",!admin);
   var form=$("form-create");
   if(form){
     form.querySelectorAll("input,select,textarea").forEach(function(el){el.disabled=!submit;});

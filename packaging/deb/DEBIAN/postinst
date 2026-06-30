@@ -41,8 +41,8 @@ PORT=5000
 # Data directory (default: /var/lib/armor-pilot)
 # ARMORPILOT_DATA_DIR=/var/lib/armor-pilot
 ENVEOF
-    chmod 640 /etc/armor-pilot/armor-pilot.env
-    chown root:armor-pilot /etc/armor-pilot/armor-pilot.env
+    chmod 600 /etc/armor-pilot/armor-pilot.env
+    chown armor-pilot:armor-pilot /etc/armor-pilot/armor-pilot.env
 fi
 
 # Enable and start service

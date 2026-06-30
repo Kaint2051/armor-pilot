@@ -36,6 +36,7 @@ def _setup_paths():
 def _load_env():
     """Load ArmorPilot.env from the .exe directory if present."""
     env_file = os.path.join(_exe_dir(), "ArmorPilot.env")
+    os.environ.setdefault("ARMORPILOT_ENV_FILE", env_file)
     if os.path.isfile(env_file):
         from dotenv import load_dotenv
         load_dotenv(env_file, override=False)
