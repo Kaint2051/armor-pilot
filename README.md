@@ -61,7 +61,7 @@ paths in the same step.
 Full YAML preview before submission. Choose between **Apply Directly** (admin
 fast-path) or **Submit for Review** (four-eyes workflow).
 
-![Review & Apply](img/policyreview-apply.png)
+![Review & Apply](img/checkpolicy.png)
 
 ---
 
@@ -78,7 +78,7 @@ workload.
 Pending submissions show full spec preview, timeline, and approve/reject
 controls. Approving immediately pushes the CRD to the cluster.
 
-![Policy Review](img/checkpolicy.png)
+![Policy Review](img/policyreview-apply.png)
 
 ---
 
