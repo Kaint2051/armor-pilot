@@ -61,7 +61,7 @@ paths in the same step.
 Full YAML preview before submission. Choose between **Apply Directly** (admin
 fast-path) or **Submit for Review** (four-eyes workflow).
 
-![Review & Apply](img/policy review-apply.png)
+![Review & Apply](img/policy)review-apply.png)
 
 ---
 
