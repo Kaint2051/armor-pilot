@@ -44,7 +44,7 @@ Select the enforcement mode (EnhanceProtect, DefenseInDepth, BehaviorModeling,
 AlwaysAllow) and combine kernel enforcers. Auto-restart patches the target
 deployment without manual `kubectl rollout`.
 
-![Mode & Enforcers](img/create policy.png)
+![Mode & Enforcers](img/createpolicy.png)
 
 ---
 
@@ -53,7 +53,7 @@ Granular rule selection across AppArmor, Seccomp, BPF, and NetworkProxy tabs.
 Checkbox UI with inline risk labels. Custom capability drops and banned file
 paths in the same step.
 
-![Rules](img/edit policy.png)
+![Rules](img/editpolicy.png)
 
 ---
 
@@ -61,7 +61,7 @@ paths in the same step.
 Full YAML preview before submission. Choose between **Apply Directly** (admin
 fast-path) or **Submit for Review** (four-eyes workflow).
 
-![Review & Apply](img/policy)review-apply.png)
+![Review & Apply](img/policyreview-apply.png)
 
 ---
 
@@ -78,7 +78,7 @@ workload.
 Pending submissions show full spec preview, timeline, and approve/reject
 controls. Approving immediately pushes the CRD to the cluster.
 
-![Policy Review](img/check policy.png)
+![Policy Review](img/checkpolicy.png)
 
 ---
 
