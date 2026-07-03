@@ -14,3 +14,17 @@ customer-license*.json
 test-*-license.json
 varmor-activation-request*.json
 *.key
+
+# Local runtime data — private keys, user DB, never commit.
+data/
+
+# PyInstaller build output and staged runtime sources.
+build/
+dist/
+runtime/
+armor-pilot-community.spec
+
+# Local run artifacts.
+*.log
+*.err
+fingerprint_test_windows.json
