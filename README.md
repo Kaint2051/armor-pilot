@@ -203,6 +203,7 @@ Control screen.
 
 | Document | Description |
 |---|---|
+| [Deployment Guide](docs/DEPLOYMENT.md) | Step-by-step Kubernetes, Linux (.deb), Windows (.exe), and local development deployment |
 | [System Overview](docs/SYSTEM_OVERVIEW.md) | Architecture, components, policy modes, enforcement engines, RBAC, and API endpoints |
 | [User Guide](docs/USER_GUIDE.md) | Login, dashboard, policy management, backup and restore, license management, and audit logs |
 | [Open Core Model](docs/OPEN_CORE.md) | Community vs Enterprise edition split and template pack catalogue |
